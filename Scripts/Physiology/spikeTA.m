@@ -1,11 +1,11 @@
 monkey ='Gilligan';
-sessionDate ='06_03_2019';
+sessionDate ='05_31_2019';
 msWind = [-30 50];
 trigs = -40:1:40;
 testWindow = [5 15];
 preWindow = [-20 -5];
 smoothKernel = 5;
-minSpikes = 200;
+minSpikes = 50;
 spikeORstim = "stim";
 plotISA = true;
 saveDir = 'S:\Lab\ngc14\Working\EMG_UNITS\Stim_Triggered\';
@@ -39,18 +39,20 @@ if(strcmpi(spikeORstim,"stim"))
         [~, eventEntityInfo] = ns_GetEntityInfo(hFile, eventEntityID(e));
         numCount = eventEntityInfo.ItemCount;
         ch = eventEntityInfo.EntityLabel;
-        eventTimeStamps= NaN(1,numCount);
+        [eventTimeStamps]= deal(NaN(1,numCount));
+        eventData = cell(1,numCount);
         for i = 1:numCount
             if(strcmpi(hFile.Entity(eventEntityID(e)).EntityType,"Segment"))
                 [~,eventTimeStamps(i),~,~,~] = ns_GetSegmentData(hFile,eventEntityID(e),i);
             else
-                [~, eventTimeStamps(i),~, ~] = ns_GetEventData(hFile, eventEntityID(e), i);
+                [~, eventTimeStamps(i),eventData{i}, ~] = ns_GetEventData(hFile, eventEntityID(e), i);
             end
         end
         if(strcmpi(hFile.Entity(eventEntityID(e)).EntityType,"Segment"))
-            trainStart = find(diff(eventTimeStamps)>0.4);
+            trainStart = find([1,diff(eventTimeStamps)>.05]==1);
         else
-            trainStart = find(diff(eventTimeStamps)>.2);
+            eventTimeStamps = eventTimeStamps(cell2mat(eventData)>0);
+            trainStart = find([1,diff(eventTimeStamps)>.2]==1);
         end
         spikeChannels{str2double(ch(end-1:end))} = eventTimeStamps(trainStart);
         spikeSegs{str2double(ch(end-1:end))} = eventTimeStamps;
@@ -171,19 +173,16 @@ for s=1:length(spikeTimes)
     tic
     for m = 1:length(channelNum)
         muscle = muscles{m};
+        tSpikes = cell(1,length(aSpikes));
         if(strcmpi(spikeORstim,"stim"))
             nFiles = dir(['S:\Lab\',monkey,'\All Data\',monkey,'_', sessionDateF, '\EMG\']);
             nf3FilesInd = find(cellfun(@(a) strcmp(a(regexp(a, '\.'):end), '.nf3'), {nFiles.name}));
             nf3FilesInd = nf3FilesInd(contains(cellfun(@(e) extractBefore(extractAfter(e,"stim_"),characterListPattern(".")),{nFiles(nf3FilesInd).name},'UniformOutput',false),...
                 extract(extractAfter(hFile.Name,"stim_"),digitsPattern)));
             if(~isempty(nf3FilesInd))
-                nf3Files = nFiles(nf3FilesInd);
-                [~, nf3Ind] = max([nf3Files.bytes]);
-                nf3DotInd = regexp(nf3Files(nf3Ind).name, '\.');
-                nf3FileNumber = nf3Files(nf3Ind).name(nf3DotInd-1);
-                filePath = dir(['S:\Lab\',monkey,'\All Data\',monkey,'_',sessionDateF,'\EMG\*000',num2str(nf3FileNumber),'.nf3']);
-                filePath = [filePath(nf3Ind).folder, '\' filePath(nf3Ind).name];
-                [voltData, dataTimes, Fs, ~, ~ ] = loadRippleData(char(filePath),channelNum(m));
+                nf3DotInd = regexp(nFiles(nf3FilesInd).name, '[_.]','split');
+                nf3FileNumber = str2double(nf3DotInd{end-1});
+                [voltData, dataTimes, Fs, ~, ~ ] = loadRippleData([nFiles(nf3FilesInd).folder,'\',nFiles(nf3FilesInd).name],channelNum(m));
                 voltData = {voltData};
                 cSpikes = aSpikes;
                 nFrags = length(cSpikes);
@@ -195,6 +194,7 @@ for s=1:length(spikeTimes)
                     tSpikes{p} = [aSegs{startInd:nextInd-1}]-aSpikes{p};
                     startInd = nextInd;
                 end
+                tSpikes{p+1} = [aSegs{startInd:end}]-aSpikes{end};
             end
         else
             if(~exist(['S:\Lab\',monkey,'\All Data\',monkey,'_', sessionDateF, '\EMG\All_Trials\'],'dir'))
@@ -278,8 +278,8 @@ save([saveDir,sessionDateF,'\unitXmuscle.mat'],'unitXmuscle','spkChannel','unitN
 function plotISAFigs(mind,unitN,spks,muscleTitle,frags,xLab)
 if(mind==4)
     subplot(2,4,4);hold on;
-    title(["Channel "+num2str(mind)+" Unit #"+num2str(unitN)+": "+ num2str(length(spks))+ " trials,"+...
-        num2str(sum(cellfun(@length, spks)))+ " spikes"]);
+    title(["Channel "+num2str(mind)+" Unit #"+num2str(unitN)+": "+ num2str(length(spks)/length(unique(cellfun(@length,spks)))) + " trials,"+...
+        num2str(unique(cellfun(@length, spks)))+ " spikes"]);
     cellfun(@(x,y) arrayfun(@(xx)plot([xx,xx],[y-1,y],'k'), x(1:min(length(x),100))),...
         reshape(cellfun(@(m) round(m,3), spks, 'UniformOutput',false),1,[]),num2cell(1:length(spks)));
     xlim([-.005 .1]);

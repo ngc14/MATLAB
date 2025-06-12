@@ -1,6 +1,8 @@
-date = '06_13_2019';
+date = '05_31_2019';
 monkey = 'Gilligan';
 binSize=.01; % bin size in seconds
+alignSegsConds = {["StartReach","StartHold","StartWithdraw"],["StartReach","StartHold","StartWithdraw"],...
+    ["StartReach","StartHold","StartWithdraw"],["GoSignal"]};
 alignLimits = {[-.5, .15], [-.25, .25],[-.15,.5]};
 colors = [[224,144,38]./255; 0 1 0; 0 0 1; 1 0 1];
 sigma = 5; % smoothing window in bin sizes
@@ -15,24 +17,24 @@ sessionDir = sessionDir(sortInd);
 MIN_BLOCKS_FOR_UNIT=15;
 set(0, 'DefaultFigureRenderer', 'painters');
 for f = 1:length(sessionDir)+1
-    goodUnitsOnChannel = [];
+    unitTrials = {};
     if(f<=length(sessionDir))
         m = matfile_m([sessionDir(f).folder, '\', sessionDir(f).name]);
         m = m.sortedSpikeData;
         if(size(m.SegTimes,1)>0)
             load([sessionDir(f).folder,'\',sessionDir(f).name]);
-            units = size(sortedSpikeData.SpikeTimes,1);
             conds = sortedSpikeData.Conditions;
-            locs = sortedSpikeData.Locations;
             allGoodTrials = ~(cellfun(@(a,b) length(a) <=(b(end)-b(1)) ...
                 | length(a)>200*(b(end)-b(1)) | any(isnan(a)), sortedSpikeData.SpikeTimes, sortedSpikeData.SegTimes));
             blockInds = cumsum(mod(1:length(sortedSpikeData.ArduinoData),length(conds))==1);
             unitTrials = num2cell(allGoodTrials.*blockInds,2);
-            goodUnitsOnChannel = find(cellfun(@(tc) length(unique(tc))-1, unitTrials)>MIN_BLOCKS_FOR_UNIT);
         end
     else
-        goodUnitsOnChannel = 1;
+        unitTrials = num2cell(allGoodTrials.*blockInds,2);
+        normVals = max(cell2mat(cellfun(@(cp) cellfun(@(p) cellfun(@(n) max(mean(n,1,'omitnan')),p), cp(~isempty(cp)),'UniformOutput',false), allUnits)'))';
     end
+    goodUnitsOnChannel = find(cellfun(@(tc) length(unique(tc))-1, unitTrials)>MIN_BLOCKS_FOR_UNIT);
+    %%
     for u = 1:length(goodUnitsOnChannel)
         figure('units','normalized','outerposition',[0 0 1 1])
         xtickAlign = cell(1,length(conds));
@@ -48,7 +50,7 @@ for f = 1:length(sessionDir)+1
                 currSpikes = sortedSpikeData.SpikeTimes(goodUnitsOnChannel(u),currTrialInds);
                 currSegs = sortedSpikeData.SegTimes(goodUnitsOnChannel(u),currTrialInds);
             else
-                currSegs = sortedSpikeData.SegTimes(:,currTrialInds);
+                currSegs = sortedSpikeData.SegTimes(1,currTrialInds);
             end
             averageSegs = currSegs;
             alignLims = alignLimits;
@@ -68,15 +70,20 @@ for f = 1:length(sessionDir)+1
             plotStart = 0;
             if(length(currTrialInds)>10)
                 averageSegs = mean(reshape(cell2mat(averageSegs),numSegs,size(averageSegs,2))',1);
-                ax{c} = subplot(2, length(conds), c);
+                if(f<=length(sessionDir))
+                    ax{c} = subplot(2, length(conds), c);
+                    axR{c} = subplot(2, length(conds), length(conds)+c);
+                    set(axR{c},'PositionConstraint','outerposition');
+                    set(axR{c},'FontSize',14)
+                    hold(axR{c},'on');
+                else
+                    ax{c} = subplot(1, length(conds), c);
+                    axR=[];
+                end
                 set(ax{c},'PositionConstraint','outerposition');
                 set(ax{c},'FontSize',16);
-                title(sortedSpikeData.Conditions{c}, 'FontSize', 18, 'FontWeight', 'bold');
-                hold on;
-                axR{c} = subplot(2, length(conds), length(conds)+c);
-                set(axR{c},'PositionConstraint','outerposition');
-                set(axR{c},'FontSize',14)
-                hold on;
+                hold(ax{c},'on');
+                title(ax{c},conds(c), 'FontSize', 18, 'FontWeight', 'bold');
                 %%
                 for a = 1:length(alignSegs)
                     secondsBeforeEvent = alignLims{a}(1);
@@ -91,20 +98,15 @@ for f = 1:length(sessionDir)+1
                         totalHists = reshape(cell2mat(trialHistsSmooth)',length(trialHistsSmooth{1}),[])';
                     else
                         totalHists = cell2mat(cellfun(@(p) mean(p,1,'omitnan'),allUnits{c}{a},'UniformOutput',false)');
+                        totalHists = totalHists./normVals;
                     end
-                    % totalHists = siteTrialPSTHS{1}{1}{a};
-                    % [~,is] = (min(abs(params.bins-alignLimits{a}(1))))
-                    % [~,ie] = (min(abs(params.bins-alignLimits{a}(2))))
-                    % totalHists= totalHists(:,is:ie);
                     p(c) = plot(ax{c},plotStart+(secondsBeforeEvent:binSize:...
                         secondsAfterEvent-binSize),nanmean(totalHists,1),...
                         'Color',colors(c,:), 'LineWidth', 2);
-                    %errorbar
                     mainLineColor=get(p(c), 'color');
                     edgeColor=mainLineColor+(1-mainLineColor)*0.55;
                     uE=mean(totalHists,1)+std(totalHists,1);
                     lE=mean(totalHists,1)-std(totalHists,1);
-                    %Make the patch
                     yP=[lE,fliplr(uE)];
                     xP=[plotStart+(secondsBeforeEvent:binSize:secondsAfterEvent-...
                         binSize),plotStart+fliplr(secondsBeforeEvent:binSize:secondsAfterEvent-binSize)];
@@ -116,24 +118,29 @@ for f = 1:length(sessionDir)+1
                     PSTHY = 250;
                     %% Rasters
                     yPos = 1;
-                    for t = 1:length(alignedSpikes)
-                        rasterSpikes = alignedSpikes{t};
-                        rasterSpikes = rasterSpikes(rasterSpikes < secondsAfterEvent & rasterSpikes > secondsBeforeEvent);
-                        arrayfun(@(a) line(axR{c},[a,a]+plotStart, [yPos-1 yPos+1], 'Color', colors(c,:), 'LineWidth', 1), rasterSpikes);
-                        yPos = yPos + 1;
+                    if(f<=length(sessionDir))
+                        for t = 1:length(alignedSpikes)
+                            rasterSpikes = alignedSpikes{t};
+                            rasterSpikes = rasterSpikes(rasterSpikes < secondsAfterEvent & rasterSpikes > secondsBeforeEvent);
+                            arrayfun(@(a) line(axR{c},[a,a]+plotStart, [yPos-1 yPos+1], 'Color', colors(c,:), 'LineWidth', 1), rasterSpikes);
+                            yPos = yPos + 1;
+                        end
                     end
                     averageSegs = averageSegs - averageSegs(alignInd);
                     beforeSegs = plotStart + cumsum(diff(averageSegs(alignInd:-1:1)));
                     afterSegs = plotStart + cumsum(diff(averageSegs(alignInd:end)));
                     avgSegs = [beforeSegs plotStart afterSegs];
+                    if(f<=length(sessionDir))
+                        allUnits{c}{a}{end+1} = totalHists;
+                        plot(axR{c}, [plotStart plotStart],...
+                            [1 yPos],'Color',  [0 0 0], 'LineStyle', '-');
+                        text(axR{c},plotStart, yPos+1, segLabs{alignInd},...
+                            'EdgeColor','none','Color', [0 0 0], 'FontSize',...
+                            16, 'FontWeight', 'bold','VerticalAlignment','bottom')
+                    end
                     plot(ax{c}, [plotStart plotStart],...
-                        [1 PSTHY],'Color', [0 0 0], 'LineStyle', '-');
-                    plot(axR{c}, [plotStart plotStart],...
-                        [1 yPos],'Color',  [0 0 0], 'LineStyle', '-');
-                    text(axR{c},plotStart, yPos+1, segLabs{alignInd},...
-                        'EdgeColor','none','Color', [0 0 0], 'FontSize',...
-                        16, 'FontWeight', 'bold','VerticalAlignment','bottom')
-                    text(ax{c},plotStart, 1, segLabs{alignInd},...
+                        [0 PSTHY],'Color', [0 0 0], 'LineStyle', '-');
+                    text(ax{c},plotStart, 0, segLabs{alignInd},...
                         'EdgeColor','none','Color', [0 0 0], 'FontSize',...
                         16, 'FontWeight', 'bold','VerticalAlignment','bottom');
                     plotSegInds = (avgSegs-plotStart<=secondsBeforeEvent | ...
@@ -145,30 +152,37 @@ for f = 1:length(sessionDir)+1
                     plotLabs(plotSegInds) = [];
                     avgSegs(plotSegInds) = [];
                     for s = 1:length(avgSegs)
-                        plot(ax{c}, [avgSegs(s) avgSegs(s)],[1 PSTHY],'Color', [.5 .5 .5], 'LineStyle', '--');
-                        plot(axR{c}, [avgSegs(s) avgSegs(s)],[1 yPos],'Color',  [.5 .5 .5], 'LineStyle', '--');
+                        plot(ax{c}, [avgSegs(s) avgSegs(s)],[0 PSTHY],'Color', [.5 .5 .5], 'LineStyle', '--');
+                        if(f<=length(sessionDir))
+                            plot(axR{c}, [avgSegs(s) avgSegs(s)],[1 yPos],'Color',  [.5 .5 .5], 'LineStyle', '--');
+                        end
                     end
-                    allUnits{c}{a}{end+1} = totalHists;
                     plotStart = plotStart + abs(secondsBeforeEvent) + gapWind + ...
                         secondsAfterEvent;
                     if(c==1)
                         ylabel(ax{c}, 'Firing Rate (Hz)', 'FontSize', 16, 'FontWeight', 'bold');
-                        ylabel(axR{c}, 'Trials', 'FontSize', 16, 'FontWeight', 'bold');
+                        if(f<=length(sessionDir))
+                            ylabel(axR{c}, 'Trials', 'FontSize', 16, 'FontWeight', 'bold');
+                        end
                     end
                 end
                 xlabel('Time (s)', 'FontSize', 16, 'FontWeight', 'bold');
+                xtickangle(ax{c},25);
                 xticks(ax{c},cell2mat(xtickAlign{c}));
-                xticks(axR{c},cell2mat(xtickAlign{c}));
                 xlabs = cellfun(@(a) [num2str(a(1)) "" num2str(a(end))],...
                     alignLims, 'UniformOutput',false);
                 xticklabels(ax{c},[xlabs{:}]);
-                xticklabels(axR{c},[xlabs{:}]);
                 xlim(ax{c},[min(cell2mat(xtickAlign{c})), max(cell2mat(xtickAlign{c}))]);
-                xlim(axR{c},[min(cell2mat(xtickAlign{c})), max(cell2mat(xtickAlign{c}))]);
+                if(f<=length(sessionDir))
+                    xtickangle(axR{c},25);
+                    xticks(axR{c},cell2mat(xtickAlign{c}));
+                    xticklabels(axR{c},[xlabs{:}]);
+                    xlim(axR{c},[min(cell2mat(xtickAlign{c})), max(cell2mat(xtickAlign{c}))]);
+                end
             end
         end
         if(~isempty(ax))
-            ylim([ax{:}],[-.5,maxFR]);
+            ylim([ax{:}],[0,maxFR]);
         end
         if(~isempty(axR))
             ylim([axR{:}],[0,yPos+1]);
@@ -177,9 +191,14 @@ for f = 1:length(sessionDir)+1
         if(~exist(saveDirDate,'dir'))
             mkdir(saveDirDate);
         end
-        saveas(gcf,[saveDirDate,'\Channel',num2str(f),'_Unit',num2str(goodUnitsOnChannel(u))], 'fig');
-        saveas(gcf,[saveDirDate,'\Channel',num2str(f),'_Unit',num2str(goodUnitsOnChannel(u))], 'png')
-        saveas(gcf,[saveDirDate,'\Channel',num2str(f),'_Unit',num2str(goodUnitsOnChannel(u))], 'epsc')
+        if(f<=length(sessionDir))
+            saveFigName = ['\Channel',num2str(f),'_Unit',num2str(goodUnitsOnChannel(u))];
+        else
+            saveFigName = '\Session';
+        end
+        saveas(gcf,[saveDirDate,saveFigName], 'fig');
+        saveas(gcf,[saveDirDate,saveFigName], 'png');
+        saveas(gcf,[saveDirDate,saveFigName], 'epsc');
         close all;
     end
 end

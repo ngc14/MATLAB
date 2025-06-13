@@ -9,7 +9,7 @@ exportgraphics(fHandle,strcat(saveDir,saveName,'.eps'),'ContentType','vector');
 pause(1);
 exportgraphics(fHandle,strcat(saveDir,saveName,'.png'));
 pause(1);
-savefig(fHandle,strcat(saveDir,saveName), 'compact');
+savefig(fHandle,strcat(saveDir,saveName));
 %saveas(fHandle,[saveDir,saveName,'.fig']);
 if(~isempty(imgTrace))
     boundaries = bwboundaries(imgTrace);

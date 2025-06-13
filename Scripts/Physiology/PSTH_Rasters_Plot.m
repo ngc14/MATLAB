@@ -1,14 +1,13 @@
-date = '05_31_2019';
+date = '06_03_2019';
 monkey = 'Gilligan';
 binSize=.01; % bin size in seconds
-alignSegsConds = {["StartReach","StartHold","StartWithdraw"],["StartReach","StartHold","StartWithdraw"],...
-    ["StartReach","StartHold","StartWithdraw"],["GoSignal"]};
-alignLimits = {[-.5, .15], [-.25, .25],[-.15,.5]};
+alignSegsConds = {["StartReach"],["StartReach"],["StartReach"]};
+alignLimits = {[-.5, 2]};
 colors = [[224,144,38]./255; 0 1 0; 0 0 1; 1 0 1];
 sigma = 5; % smoothing window in bin sizes
 gapWind = 0.10;
 saveFolder = ['S:\Lab\ngc14\Working\EMG_UNITS\Stim_Triggered'];
-conds = ["Extra Small Sphere", "Large Sphere", "Photocell", "Rest"];
+conds = ["Extra Small Sphere", "Large Sphere", "Photocell"];
 allUnits = cellfun(@(c) cell(1,length(alignLimits)),conds,'UniformOutput',false);
 sessionDir = dir(['S:\Lab\',monkey,'\All Data\',monkey,'_',date,'\Physiology\Results']);
 sessionDir = sessionDir(~[sessionDir.isdir]);
@@ -71,8 +70,8 @@ for f = 1:length(sessionDir)+1
             if(length(currTrialInds)>10)
                 averageSegs = mean(reshape(cell2mat(averageSegs),numSegs,size(averageSegs,2))',1);
                 if(f<=length(sessionDir))
-                    ax{c} = subplot(2, length(conds), c);
-                    axR{c} = subplot(2, length(conds), length(conds)+c);
+                    ax{c} = subplot(length(conds),2, c);
+                    axR{c} = subplot(length(conds),2,length(conds)+c);
                     set(axR{c},'PositionConstraint','outerposition');
                     set(axR{c},'FontSize',14)
                     hold(axR{c},'on');
@@ -196,9 +195,9 @@ for f = 1:length(sessionDir)+1
         else
             saveFigName = '\Session';
         end
-        saveas(gcf,[saveDirDate,saveFigName], 'fig');
-        saveas(gcf,[saveDirDate,saveFigName], 'png');
-        saveas(gcf,[saveDirDate,saveFigName], 'epsc');
+        % saveas(gcf,[saveDirDate,saveFigName], 'fig');
+        % saveas(gcf,[saveDirDate,saveFigName], 'png');
+        % saveas(gcf,[saveDirDate,saveFigName], 'epsc');
         close all;
     end
 end

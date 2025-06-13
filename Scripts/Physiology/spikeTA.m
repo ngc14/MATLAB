@@ -1,5 +1,5 @@
 monkey ='Gilligan';
-sessionDate ='05_31_2019';
+sessionDate ='06_03_2019';
 msWind = [-30 50];
 trigs = -40:1:40;
 testWindow = [5 15];
@@ -21,10 +21,11 @@ physDir = [sessionPath, '\Physiology'];
 %% get spike and trial times
 if(strcmpi(spikeORstim,"stim"))
     nFiles = dir([sessionPath, '\EMG\']);
-    nevFilesInd = find(cellfun(@(a) contains(a,'stim') & strcmp(a(regexp(a, '\.'):end), '.nev'), {nFiles.name}));
+    nevFilesInd = find(cellfun(@(a) contains(a,'stim') & any(cellfun(@(s)strcmp(s,'nev'),...
+        regexp(a, '\.','split'))), {nFiles.name}));
     nevFiles = nFiles(nevFilesInd);
     [~,mostRecentOrder] = sort(cellfun(@datenum,{nevFiles.date}),'descend');
-    nevInd = 1;
+    nevInd = 4;
     [~, hFile] = ns_OpenFile([physDir,'\',nevFiles(mostRecentOrder(nevInd)).name]);
     eventEntityID = find(cellfun(@(a) strcmpi(a,'Event'),{hFile.Entity.EntityType}));
     if(isempty(eventEntityID))
@@ -83,7 +84,8 @@ else
     end
 end
 currDir = dir(physDir);
-ns5FilesInd = find(cellfun(@(a) ~contains(a,"stim") & strcmp(a(regexp(a, '\.'):end), '.ns5'), {currDir.name}));
+ns5FilesInd = find(cellfun(@(a) ~contains(a,"stim") & any(cellfun(@(s)strcmp(s,'ns5'),...
+        regexp(a, '\.','split'))), {currDir.name}));
 if(~isempty(ns5FilesInd))
     [~, hFileRaw] = ns_OpenFile([currDir(ns5FilesInd).folder, '\', currDir(ns5FilesInd).name]);
     rawSigInds = find([hFileRaw.Entity.FileType] == find(strcmp({hFileRaw.FileInfo.Type},'ns2')) & ...
@@ -133,9 +135,9 @@ while(~feof(fileID))
     line = fgetl(fileID);
     if(contains(line,'Channel'))
         if(contains(line, 'Channel B','IgnoreCase',true))
-            channelNumStart = regexp(line, 'B');
+            channelNumStart = regexp(line, 'Channel B','end');
         elseif(contains(line, 'Channel A', 'IgnoreCase', true))
-            channelNumStart = regexp(line, 'A');
+            channelNumStart = regexp(line, 'Channel A','end');
         end
         channelNumEnd = regexp(line, ':');
         channelNum(end+1) = str2double(line(channelNumStart+1:channelNumEnd-1)) + ...
@@ -176,7 +178,8 @@ for s=1:length(spikeTimes)
         tSpikes = cell(1,length(aSpikes));
         if(strcmpi(spikeORstim,"stim"))
             nFiles = dir(['S:\Lab\',monkey,'\All Data\',monkey,'_', sessionDateF, '\EMG\']);
-            nf3FilesInd = find(cellfun(@(a) strcmp(a(regexp(a, '\.'):end), '.nf3'), {nFiles.name}));
+            nf3FilesInd = find(cellfun(@(a) any(cellfun(@(s)strcmp(s,'nf3'),...
+                regexp(a, '\.','split'))), {nFiles.name}));
             nf3FilesInd = nf3FilesInd(contains(cellfun(@(e) extractBefore(extractAfter(e,"stim_"),characterListPattern(".")),{nFiles(nf3FilesInd).name},'UniformOutput',false),...
                 extract(extractAfter(hFile.Name,"stim_"),digitsPattern)));
             if(~isempty(nf3FilesInd))
@@ -267,13 +270,13 @@ for s=1:length(spikeTimes)
         end
     end
     if(plotISA)
-        saveFigures(f1,saveDir+string(sessionDateF)+"\TRACE\",sessionDateF+"_"+num2str(nf3FileNumber),[]);
+        saveFigures(f1,saveDir+string(sessionDateF)+"\TRACE\",sessionDateF+"_"+num2str(nf3FileNumber)+"_Cropped",[]);
         % saveFigures(f2,saveDir+string(sessionDateF)+"\ISA\",sessionDateF+"_"+num2str(spkChannel(s))+"_"+num2str(unitNum(s)),[]);
-        % saveFigures(f3,saveDir+string(sessionDateF)+"\SUB\",sessionDateF+"_"+num2str(spkChannel(s))+"_"+num2str(unitNum(s)),[]);
+        % saveFigures(f3,saveDir+string(sessionDateF)+"\SUB\",sessionDateF+"_"+num2str(spkChannel(s))+"_"+num2str+"+(unitNum(s)),[]);
     end
     disp(toc);
 end
-save([saveDir,sessionDateF,'\unitXmuscle.mat'],'unitXmuscle','spkChannel','unitNum','muscles','indexWindow');
+%save([saveDir,sessionDateF,'\unitXmuscle.mat'],'unitXmuscle','spkChannel','unitNum','muscles','indexWindow');
 
 function plotISAFigs(mind,unitN,spks,muscleTitle,frags,xLab)
 if(mind==4)

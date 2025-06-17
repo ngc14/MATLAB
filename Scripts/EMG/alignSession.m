@@ -1,8 +1,8 @@
 
-sessionDate = '04_27_2018';
+sessionDate = '06_06_2019';
 monkey = 'Gilligan';
-dirName = ['S:\',monkey,'\All Data\',monkey,'_', ...
-    sessionDate, '\EMG\Results_New\'];
+dirName = ['S:\Lab\',monkey,'\All Data\',monkey,'_', ...
+    sessionDate, '\EMG\All_Trials\'];
 directory = dir(dirName);
 muscle = '';
 
@@ -22,18 +22,19 @@ directory = directory(find(contains({directory.name}, monkey)));
 figure();
     hx = [subplot(1,3,1),subplot(1,3,2),subplot(1,3,3)];%tight_subplot(1,3,[.1 .01],[.1 .1],[.07 .01]);
  %%   
-    colorP = ['r','b']
-for d=2:size(directory,1)
-    alignSegs = {'StartReach', 'StartLift','StartWithdraw'};
+ colorP = distinguishable_colors(length(directory));
+for d=1:size(directory,1)
+    alignSegs = {'StartReach'};
     figure('units','normalized','outerposition',[0 0 1 1]);
-    xLims = {[-.5 .15],[-1, .5],[-.15 .5]};
+    xLims = {[-.5 2.5]};
     gap = .25;
-    fullDir = dir([directory(d).folder, '\', directory(d).name,'\EMG\Results_New\*.mat']);
+    fullDir = dir([directory(d).folder, '\', directory(d).name]);
     l = load([fullDir(1).folder,'\',fullDir(1).name]);
     eventData = l.sortedEMGData.EMGData;
     segmentTimes = l.sortedEMGData.SegTimes;
     arduinoTrials = l.sortedEMGData.ArduinoData;
     Fs = l.sortedEMGData.SampleRate;
+    segmentTimes = cellfun(@(s) Fs*((s-(s(1)-1))./(Fs/1000)),segmentTimes,'UniformOutput',false);
     conds = l.sortedEMGData.Conditions;
     condSegs = l.sortedEMGData.ConditionSegments;
     window = cellfun(@(a) a.*Fs, xLims, 'UniformOutput', false);
@@ -73,7 +74,7 @@ for d=2:size(directory,1)
         currSegs = currSegs(~badCondTrials);
         
         currTrials = cellfun(@(a) filter(1/100*ones(1,100),1,abs(a)), currTrials, 'UniformOutput', false);
-        baselines = cellfun(@(a,b) mean(a(b(1):b(end-2))), currTrials, currSegs, 'UniformOutput', false);
+        baselines = cellfun(@(a,b) mean(a(b(1):b(2))), currTrials, currSegs, 'UniformOutput', false);
         %currTrials = cellfun(@(a,b) (a-b)/b, currTrials, baselines, 'UniformOutput', false);
         %currTrials = cellfun(@(a) (a-normMin)/(normMax-normMin), currTrials, 'UniformOutput', false);
         if(sum(badSegTrials)~=length(badSegTrials))
@@ -98,8 +99,8 @@ for d=2:size(directory,1)
         xTicks = [];
         labels = [];
 
-        for align = 2%1:length(win)
-            if(align==2)
+        for align = 1%1:length(win)
+            if(align==1)
                 plotStart = 0;
             else
                 plotStart = plotStart + (gap*Fs) +win{align-1}(2) + abs(win{align}(1));
@@ -115,7 +116,7 @@ for d=2:size(directory,1)
             %     [std(cell2mat(alignedEMGSigs'),0,1)+mean(cell2mat(alignedEMGSigs'),1,'omitnan');...
             %     max(0,mean(cell2mat(alignedEMGSigs'),1,'omitnan')-std(cell2mat(alignedEMGSigs'),0,1))],...
             %     'lineProps',{['-',colorP(d)],'LineWidth', 3})
-            cellfun(@(a) plot(plotStart+win{align}(1):plotStart+win{align}(2),a, colorP(d)), alignedEMGSigs);
+            cellfun(@(a) plot(plotStart+win{align}(1):plotStart+win{align}(2),a, 'Color',colorP(d,:)), alignedEMGSigs);
 %             
             plot(plotStart+win{align}(1):plotStart+win{align}(2), ...
                 nanmean(reshape([alignedEMGSigs{:}],size(alignedEMGSigs{1},2),size(currTrials,2))'),...

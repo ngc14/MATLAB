@@ -1,57 +1,46 @@
-function plotPSTH(savePath,conditionName,PSTHS,alignTimes,channels,bins)
-conditionMappings = {'Extra Small Sphere', 'Large Sphere', 'Photocell', 'Rest'};
-segLabs = repmat({{'RT', 'R', 'G', 'L','H', 'W', 'RH', 'SR', 'R'}},2,1);
-segLabs(end+1) = {{'RT','R', 'G', 'H', 'W','RH', 'SR', 'R'}};
-segLabs(end+1) = {{'H','RH', 'SR', 'R'}};
-PSTHDisplayLimits = [-1, 2.5];
-
-conditionInd = cellfun(@(a) strcmp(a, conditionName), conditionMappings);
-figure('Name',conditionName,'units','normalized','outerposition',[0 0 1 1]);
-
-subSZ = numSubplots(size(PSTHS,3));
-prevChannel = NaN;
-segInds = cellfun(@length, alignTimes)==length(segLabs{conditionInd});
-segBins =  nanmean(reshape(cell2mat(alignTimes(segInds)'),sum(segInds),length(segLabs{conditionInd})),1);
-segLabsLocs = segBins + [diff(segBins)/2, 0];
-segLabsLocs(end) = segLabsLocs(end) + (PSTHDisplayLimits(end) + segLabsLocs(end))/2;
-segsToPlot = segLabsLocs > PSTHDisplayLimits(1) & segLabsLocs<PSTHDisplayLimits(end);
-segLabsLocs = segLabsLocs(segsToPlot);
-segBins = segBins(segsToPlot);
-segLabPlot = segLabs{conditionInd}(segsToPlot);
-for u = 1:size(PSTHS,3)
-    subplot(subSZ(1), subSZ(2),u);
+function f = plotPSTH(allUnits,alignSegsConds,avgSegs,conditionSegments,alignLims,binSize,colors,gapWind)
+PSTHY=0;
+for c = 1:length(alignSegsConds)
+    alignSegs =  alignSegsConds{c};
+    averageSegs = mean(cell2mat(transpose(avgSegs{c})),1,'omitnan');
+    ax = nexttile();
     hold on;
-    currPSTH = PSTHS(:,:,u);
-    plot(bins,nanmean(currPSTH), 'LineWidth', 2);
-    uE=nanmean(currPSTH,1)+nanstd(currPSTH,1);
-    lE=nanmean(currPSTH,1)-nanstd(currPSTH,1);
-    yP=[lE,fliplr(uE)];
-    xP=[bins,fliplr(bins)];
-    xP(isnan(yP))=[];
-    yP(isnan(yP))=[];
-    d = patch(xP,yP,1);
-    set(d,'edgecolor','none','facealpha',.5);
-    if(prevChannel==channels(u))
-        unitCount = unitCount + 1;
-        prevChannel = channels(u);
-    else
-        unitCount = 1;
+    colororder(ax,colors{c});
+    plotStart=0;
+    for a = 1:length(alignSegs)
+        secondsBeforeEvent = alignLims{a}(1);
+        secondsAfterEvent = alignLims{a}(end);
+        totalHists = cell2mat(cellfun(@(p) mean(p,1,'omitnan'),allUnits{c}{a},'UniformOutput',false)');
+        if(~isempty(totalHists))
+            plot(ax,plotStart+(secondsBeforeEvent:binSize:secondsAfterEvent-binSize),totalHists,...
+                'LineWidth', 2);
+            uE=cellfun(@(p) mean(p,1,'omitnan')+(std(p,1)/sqrt(size(p,1))),allUnits{c}{a},'UniformOutput',false)';
+            lE=cellfun(@(p) mean(p,1,'omitnan')-(std(p,1)/sqrt(size(p,1))),allUnits{c}{a},'UniformOutput',false)';
+            yP=cellfun(@(l,u) [l,fliplr(u)],lE,uE,'UniformOutput',false);
+            xP=[plotStart+(secondsBeforeEvent:binSize:secondsAfterEvent-...
+                binSize),plotStart+fliplr(secondsBeforeEvent:binSize:secondsAfterEvent-binSize)];
+            ypInd = any(cell2mat(cellfun(@isnan,yP,'UniformOutput',false)),1);
+            xP(ypInd)=[];
+            yP = cell2mat(cellfun(@(y) y(~ypInd),yP,'UniformOutput',false));
+            d = patch(ax,repmat(xP,size(yP,1),1)',yP',reshape(colors{c},size(colors{c},1),1,size(colors{c},2)));
+            set(d,'edgecolor','none','facealpha',.5)
+            PSTHY = max(PSTHY,max(totalHists,[],'all'));
+        end
+        alignInd = find(strcmp(conditionSegments{c}, alignSegs(a)));
+        averageSegs = averageSegs - averageSegs(alignInd);
+        beforeSegs = plotStart + cumsum(diff(averageSegs(alignInd:-1:1)));
+        afterSegs = plotStart + cumsum(diff(averageSegs(alignInd:end)));
+        aSegs = [beforeSegs plotStart afterSegs];
+        plot(ax, [plotStart plotStart],[0 PSTHY],'Color', [0 0 0], 'LineStyle', '-');
+        plotSegInds = (aSegs-plotStart<=secondsBeforeEvent | ...
+            aSegs-plotStart>=secondsAfterEvent);
+        plotSegInds(alignInd) = true;
+        aSegs(plotSegInds) = [];
+        for s = 1:length(aSegs)
+            plot(ax, [aSegs(s) aSegs(s)],[0 PSTHY],'Color', [.15 .15 .15], 'LineStyle', '--');
+        end
+        plotStart = plotStart + abs(secondsBeforeEvent) + gapWind + secondsAfterEvent;
     end
-    title(['Channel ', num2str(channels(u)), ' Unit ', ...
-        num2str(unitCount)]);
-    xlim(PSTHDisplayLimits);
-    currYLim = get(gca,'ylim');
-    ylim([0 currYLim(end)]);
-    if(u<=subSZ(2))
-        cellfun(@(a,b) text(a, currYLim(end), b, 'Color', 'r', 'FontSize', 12,...
-            'FontWeight', 'bold', 'HorizontalAlignment', 'center'),...
-            num2cell(segLabsLocs), segLabPlot);
-    end
-    arrayfun(@(a) line([a a], [0 currYLim(end)], 'Color', 'r', 'LineStyle','--'),...
-        segBins);
+    set(ax,'XLim',[secondsBeforeEvent,secondsAfterEvent]);
 end
-saveas(gcf,[savePath,'\',conditionName,'_Units.fig']);
-saveas(gcf,[savePath,'\',conditionName,'_Units.png']);
-pause(0.01);
-close gcf;
-end
+f=gcf();

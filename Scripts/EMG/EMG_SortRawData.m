@@ -32,19 +32,18 @@ muscles = {};
 while(~feof(fileID))
     line = fgetl(fileID);
     if(contains(line, 'Channel B','IgnoreCase',true))
-        channelNumStart = regexp(line, 'B');
+        channelNumStart = regexp(line, 'Channel B','end');
         channelNumEnd = regexp(line, ':');
         channelNum(fileInd) = 128 + str2double(line(channelNumStart+1:channelNumEnd-1));
         muscles{end+1} = line(channelNumEnd+2:end);
         fileInd = fileInd + 1;
     elseif(contains(line, 'Channel A', 'IgnoreCase', true))
-        channelNumStart = regexp(line, 'A');
+        channelNumStart = regexp(line, 'Channel A','end');
         channelNumEnd = regexp(line, ':');
         channelNum(fileInd) = str2double(line(channelNumStart+1:channelNumEnd-1));
         muscles{end+1} = line(channelNumEnd+2:end);
         fileInd = fileInd + 1;
     end
-
 end
 fclose(fileID);
 channelNum = unique(channelNum);
@@ -53,7 +52,7 @@ for f = 1:length(channelNum)
     muscle = muscles{f};
     fullName = [monkey,'_', sessionDate,'_', muscle];
     nFiles = dir(['S:\Lab\',monkey,'\All Data\',monkey,'_', sessionDate, '\EMG\']);
-    nf3FilesInd = cellfun(@(a) strcmp(a(regexp(a, '\.'):end), '.nf3'), {nFiles.name});
+    nf3FilesInd = cellfun(@(a) strcmp(a(regexp(a, '\.','once'):length(a)), '.nf3'), {nFiles.name});
     if(~isempty(nf3FilesInd))
         nf3Files = nFiles(nf3FilesInd);
         [~, nf3Ind] = max([nf3Files.bytes]);
@@ -266,8 +265,8 @@ for f = 1:length(channelNum)
 
             % Remove failed trials.
             falseTrialIdx=cellfun(@(s) strcmp(s,"False Start") | strcmp(s,"Failed-to-Reach"),recordedTrial(:,8),'UniformOutput',false);
-            %correctTrialIdx=find(~cellfun(@isempty,falseTrialIdx));
             correctTrialIdx = find(~cell2mat(falseTrialIdx));
+            correctTrialIdx = ~cellfun(@isnan,cellfun(@str2double,recordedTrial(:,8),'UniformOutput',false));
 
             successfulTrial=recordedTrial(correctTrialIdx,1:end);
             eventData = eventData(correctTrialIdx);

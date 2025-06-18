@@ -33,7 +33,7 @@ if(~exist(fileDir,'dir'))
     return;
 end
 nFiles = dir(fileDir);
-nevFilesInd = cellfun(@(a) strcmp(a(regexp(a, '\.'):end), '.nev'), {nFiles.name});
+nevFilesInd = cellfun(@(a) contains(a, '.nev'), {nFiles.name});
 nevFiles = nFiles(nevFilesInd);
 [~,mostRecentOrder] = sort(cellfun(@datenum,{nevFiles.date}),'descend');
 [~, nevInd] = find(contains({nevFiles(mostRecentOrder).name}, 'sort', 'IgnoreCase',true),1);

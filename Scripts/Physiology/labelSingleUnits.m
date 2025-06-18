@@ -25,7 +25,7 @@ for d = 1:length(dateArray)
         sortedFile = find((contains(names, '-sorted') | contains(names, 'RASort'))...
             & ~contains(names, 'stim') &  (contains(names, '.nev') | contains(names, '.plx')));
         ns5FilesInd = find(cellfun(@(a) ~contains(a,"stim") & ...
-            strcmp(a(regexp(a, '\.'):end), '.ns5'), names));
+            contains(a, '.ns5'), names));
         if(~isempty(ns5FilesInd))
             [~,mostRecent]= sort({currDir(ns5FilesInd).date});
             ns5FilesInd = ns5FilesInd(mostRecent);

@@ -6,7 +6,7 @@ MIN_BLOCKS_FOR_UNIT = 15;
 conds = ["Extra Small Sphere", "Large Sphere", "Photocell"];
 alignSegsConds = {["StartReach"],["StartReach"],["StartReach"]};
 alignLims = {[-.5, 2.5]};
-saveDir = 'S:\Lab\ngc14\Working\EMG_UNITS\Stim_Triggered';
+saveDir = 'S:\Lab\ngc14\Working\EMG_UNITS\Stim_Triggered\';
 sessionPath = ['S:\Lab\',monkey,'\All Data\',monkey,'_',date,'\'];
 allmuscles = [{'Deltoid'}, {'Biceps'},{'Triceps'},{'Wrist extensor'},{'Wrist flexor'},{'Digit extensor'},{'Digit flexor'}];
 EMGFile = dir([sessionPath, '\EMG\*.txt']);
@@ -105,7 +105,7 @@ muscleColors = cellfun(@(c) c((size(allUnits{1},2)+1):end,:), allColors, 'Unifor
 unitCols = ceil(size(allUnits{1},2)/unitsPerPlot);
 set(0, 'DefaultFigureRenderer', 'painters');
 figure();
-f=tiledlayout(length(alignSegsConds),unitCols+2,"TileIndexing","columnmajor");
+f=tiledlayout(length(alignSegsConds),unitCols+3,"TileIndexing","columnmajor");
 %normVals = max(cell2mat(cellfun(@(cp) cellfun(@(p) cellfun(@(n) max(mean(n,1,'omitnan')),p), cp(~isempty(cp)),'UniformOutput',false), allUnits)'))';
 for a = 1:unitCols
     startInd = (unitsPerPlot*(a-1))+1;
@@ -120,6 +120,8 @@ for a = 1:unitCols
     cols = find(arrayfun(@(m) mod(m,unitsPerPlot)-1,1:length(ch))==0);
     ch(cols(a)).Title.String = "Units "+num2str(uInds);
 end
+f=plotPSTH(cellfun(@(m) {m(armMuscles)},allUnits,'UniformOutput',false),alignSegsConds,...
+   allSegs,sortedSpikeData.ConditionSegments,alignLims,binSize,colors,gapWind);
 %%
 armMuscles = cellfun(@(s) ismember(s,allmuscles(1:3)),muscles);
 f=plotPSTH(cellfun(@(m) {m(armMuscles)},allEMGs,'UniformOutput',false),alignSegsConds,...

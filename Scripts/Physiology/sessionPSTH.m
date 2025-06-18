@@ -1,4 +1,4 @@
-date = '06_06_2019';
+date = '06_03_2019';
 monkey = 'Gilligan';
 binSize = .01;
 sigma = 10; 
@@ -75,17 +75,20 @@ for m = 1:length(muscles)
     muscleEMG = muscleEMG.sortedEMGData;
     Fs = muscleEMG.SampleRate;
     smoothKernel = sigma./(1000/Fs);
-    [alignedTimes,allSegs] = condSignalAligned(conds,alignSegsConds,muscleEMG,'SegTimes',1);
-    [alignedSig,~] = condSignalAligned(conds,cell(1,length(conds)),muscleEMG,'EMGData',1);
-    alignedTimes = cellfun(@(c) {cellfun(@(a) cellfun(@(s) s(1):(1/Fs):s(end),a,'UniformOutput',false),c,'UniformOutput',false)},alignedTimes);
+    [alignedTimes,allSegTimes] = condSignalAligned(conds,alignSegsConds,muscleEMG,'SegTimes',1);
+    [alignedSig,allSegs] = condSignalAligned(conds,cell(1,length(conds)),muscleEMG,'EMGData',1);
+    alignedTimes = cellfun(@(c) {cellfun(@(a) cellfun(@(s) s(1):(1/Fs):s(end),a,'UniformOutput',false),...
+        c,'UniformOutput',false)},alignedTimes);
+    alignedTimes = cellfun(@(s,a,at) {at{1}(cellfun(@(t) find(cellfun(@(s2) isequal(t,s2), a)), s))},...
+        allSegs,allSegTimes,alignedTimes,'UniformOutput',false);
     allSegs = cellfun(@(c) cellfun(@transpose,c,'UniformOutput',false),allSegs,'UniformOutput',false);
     goodTrials = cellfun(@(s,t) getBadTrials(s{1},cellfun(@(tt) uint64(1000*(tt-tt(1))./(1000/Fs)),t,'UniformOutput',false),Fs)==0,...
         alignedSig, allSegs, 'UniformOutput', false);
-     alignedEMG = cellfun(@(a,at) cellfun(@(ha,as,al) cellfun(@(h,l) conv(abs(h(...
+     alignedEMG = cellfun(@(a,at,gt) cellfun(@(ha,as,al) cellfun(@(h,l) conv(abs(h(...
          (l>=al(1) & l<=al(end)))),gausswin(smoothKernel)/sum(gausswin(smoothKernel)),...
-         'same'),ha,as,'UniformOutput',false),a,at,alignLims,'UniformOutput',false),alignedSig,alignedTimes,'UniformOutput',false);
-     voltData = cellfun(@(a,gt) cellfun(@(ha,al) cell2mat(cellfun(@(h) [h,NaN(1,length(al(1):(1/Fs):al(end))-1-length(h))],...
-         ha(gt),'UniformOutput',false)'),a,alignLims,'UniformOutput',false),alignedEMG,goodTrials,'UniformOutput',false);
+         'same'),ha(gt),as(gt),'UniformOutput',false),a,at,alignLims,'UniformOutput',false),alignedSig,alignedTimes,goodTrials,'UniformOutput',false);
+     voltData = cellfun(@(a) cellfun(@(ha,al) cell2mat(cellfun(@(h) [h,NaN(1,length(al(1):(1/Fs):al(end))-1-length(h))],...
+         ha,'UniformOutput',false)'),a,alignLims,'UniformOutput',false),alignedEMG,'UniformOutput',false);
      if(all(cellfun(@isempty,allEMGs)))
          allEMGs = voltData;
      else
@@ -97,8 +100,8 @@ gapWind = 0.10;
 close all; 
 unitsPerPlot = 3;
 allColors = cellfun(@(u) distinguishable_colors(length(u)+length(muscles)),allUnits,'UniformOutput',false);
-unitColors = cellfun(@(c) c(1:end-length(muscles),:), allColors, 'UniformOutput',false);
-muscleColors = cellfun(@(c) c(length(muscles)-1:end,:), allColors, 'UniformOutput',false);
+unitColors = cellfun(@(c) c(1:(end-length(muscles)),:), allColors, 'UniformOutput',false);
+muscleColors = cellfun(@(c) c((size(allUnits{1},2)+1):end,:), allColors, 'UniformOutput',false);
 unitCols = ceil(size(allUnits{1},2)/unitsPerPlot);
 set(0, 'DefaultFigureRenderer', 'painters');
 figure();

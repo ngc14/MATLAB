@@ -1,5 +1,5 @@
 function [params,siteDateMap,siteSegs,siteTrialPSTHS,rawSpikes,siteChannels,siteActiveInd, simpRep,...
-    siteLocation, siteMasks, monkeys,vMask,conditions] = getAllSessions(conditions,singleOrAllUnits)
+    siteLocation, siteMasks, monkeys,vMask,conditions] = getAllSessions(conditions,singleOrAllUnits,domain)
 %  assign parameters
 rawSpikes = [];
 drivePath = "S:\Lab\";
@@ -16,7 +16,7 @@ allActivityMaps = containers.Map();
 vMask = containers.Map();
 for m = 1:length(monkeys)
     [monkeyTable, monkeyMask, monkeyActivityMaps] = getMonkeyInfo(drivePath,...
-        monkeys(m),"PMd",true);
+        monkeys(m),domain,true);
     siteDateMap = [siteDateMap; monkeyTable];
     allActivityMaps = [allActivityMaps; monkeyActivityMaps];
     vMask(monkeys(m)) = monkeyMask;
@@ -26,7 +26,7 @@ siteDateMap = siteDateMap(~cellfun(@isempty, siteDateMap.Date),:);
 numSites = height(siteDateMap);
 [siteLocation, siteRep, siteThresh,siteSegs,siteChannels,...
     siteTrialPSTHS,siteActiveInd] = deal(cell(1,numSites));
-%hbar=parfor_progressbar(numSites,strcat("Iterating ", num2str(numSites), " instances..."));
+hbar=parfor_progressbar(numSites,strcat("Iterating ", num2str(numSites), " instances..."));
 for  i = 1:numSites
     currSession = siteDateMap(i,:);
     if(strcmp(currSession.Monkey,"Gilligan"))
@@ -39,10 +39,12 @@ for  i = 1:numSites
     currSession.Date = du;
     physDir = strcat(drivePath,currSession.Monkey,"\All Data\", currSession.Monkey,...
         "_",string(currSession.Date),"\Physiology\Results_New\");
-    disp(currSession.Date)
     if(isempty(dir(physDir)))
-        Spike_SortRawData(char(currSession.Date),char(currSession.Monkey));
-        labelSingleUnits(char(currSession.Monkey),char(currSession.Date));
+        if(~ismember(currSession.Date,cellfun(@(d) datetime(d,'InputFormat','MM_dd_yyyy'),...
+                {'05_02_2019','03_17_2020'})))
+            Spike_SortRawData(char(currSession.Date),char(currSession.Monkey));
+            labelSingleUnits(char(currSession.Monkey),char(currSession.Date));
+        end
     end
     if(isempty(dir(physDir)))
         spikes = [];
@@ -118,9 +120,9 @@ for  i = 1:numSites
         siteActiveInd{i} = currActive;
         %rawSpikes{i} = trialHists;
     end
-    % hbar.iterate(1);
+     hbar.iterate(1);
 end
-%hbar.close;hbar.delete;
+hbar.close;hbar.delete;
 %% remove sessions that had no trial information
 emptyInds = cellfun(@isempty, siteLocation);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

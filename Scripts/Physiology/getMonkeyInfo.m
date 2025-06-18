@@ -105,12 +105,13 @@ dateToPNValue = readcell(strcat(dirPath,fileName,"Session.xlsm"),opts);
 [~, dateInd] = find(strcmp(dateToPNValue, "Date"));
 [~,domainInd] = find(strcmp(dateToPNValue, "Domain"));
 [~,PNInd] = find(strcmp(dateToPNValue, "Site #"));
+[~,notesInd] = find(strcmp(dateToPNValue, "NOTES:"));
 
 % clean up, remove: duplicate test sites (close/far), non-motor recordings,
 % improper logging (no site #)
-validInds = cellfun(@(a,b,c) all(~ismissing(a)) & all(~ismissing(b)) &&  ...
-    any(contains(b, domains)) &  all(~ismissing(c)),dateToPNValue(:,dateInd),...
-    dateToPNValue(:,domainInd),dateToPNValue(:,PNInd)); 
+validInds = cellfun(@(a,b,c,d) all(~ismissing(a)) && all(~ismissing(b)) &&  ...
+    any(contains(b, domains)) && all(~ismissing(c)) && ~contains(string(d),"Single"),...
+    dateToPNValue(:,dateInd),dateToPNValue(:,domainInd),dateToPNValue(:,PNInd),dateToPNValue(:,notesInd)); 
 
 % match session numbers from _MM_Sites.xlsx sheet to session.xlsx sheet
 [~,viPN,vI] = intersect(cellfun(@str2double, string(dateToPNValue(...

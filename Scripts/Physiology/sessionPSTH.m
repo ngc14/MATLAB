@@ -1,4 +1,4 @@
-date = '06_03_2019';
+date = '06_06_2019';
 monkey = 'Gilligan';
 binSize = .01;
 sigma = 10; 
@@ -43,7 +43,11 @@ if(~exist([sessionPath,'\EMG\All_Trials\'],'dir'))
     EMG_SortRawData(date,monkey);
 end
 %%
-[allUnits,avgSegs] = deal(cell(1,length(conds)));
+[allUnits,allSegs] = deal(cell(1,length(conds)));
+taskAlign = containers.Map(conds,{{["GoSignal" "StartLift"]},{["GoSignal","StartLift"]},...
+    {["GoSignal","StartHold"]}});
+params = PhysRecording(conds,binSize,sigma/1000,-6,5);
+tUnits = [];
 for f = 1:length(sessionPhys)
     m = matfile_m([sessionPhys(f).folder, '\', sessionPhys(f).name]);
     m = m.sortedSpikeData;
@@ -56,14 +60,27 @@ for f = 1:length(sessionPhys)
         goodUnitsOnChannel = find(cellfun(@(tc) length(unique(tc))-1, unitTrials)>MIN_BLOCKS_FOR_UNIT);
         for u = 1:length(goodUnitsOnChannel)
             [alignedSig,avgSegs] = condSignalAligned(conds,alignSegsConds,...
-                sortedSpikeData,'SpikeTimes',goodUnitsOnChannel(u));
+                sortedSpikeData,'SpikeTimes');
             trialHistsSmooth = cellfun(@(a) cellfun(@(ha,al)cell2mat(cellfun(@(h) ...
                 conv(histcounts(h,al(1):binSize:al(end))./binSize,gausswin(sigma)/sum(gausswin(sigma)),'same'),...
                 ha,'UniformOutput',false)'),a,alignLims,'UniformOutput',false),alignedSig, 'UniformOutput', false);
+
+            [taskBaseline,taskFR] = calculatePhases(params,taskAlign,{[0.2 0]},...
+                cellfun(@(c) cellfun(@(t) {t-t(2)},c,'UniformOutput',false), avgSegs,'UniformOutput',false),...
+                cellfun(@(a)cellfun(@(ha,al)cellfun(@(h) ...
+                {conv(histcounts(h,[params.bins,max(params.bins)+binSize])./binSize,gausswin(sigma)/sum(gausswin(sigma)),'same')},...
+                ha,'uniformoutput',false),a,alignLims','UniformOutput',false),alignedSig),...
+                false,true);
+            [vals,tUnit] = cellfun(@(b,cn) ttestTrials({{cellfun(@cell2mat,[b{:}])}},...
+                {{cellfun(@cell2mat,[cn{:}])}},1,true,0.05),...
+                taskBaseline,taskFR,'UniformOutput',false);
+            tUnits(end+1) = any(cell2mat(tUnit));
             if(all(cellfun(@isempty,allUnits)))
                 allUnits = trialHistsSmooth;
+                allSegs = avgSegs;
             else
                 allUnits = cellfun(@(a,ts) [a,ts],allUnits,trialHistsSmooth,'UniformOutput',false);
+                allSegs = cellfun(@(a,ts) [a,ts],allSegs,avgSegs,'UniformOutput',false);
             end
         end
     end
@@ -75,8 +92,8 @@ for m = 1:length(muscles)
     muscleEMG = muscleEMG.sortedEMGData;
     Fs = muscleEMG.SampleRate;
     smoothKernel = sigma./(1000/Fs);
-    [alignedTimes,allSegTimes] = condSignalAligned(conds,alignSegsConds,muscleEMG,'SegTimes',1);
-    [alignedSig,allSegs] = condSignalAligned(conds,cell(1,length(conds)),muscleEMG,'EMGData',1);
+    [alignedTimes,allSegTimes] = condSignalAligned(conds,alignSegsConds,muscleEMG,'SegTimes');
+    [alignedSig,allSegs] = condSignalAligned(conds,cell(1,length(conds)),muscleEMG,'EMGData');
     alignedTimes = cellfun(@(c) {cellfun(@(a) cellfun(@(s) s(1):(1/Fs):s(end),a,'UniformOutput',false),...
         c,'UniformOutput',false)},alignedTimes);
     alignedTimes = cellfun(@(s,a,at) {at{1}(cellfun(@(t) find(cellfun(@(s2) isequal(t,s2), a)), s))},...
@@ -106,7 +123,6 @@ unitCols = ceil(size(allUnits{1},2)/unitsPerPlot);
 set(0, 'DefaultFigureRenderer', 'painters');
 figure();
 f=tiledlayout(length(alignSegsConds),unitCols+3,"TileIndexing","columnmajor");
-%normVals = max(cell2mat(cellfun(@(cp) cellfun(@(p) cellfun(@(n) max(mean(n,1,'omitnan')),p), cp(~isempty(cp)),'UniformOutput',false), allUnits)'))';
 for a = 1:unitCols
     startInd = (unitsPerPlot*(a-1))+1;
     uInds = startInd:min(size(allUnits{1},2),startInd+(unitsPerPlot-1));
@@ -120,10 +136,16 @@ for a = 1:unitCols
     cols = find(arrayfun(@(m) mod(m,unitsPerPlot)-1,1:length(ch))==0);
     ch(cols(a)).Title.String = "Units "+num2str(uInds);
 end
-f=plotPSTH(cellfun(@(m) {m(armMuscles)},allUnits,'UniformOutput',false),alignSegsConds,...
-   allSegs,sortedSpikeData.ConditionSegments,alignLims,binSize,colors,gapWind);
+normVals = max(cell2mat(cellfun(@(cp) cellfun(@(n) max(mean(n,1,'omitnan')), cp(~cellfun(@isempty,cp))),allUnits, 'UniformOutput',false)'),[],1);
+f=plotPSTH(cellfun(@(m)cellfun(@(n,v) {mean(n,1,'omitnan')./v},m,num2cell(normVals),'UniformOutput',false),allUnits,'UniformOutput',false),alignSegsConds,...
+   avgSegs,sortedSpikeData.ConditionSegments,alignLims,binSize,{[1 0 0],[224,144,38]./255, [0 0 1]},gapWind);
+ch = flipud(get(f.Children,'Children'));
+cols = find(arrayfun(@(m) mod(m,unitsPerPlot)-1,1:length(ch))==0);
+ch(cols(end)).Title.String = "Average of Units";
 %%
 armMuscles = cellfun(@(s) ismember(s,allmuscles(1:3)),muscles);
+normEMG = max(cell2mat(cellfun(@(cp) cellfun(@(n) max(mean(n,1,'omitnan')), cp(~cellfun(@isempty,cp))),allEMGs, 'UniformOutput',false)'),[],1);
+allEMGs = cellfun(@(m) cellfun(@(a,v) a./v,m,num2cell(normEMG),'UniformOutput',false), allEMGs,'UniformOutput',false);
 f=plotPSTH(cellfun(@(m) {m(armMuscles)},allEMGs,'UniformOutput',false),alignSegsConds,...
    allSegs,muscleEMG.ConditionSegments,alignLims,1/Fs,cellfun(@(m) m(armMuscles,:),muscleColors,'UniformOutput',false),gapWind);
 lh = legend;
@@ -143,16 +165,16 @@ saveFigures(gcf,saveDir+"\"+string(date)+"\","PSTH+EMGs",[])
 
 
 
-function [alignedSig,avgSegs] = condSignalAligned(conds,alignSegsConds,sigStruct,fieldName,ind)
+function [alignedSig,avgSegs] = condSignalAligned(conds,alignSegsConds,sigStruct,fieldName)
 signals = sigStruct.(fieldName);
 avgSegs = cell(1,length(conds));
 alignedSig = cellfun(@(c) cell(1,length(c)),alignSegsConds,'UniformOutput',false);
 for c = 1:length(conds)
     alignSegs =  alignSegsConds{c};
     currTrialInds = find(cellfun(@(a) contains(a, conds{c}),sigStruct.ArduinoData(:,1)));
-    currTrialInds = currTrialInds(cellfun(@(a) ~any(isnan(a)), signals(ind,currTrialInds)));
-    currSig = signals(ind,currTrialInds);
-    currSegs = sigStruct.SegTimes(ind,currTrialInds);
+    currTrialInds = currTrialInds(cellfun(@(a) ~any(isnan(a)), signals(:,currTrialInds)));
+    currSig = signals(:,currTrialInds);
+    currSegs = sigStruct.SegTimes(:,currTrialInds);
     avgSegs{c} = currSegs;
     alignedSig{c}{1} = currSig;
     for a = 1:length(alignSegs)

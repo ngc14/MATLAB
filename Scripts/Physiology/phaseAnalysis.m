@@ -410,22 +410,3 @@ end
 close all;
 clear muspInds spVals mMapping currReps mInds muInds mRange  ssMapping
 %%
-function [phaseSubVals, sigs] = ttestTrials(dist1,dist2,taskPhase,paired,pVal)
-if(paired)
-    sigs = nansum(cell2mat(vertcat(cellfun(@(d1,d2) ttest(...
-        d1{taskPhase},d2{taskPhase},'Alpha', pVal,'Dim',2),...
-        dist1,dist2,'UniformOutput',false))),2)>=max(1,floor(length(dist1)/2));
-    phaseSubVals = num2cell(cellfun(@(d1,d2) (d2{taskPhase}-...
-        max(1,d1{taskPhase})),dist1,dist2,'UniformOutput',false)',1);
-else
-    sigs = nansum(cell2mat(vertcat(cellfun(@(d1,d2) ttest2(...
-        d1{taskPhase},d2{taskPhase},'Alpha', pVal,'Dim',2),...
-        dist1,dist2,'UniformOutput',false))),2)'>=floor(length(dist1)/2);
-    smallestTrialCount = min(size(dist1{1}{taskPhase},2),size(dist2{1}{taskPhase},2));
-    phaseSubVals = num2cell(cellfun(@(d1,d2) abs(d2{taskPhase}(:,1:smallestTrialCount)-...
-        d1{taskPhase}(:,1:smallestTrialCount)),dist1,dist2,'UniformOutput',false)',1);
-end
-phaseSubVals = cellfun(@(m) median(cat(3,m{:}),3), phaseSubVals, 'UniformOutput', false);
-sigs = double(sigs);
-
-end

@@ -1,3 +1,8 @@
+%%
+conditions = ["Extra Small Sphere", "Large Sphere", "Photocell"];
+[params, siteDateMap, siteSegs, siteTrialPSTHS, rawSpikes, siteChannels, siteActiveInd,...
+    siteRep,siteLocation,siteMasks,monkeys,vMask,conditions] = getAllSessions(conditions,"Single");
+taskAlign = containers.Map(conditions,taskAlignmentPoints);
 %% task phase units
 maxCondUnits = max(cellfun(@length, taskFR));
 reachVgrasp = zeros(1,maxCondUnits);

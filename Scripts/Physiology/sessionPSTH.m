@@ -103,7 +103,7 @@ for m = 1:length(muscles)
         alignedSig, allSegs, 'UniformOutput', false);
      alignedEMG = cellfun(@(a,at,gt) cellfun(@(ha,as,al) cellfun(@(h,l) conv(abs(h(...
          (l>=al(1) & l<=al(end)))),gausswin(smoothKernel)/sum(gausswin(smoothKernel)),...
-         'same'),ha(gt),as(gt),'UniformOutput',false),a,at,alignLims,'UniformOutput',false),alignedSig,alignedTimes,goodTrials,'UniformOutput',false);
+         'same'),ha(),as(),'UniformOutput',false),a,at,alignLims,'UniformOutput',false),alignedSig,alignedTimes,goodTrials,'UniformOutput',false);
      voltData = cellfun(@(a) cellfun(@(ha,al) cell2mat(cellfun(@(h) [h,NaN(1,length(al(1):(1/Fs):al(end))-1-length(h))],...
          ha,'UniformOutput',false)'),a,alignLims,'UniformOutput',false),alignedEMG,'UniformOutput',false);
      if(all(cellfun(@isempty,allEMGs)))
@@ -162,7 +162,40 @@ cols = find(arrayfun(@(m) mod(m,unitsPerPlot)-1,1:length(allChildren))==0);
 allChildren(cols(end-1)).Title.String = "Arm";
 allChildren(cols(end)).Title.String = "Hand";
 saveFigures(gcf,saveDir+"\"+string(date)+"\","PSTH+EMGs",[])
-
+%%
+figure();
+tiledlayout(1,length(conds))
+for c = 1:length(conds)
+    ax{c} = nexttile();
+    emg = allEMGs{c};
+    psth = allUnits{c};
+    hold on;
+    [lagMap,corrMap] = deal([]);
+    title(conds(c));
+    for p = 1:size(psth,2)
+        for m = 1:size(emg,2)
+            % [rvals,lags] = xcorr(conv(interp1(1:size(psth{p},2),mean(psth{p},1,'omitnan'),linspace(1,size(psth{p},2),size(emg{m},2)),'pchip'),...
+            %     gausswin(sigma)/sum(gausswin(sigma)),'same'),mean(emg{m},1,'omitnan'),400,'normalized');
+            [rvals,lags] = cellfun(@(a,b) xcorr(conv(interp1(1:size(a,2),a,linspace(1,size(a,2)+1,size(b,2)),'pchip'),...
+                gausswin(sigma)/sum(gausswin(sigma)),'same'),b,400,'normalized'),...
+                num2cell(psth{p},2),num2cell(emg{m},2),'UniformOutput',false);
+            maxVals = cellfun(@max,rvals);
+            corrMap(p,m)=mean(maxVals,'omitnan');
+        end
+    end
+    imagesc(corrMap);
+    xticks(1:m);
+    yticks(1:p);
+    xlim([.5,m+.5]);
+    ylim([.5,p+.5]);
+    xticklabels(muscles);
+    if(c==length(conds))
+    colorbar;
+    end
+    colormap('jet');
+    clim([0.5 1]);
+    title(conds(c));
+end
 
 
 function [alignedSig,avgSegs] = condSignalAligned(conds,alignSegsConds,sigStruct,fieldName)
@@ -173,6 +206,7 @@ for c = 1:length(conds)
     alignSegs =  alignSegsConds{c};
     currTrialInds = find(cellfun(@(a) contains(a, conds{c}),sigStruct.ArduinoData(:,1)));
     currTrialInds = currTrialInds(cellfun(@(a) ~any(isnan(a)), signals(:,currTrialInds)));
+    currTrialInds = true(1,length(currTrialInds));
     currSig = signals(:,currTrialInds);
     currSegs = sigStruct.SegTimes(:,currTrialInds);
     avgSegs{c} = currSegs;

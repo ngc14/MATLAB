@@ -15,15 +15,17 @@ allSegs = allSegsIn;
 allReps = allRepsIn;
 
 if(~exist('plotColors','var'))
-    if(any(contains(allReps,["Reach","Grasp","Both"])))
-        plotColors  = struct("Both", [1 .9 0], "Reach", [1 0 0],...
-            "GraspEx",[.75 .895 .5], "Grasp", [0 0 1]);
-    else
-        plotColors = MotorMapping.repColors;
-    end
+   % if(any(contains(allReps,["Reach","Grasp","Both"])))
+    %    plotColors  = struct("Both", [1 .9 0], "Reach", [1 0 0],...
+    %        "GraspEx",[.75 .895 .5], "Grasp", [0 0 1]);
+    %else
+    %    plotColors = MotorMapping.repColors;
+    %end
 end
+plotColors =cell2struct( num2cell(distinguishable_colors(6),2),unique(allReps)');
 plotNames = fieldnames(plotColors);
 jointName =plotNames(ismember(fieldnames(plotColors),unique(allReps)));
+
 zeroBinInd = find(bins==0);
 binSize = mode(diff(bins));
 alignmentGap = alignmentGap/binSize;

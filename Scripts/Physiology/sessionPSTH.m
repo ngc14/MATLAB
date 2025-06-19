@@ -1,4 +1,4 @@
-date = '06_06_2019';
+date = '06_03_2019';
 monkey = 'Gilligan';
 binSize = .01;
 sigma = 10;
@@ -47,7 +47,6 @@ end
 taskAlign = containers.Map(conds,{{["GoSignal" "StartLift"]},{["GoSignal","StartLift"]},...
     {["GoSignal","StartHold"]}});
 params = PhysRecording(conds,binSize,sigma/1000,-6,5);
-tUnits = [];
 unitNames = cell(1,length(sessionPhys));
 for f = 1:length(sessionPhys)
     m = matfile_m([sessionPhys(f).folder, '\', sessionPhys(f).name]);
@@ -76,10 +75,10 @@ for f = 1:length(sessionPhys)
                 {conv(histcounts(h,[params.bins,max(params.bins)+binSize])./binSize,gausswin(sigma)/sum(gausswin(sigma)),'same')},...
                 ha,'uniformoutput',false),a,alignLims','UniformOutput',false),alignedSig),...
                 false,true);
-            [vals,tUnit] = cellfun(@(b,cn) ttestTrials({{cellfun(@cell2mat,[b{:}])}},...
+            [~,tUnit] = cellfun(@(b,cn) ttestTrials({{cellfun(@cell2mat,[b{:}])}},...
                 {{cellfun(@cell2mat,[cn{:}])}},1,true,0.05),...
                 taskBaseline,taskFR,'UniformOutput',false);
-            tUnits(end+1) = any(cell2mat(tUnit));
+            unitNames{f}(u) = any(cell2mat(tUnit));
             if(all(cellfun(@isempty,allUnits)))
                 allUnits = trialHistsSmooth;
                 allSegs = avgSegs;
@@ -92,8 +91,8 @@ for f = 1:length(sessionPhys)
 end
 channelMap=[1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32];
 unitNames = unitNames(channelMap);
-unitNames = arrayfun(@(a,b) repmat(a,1,b), find(~cellfun(@isempty,unitNames)), ...
-    cellfun(@length,unitNames(~cellfun(@isempty,unitNames))));
+unitNames = arrayfun(@(a,b) repmat(a,1,b), find(cellfun(@any,unitNames)), ...
+    cellfun(@length,unitNames(cellfun(@any,unitNames))));
 %%
 allEMGs = cell(1,length(conds));
 for m = 1:length(muscles)
@@ -110,7 +109,7 @@ for m = 1:length(muscles)
         alignedSig, allSegs, 'UniformOutput', false);
     alignedEMG = cellfun(@(a,at,gt) cellfun(@(ha,as,al) cellfun(@(h,l) conv(abs(h(...
         (l>=al(1) & l<=al(end)))),gausswin(smoothKernel)/sum(gausswin(smoothKernel)),...
-        'same'),ha(),as(),'UniformOutput',false),a,at,alignLims,'UniformOutput',false),alignedSig,alignedTimes,goodTrials,'UniformOutput',false);
+        'same'),ha(gt),as(gt),'UniformOutput',false),a,at,alignLims,'UniformOutput',false),alignedSig,alignedTimes,goodTrials,'UniformOutput',false);
     voltData = cellfun(@(a) cellfun(@(ha,al) cell2mat(cellfun(@(h) [h,NaN(1,length(al(1):(1/Fs):al(end))-1-length(h))],...
         ha,'UniformOutput',false)'),a,alignLims,'UniformOutput',false),alignedEMG,'UniformOutput',false);
     if(all(cellfun(@isempty,allEMGs)))
@@ -144,8 +143,8 @@ for a = 1:unitCols
     ch(cols(a)).Title.String = "Units "+num2str(unitNames(uInds));
 end
 normVals = max(cell2mat(cellfun(@(cp) cellfun(@(n) max(mean(n,1,'omitnan')), cp(~cellfun(@isempty,cp))),allUnits, 'UniformOutput',false)'),[],1);
-f=plotPSTH(cellfun(@(m)cellfun(@(n,v) {mean(n,1,'omitnan')./v},m,num2cell(normVals),'UniformOutput',false),allUnits,'UniformOutput',false),alignSegsConds,...
-    avgSegs,sortedSpikeData.ConditionSegments,alignLims,binSize,{[1 0 0],[224,144,38]./255, [0 0 1]},gapWind);
+avgSession = cellfun(@(m){{cell2mat(cellfun(@(n,v) mean(n,1,'omitnan')./v,m,num2cell(normVals),'UniformOutput',false)')}},allUnits,'UniformOutput',false);
+f=plotPSTH(avgSession,alignSegsConds,avgSegs,sortedSpikeData.ConditionSegments,alignLims,binSize,{[1 0 0],[224,144,38]./255, [0 0 1]},gapWind);
 ch = flipud(get(f.Children,'Children'));
 cols = find(arrayfun(@(m) mod(m,unitsPerPlot)-1,1:length(ch))==0);
 ch(cols(end)).Title.String = "Average of Units";
@@ -170,33 +169,39 @@ allChildren(cols(end-1)).Title.String = "Arm";
 allChildren(cols(end)).Title.String = "Hand";
 saveFigures(gcf,saveDir+"\"+string(date)+"\","PSTH+EMGs",[])
 %%
-figure();
-tiledlayout(1,length(conds))
+t2=tiledlayout(figure(2),1,length(conds));
+t3=tiledlayout(figure(3),1,length(conds));
 for c = 1:length(conds)
-    ax{c} = nexttile();
     emg = allEMGs{c};
     psth = allUnits{c};
-    hold on;
     [lagMap,corrMap] = deal([]);
-    title(conds(c));
+    condAvg = avgSession{c}{1};
+    avgCorr = NaN(1,length(muscles));
     for p = 1:size(psth,2)
         for m = 1:size(emg,2)
             [rvals,lags] = xcorr(conv(interp1(1:size(psth{p},2),mean(psth{p},1,'omitnan'),linspace(1,size(psth{p},2),size(emg{m},2)),'pchip'),...
-                gausswin(sigma)/sum(gausswin(sigma)),'same'),mean(emg{m},1,'omitnan'),400,'normalized');
+                gausswin(sigma)/sum(gausswin(sigma)),'same'),mean(emg{m},1,'omitnan'),'normalized');
             % [rvals,lags] = cellfun(@(a,b) xcorr(conv(interp1(1:size(a,2),a,linspace(1,size(a,2)+1,size(b,2)),'pchip'),...
             %     gausswin(sigma)/sum(gausswin(sigma)),'same'),b,400,'normalized'),...
             %     num2cell(psth{p},2),num2cell(emg{m},2),'UniformOutput',false);
+            lags = lags/Fs;
             % maxVals = cellfun(@max,rvals);
-            corrMap(p,m)=mean(rvals,'omitnan');
+            [corrMap(p,m),lagMap(p,m)]=max(rvals(lags<.2 & lags >.02));
+            [rvals,~] = xcorr(conv(interp1(1:size(condAvg{1},2),mean(condAvg{1},1,'omitnan'),...
+                linspace(1,size(condAvg{1},2),size(emg{m},2)),'pchip'),gausswin(sigma)/sum(gausswin(sigma)),'same'),mean(emg{m},1,'omitnan'),'normalized');
+            [corrMap(size(psth,2)+1,m),lagMap(size(psth,2)+1,m)] = max(rvals(lags<.2 & lags>0));
         end
     end
+    corrMap(end+1,:) = mean(corrMap,1,'omitnan');
+    nexttile(t2);
+    hold on;
     imagesc(corrMap);
     xticks(1:m);
-    yticks(1:p);
+    yticks(1:p+2);
     xlim([.5,m+.5]);
-    ylim([.5,p+.5]);
+    ylim([.5,p+2.5]);
     xticklabels(muscles);
-    yticklabels(unitNames)
+    yticklabels([unitNames,"SessionAVG","AVGCorrelation"])
     if(c==length(conds))
         colorbar;
     end
@@ -204,8 +209,29 @@ for c = 1:length(conds)
     clim([0.5 1]);
     title(conds(c));
     axis ij
+    
+    lagMap(end+1,:) = mean(lagMap,1,'omitnan');
+    nexttile(t3);
+    hold on;
+    imagesc(lagMap);
+    xticks(1:m);
+    yticks(1:p+2);
+    xlim([.5,m+.5]);
+    ylim([.5,p+2.5]);
+    xticklabels(muscles);
+    yticklabels([unitNames,"SessionAVG","AVGCorrelation"])
+    if(c==length(conds))
+        cb = colorbar;
+        cb.TickLabels = num2cell(1000*(cb.Ticks./Fs));
+    end
+    colormap('hot');
+    clim([1 (length(lags(lags<.2 & lags>0)))]);
+    title(conds(c));
+    axis ij
 end
-saveFigures(gcf,saveDir+"\"+string(date)+"\","Correlations_AVG",[]);
+saveFigures(figure(2),saveDir+"\"+string(date)+"\","Correlations_AVG",[]);
+saveFigures(figure(3),saveDir+"\"+string(date)+"\","TimeLags",[]);
+
 
 function [alignedSig,avgSegs] = condSignalAligned(conds,alignSegsConds,sigStruct,fieldName)
 signals = sigStruct.(fieldName);

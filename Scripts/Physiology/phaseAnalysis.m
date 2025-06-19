@@ -1,4 +1,4 @@
-savePath = "S:\Lab\ngc14\Working\Both\Full_Baseline\";
+savePath = "S:\Lab\ngc14\Working\PMd\";
 conditions = ["Extra Small Sphere", "Large Sphere", "Photocell"];
 alignLimits = {[-.5, .15], [-.20, .20],[-.15,.5]};
 pVal = 0.05;
@@ -295,13 +295,13 @@ saveFigures(gcf, strjoin([condDir,"Maps\FR\"]),"Gilligan_Task"+"rSI",[])
         disp(join([currCond, ' for ', monk, ' done.']));
         toc;
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-        % sessionInds = ~isnan(mMapping) & mutInds;
-        % siteUnitMods = mMapping;
-        % siteUnitMods(~sessionInds) = 0;
-        % [siteIndsN,siteInds] = unique(siteUnitMods);
-        % siteInds = siteInds(siteIndsN>0);
-        % phaseJointFig = plotJointPSTHS(params.bins,unitPSTHS,trialSegs,currRep,siteInds,[],...
-        %     alignLimits,[0 8]);
+        sessionInds = ~isnan(mMapping) & mutInds;
+        siteUnitMods = mMapping;
+        siteUnitMods(~sessionInds) = 0;
+        [siteIndsN,siteInds] = unique(siteUnitMods);
+        siteInds = siteInds(siteIndsN>0);
+        phaseJointFig = plotJointPSTHS(params.bins,unitPSTHS,trialSegs,currRep,siteInds,[],...
+            alignLimits,[0 8]);
         %
         % jointInds = arrayfun(@(jN) arrayfun(@(mJ) logical(cellfun(@(ss) strcmp(ss,jN),...
         %     mJ,'UniformOutput',true)),currRep(mutInds)),unique(currRep(mutInds)),'UniformOutput', false);

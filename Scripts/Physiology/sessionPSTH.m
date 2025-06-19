@@ -1,7 +1,7 @@
 date = '06_06_2019';
 monkey = 'Gilligan';
 binSize = .01;
-sigma = 10; 
+sigma = 10;
 MIN_BLOCKS_FOR_UNIT = 15;
 conds = ["Extra Small Sphere", "Large Sphere", "Photocell"];
 alignSegsConds = {["StartReach"],["StartReach"],["StartReach"]};
@@ -48,6 +48,7 @@ taskAlign = containers.Map(conds,{{["GoSignal" "StartLift"]},{["GoSignal","Start
     {["GoSignal","StartHold"]}});
 params = PhysRecording(conds,binSize,sigma/1000,-6,5);
 tUnits = [];
+unitNames = cell(1,length(sessionPhys));
 for f = 1:length(sessionPhys)
     m = matfile_m([sessionPhys(f).folder, '\', sessionPhys(f).name]);
     m = m.sortedSpikeData;
@@ -58,15 +59,19 @@ for f = 1:length(sessionPhys)
         blockInds = cumsum(mod(1:length(sortedSpikeData.ArduinoData),length(conds))==1);
         unitTrials = num2cell(allGoodTrials.*blockInds,2);
         goodUnitsOnChannel = find(cellfun(@(tc) length(unique(tc))-1, unitTrials)>MIN_BLOCKS_FOR_UNIT);
+        sortedSD = sortedSpikeData;
+        sortedSD.SegTimes = sortedSD.SegTimes(goodUnitsOnChannel,:);
+        sortedSD.SpikeTimes = sortedSD.SpikeTimes(goodUnitsOnChannel,:);
+        unitNames{f} = goodUnitsOnChannel;
         for u = 1:length(goodUnitsOnChannel)
             [alignedSig,avgSegs] = condSignalAligned(conds,alignSegsConds,...
-                sortedSpikeData,'SpikeTimes');
+                sortedSD,'SpikeTimes');
             trialHistsSmooth = cellfun(@(a) cellfun(@(ha,al)cell2mat(cellfun(@(h) ...
                 conv(histcounts(h,al(1):binSize:al(end))./binSize,gausswin(sigma)/sum(gausswin(sigma)),'same'),...
                 ha,'UniformOutput',false)'),a,alignLims,'UniformOutput',false),alignedSig, 'UniformOutput', false);
 
             [taskBaseline,taskFR] = calculatePhases(params,taskAlign,{[0.2 0]},...
-                cellfun(@(c) cellfun(@(t) {t-t(2)},c,'UniformOutput',false), avgSegs,'UniformOutput',false),...
+                cellfun(@(c) cellfun(@(t) {t-t(min(2,length(t)))},c,'UniformOutput',false), avgSegs,'UniformOutput',false),...
                 cellfun(@(a)cellfun(@(ha,al)cellfun(@(h) ...
                 {conv(histcounts(h,[params.bins,max(params.bins)+binSize])./binSize,gausswin(sigma)/sum(gausswin(sigma)),'same')},...
                 ha,'uniformoutput',false),a,alignLims','UniformOutput',false),alignedSig),...
@@ -85,6 +90,10 @@ for f = 1:length(sessionPhys)
         end
     end
 end
+channelMap=[1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32];
+unitNames = unitNames(channelMap);
+unitNames = arrayfun(@(a,b) repmat(a,1,b), find(~cellfun(@isempty,unitNames)), ...
+    cellfun(@length,unitNames(~cellfun(@isempty,unitNames))));
 %%
 allEMGs = cell(1,length(conds));
 for m = 1:length(muscles)
@@ -92,29 +101,27 @@ for m = 1:length(muscles)
     muscleEMG = muscleEMG.sortedEMGData;
     Fs = muscleEMG.SampleRate;
     smoothKernel = sigma./(1000/Fs);
-    [alignedTimes,allSegTimes] = condSignalAligned(conds,alignSegsConds,muscleEMG,'SegTimes');
+    [alignedTimes,~] = condSignalAligned(conds,alignSegsConds,muscleEMG,'SegTimes');
     [alignedSig,allSegs] = condSignalAligned(conds,cell(1,length(conds)),muscleEMG,'EMGData');
     alignedTimes = cellfun(@(c) {cellfun(@(a) cellfun(@(s) s(1):(1/Fs):s(end),a,'UniformOutput',false),...
         c,'UniformOutput',false)},alignedTimes);
-    alignedTimes = cellfun(@(s,a,at) {at{1}(cellfun(@(t) find(cellfun(@(s2) isequal(t,s2), a)), s))},...
-        allSegs,allSegTimes,alignedTimes,'UniformOutput',false);
     allSegs = cellfun(@(c) cellfun(@transpose,c,'UniformOutput',false),allSegs,'UniformOutput',false);
     goodTrials = cellfun(@(s,t) getBadTrials(s{1},cellfun(@(tt) uint64(1000*(tt-tt(1))./(1000/Fs)),t,'UniformOutput',false),Fs)==0,...
         alignedSig, allSegs, 'UniformOutput', false);
-     alignedEMG = cellfun(@(a,at,gt) cellfun(@(ha,as,al) cellfun(@(h,l) conv(abs(h(...
-         (l>=al(1) & l<=al(end)))),gausswin(smoothKernel)/sum(gausswin(smoothKernel)),...
-         'same'),ha(),as(),'UniformOutput',false),a,at,alignLims,'UniformOutput',false),alignedSig,alignedTimes,goodTrials,'UniformOutput',false);
-     voltData = cellfun(@(a) cellfun(@(ha,al) cell2mat(cellfun(@(h) [h,NaN(1,length(al(1):(1/Fs):al(end))-1-length(h))],...
-         ha,'UniformOutput',false)'),a,alignLims,'UniformOutput',false),alignedEMG,'UniformOutput',false);
-     if(all(cellfun(@isempty,allEMGs)))
-         allEMGs = voltData;
-     else
-         allEMGs = cellfun(@(a,ts) [a,ts],allEMGs,voltData,'UniformOutput',false);
-     end
+    alignedEMG = cellfun(@(a,at,gt) cellfun(@(ha,as,al) cellfun(@(h,l) conv(abs(h(...
+        (l>=al(1) & l<=al(end)))),gausswin(smoothKernel)/sum(gausswin(smoothKernel)),...
+        'same'),ha(),as(),'UniformOutput',false),a,at,alignLims,'UniformOutput',false),alignedSig,alignedTimes,goodTrials,'UniformOutput',false);
+    voltData = cellfun(@(a) cellfun(@(ha,al) cell2mat(cellfun(@(h) [h,NaN(1,length(al(1):(1/Fs):al(end))-1-length(h))],...
+        ha,'UniformOutput',false)'),a,alignLims,'UniformOutput',false),alignedEMG,'UniformOutput',false);
+    if(all(cellfun(@isempty,allEMGs)))
+        allEMGs = voltData;
+    else
+        allEMGs = cellfun(@(a,ts) [a,ts],allEMGs,voltData,'UniformOutput',false);
+    end
 end
 %%
 gapWind = 0.10;
-close all; 
+close all;
 unitsPerPlot = 3;
 allColors = cellfun(@(u) distinguishable_colors(length(u)+length(muscles)),allUnits,'UniformOutput',false);
 unitColors = cellfun(@(c) c(1:(end-length(muscles)),:), allColors, 'UniformOutput',false);
@@ -134,11 +141,11 @@ for a = 1:unitCols
         arrayfun(@(n) ylabel(ch(n),conds(n)), 1:length(conds));
     end
     cols = find(arrayfun(@(m) mod(m,unitsPerPlot)-1,1:length(ch))==0);
-    ch(cols(a)).Title.String = "Units "+num2str(uInds);
+    ch(cols(a)).Title.String = "Units "+num2str(unitNames(uInds));
 end
 normVals = max(cell2mat(cellfun(@(cp) cellfun(@(n) max(mean(n,1,'omitnan')), cp(~cellfun(@isempty,cp))),allUnits, 'UniformOutput',false)'),[],1);
 f=plotPSTH(cellfun(@(m)cellfun(@(n,v) {mean(n,1,'omitnan')./v},m,num2cell(normVals),'UniformOutput',false),allUnits,'UniformOutput',false),alignSegsConds,...
-   avgSegs,sortedSpikeData.ConditionSegments,alignLims,binSize,{[1 0 0],[224,144,38]./255, [0 0 1]},gapWind);
+    avgSegs,sortedSpikeData.ConditionSegments,alignLims,binSize,{[1 0 0],[224,144,38]./255, [0 0 1]},gapWind);
 ch = flipud(get(f.Children,'Children'));
 cols = find(arrayfun(@(m) mod(m,unitsPerPlot)-1,1:length(ch))==0);
 ch(cols(end)).Title.String = "Average of Units";
@@ -147,7 +154,7 @@ armMuscles = cellfun(@(s) ismember(s,allmuscles(1:3)),muscles);
 normEMG = max(cell2mat(cellfun(@(cp) cellfun(@(n) max(mean(n,1,'omitnan')), cp(~cellfun(@isempty,cp))),allEMGs, 'UniformOutput',false)'),[],1);
 allEMGs = cellfun(@(m) cellfun(@(a,v) a./v,m,num2cell(normEMG),'UniformOutput',false), allEMGs,'UniformOutput',false);
 f=plotPSTH(cellfun(@(m) {m(armMuscles)},allEMGs,'UniformOutput',false),alignSegsConds,...
-   allSegs,muscleEMG.ConditionSegments,alignLims,1/Fs,cellfun(@(m) m(armMuscles,:),muscleColors,'UniformOutput',false),gapWind);
+    allSegs,muscleEMG.ConditionSegments,alignLims,1/Fs,cellfun(@(m) m(armMuscles,:),muscleColors,'UniformOutput',false),gapWind);
 lh = legend;
 lh.String = lh.String(end-sum(armMuscles):end-1);
 lh.String = allmuscles(armMuscles);
@@ -174,13 +181,13 @@ for c = 1:length(conds)
     title(conds(c));
     for p = 1:size(psth,2)
         for m = 1:size(emg,2)
-            % [rvals,lags] = xcorr(conv(interp1(1:size(psth{p},2),mean(psth{p},1,'omitnan'),linspace(1,size(psth{p},2),size(emg{m},2)),'pchip'),...
-            %     gausswin(sigma)/sum(gausswin(sigma)),'same'),mean(emg{m},1,'omitnan'),400,'normalized');
-            [rvals,lags] = cellfun(@(a,b) xcorr(conv(interp1(1:size(a,2),a,linspace(1,size(a,2)+1,size(b,2)),'pchip'),...
-                gausswin(sigma)/sum(gausswin(sigma)),'same'),b,400,'normalized'),...
-                num2cell(psth{p},2),num2cell(emg{m},2),'UniformOutput',false);
-            maxVals = cellfun(@max,rvals);
-            corrMap(p,m)=mean(maxVals,'omitnan');
+            [rvals,lags] = xcorr(conv(interp1(1:size(psth{p},2),mean(psth{p},1,'omitnan'),linspace(1,size(psth{p},2),size(emg{m},2)),'pchip'),...
+                gausswin(sigma)/sum(gausswin(sigma)),'same'),mean(emg{m},1,'omitnan'),400,'normalized');
+            % [rvals,lags] = cellfun(@(a,b) xcorr(conv(interp1(1:size(a,2),a,linspace(1,size(a,2)+1,size(b,2)),'pchip'),...
+            %     gausswin(sigma)/sum(gausswin(sigma)),'same'),b,400,'normalized'),...
+            %     num2cell(psth{p},2),num2cell(emg{m},2),'UniformOutput',false);
+            % maxVals = cellfun(@max,rvals);
+            corrMap(p,m)=mean(rvals,'omitnan');
         end
     end
     imagesc(corrMap);
@@ -189,14 +196,16 @@ for c = 1:length(conds)
     xlim([.5,m+.5]);
     ylim([.5,p+.5]);
     xticklabels(muscles);
+    yticklabels(unitNames)
     if(c==length(conds))
-    colorbar;
+        colorbar;
     end
     colormap('jet');
     clim([0.5 1]);
     title(conds(c));
+    axis ij
 end
-
+saveFigures(gcf,saveDir+"\"+string(date)+"\","Correlations_AVG",[]);
 
 function [alignedSig,avgSegs] = condSignalAligned(conds,alignSegsConds,sigStruct,fieldName)
 signals = sigStruct.(fieldName);
@@ -205,11 +214,11 @@ alignedSig = cellfun(@(c) cell(1,length(c)),alignSegsConds,'UniformOutput',false
 for c = 1:length(conds)
     alignSegs =  alignSegsConds{c};
     currTrialInds = find(cellfun(@(a) contains(a, conds{c}),sigStruct.ArduinoData(:,1)));
-    currTrialInds = currTrialInds(cellfun(@(a) ~any(isnan(a)), signals(:,currTrialInds)));
-    currTrialInds = true(1,length(currTrialInds));
     currSig = signals(:,currTrialInds);
     currSegs = sigStruct.SegTimes(:,currTrialInds);
+    badInds = cellfun(@(b) any(isnan(b)), currSegs);
     avgSegs{c} = currSegs;
+    avgSegs{c}(badInds) = repmat({NaN(1,length(sigStruct.ConditionSegments{c}))},1,sum(badInds));
     alignedSig{c}{1} = currSig;
     for a = 1:length(alignSegs)
         alignInd = find(strcmp(sigStruct.ConditionSegments{c}, alignSegs(a)));

@@ -2,7 +2,8 @@
 conditions = ["Extra Small Sphere", "Large Sphere", "Photocell"];
 [params, siteDateMap, siteSegs, siteTrialPSTHS, rawSpikes, siteChannels, siteActiveInd,...
     siteRep,siteLocation,siteMasks,monkeys,vMask,conditions] = getAllSessions(conditions,"Single","PMd");
-taskAlign = containers.Map(conditions,taskAlignmentPoints);
+taskAlign = containers.Map(conditions,{{["GoSignal" "StartLift"]},{["GoSignal","StartLift"]},...
+    {["GoSignal","StartHold"]}});
 %% task phase units
 maxCondUnits = max(cellfun(@length, taskFR));
 reachVgrasp = zeros(1,maxCondUnits);

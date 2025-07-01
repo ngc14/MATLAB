@@ -1,9 +1,84 @@
-%%
 conditions = ["Extra Small Sphere", "Large Sphere", "Photocell"];
 [params, siteDateMap, siteSegs, siteTrialPSTHS, rawSpikes, siteChannels, siteActiveInd,...
     siteRep,siteLocation,siteMasks,monkeys,vMask,conditions] = getAllSessions(conditions,"Single","PMd");
 taskAlign = containers.Map(conditions,{{["GoSignal" "StartLift"]},{["GoSignal","StartLift"]},...
     {["GoSignal","StartHold"]}});
+%%
+[taskBaseline,taskFR] = calculatePhases(params,taskAlign,taskWindow,siteSegs,siteTrialPSTHS,false,true);
+condUnitMapping = cellfun(@(si) size(si,2),siteChannels{2})';
+allCondSegs = cellfun(@(c) cellfun(@(a) cellfun(@(t) findBins(params.bins,mean(t(:,1),'omitnan')-3),a),...
+    c,'UniformOutput',false),siteSegs,'UniformOutput',false);
+normBaseline = cellfun(@(p,t)cellfun(@(a,n) [max(1,median(cell2mat(reshape(cellfun(@(c,s) ...
+    permute(mean(c(:,s:s+(1/params.binSize),:),[2],'omitnan'),[1 3 2]),a(~isnan(n)),...
+    num2cell(n(~isnan(n))),'UniformOutput',false),[1,1,sum(~isnan(n))])),3,'omitnan'));NaN(all(isnan(n)).*size(a{1},1),1)],p,t,...
+    'UniformOutput',false),siteTrialPSTHS,allCondSegs,"UniformOutput",false);
+normPSTH = cellfun(@(cp,nb) num2cell(cellfun(@(p,b)permute(permute(p,[1 3 2])./repmat(b,1,1,size(p,2)),[1 3 2]),...
+    vertcat(cp{:}),repmat(nb,1,size(vertcat(cp{:}),2)),'UniformOutput',false),2),siteTrialPSTHS,normBaseline,'Uniformoutput', false);
+monkey = "Gilligan";
+%%
+close all;
+alignLimits = {[-.75, 1]};
+allPSTHS = cell(1,1);
+condInds = []; allSiteInds = []; allTrials = cell(1,length(conditions));
+[~,tUnits] = cellfun(@(tb,tc) cellfun(@(b,cn) ttestTrials(b,cn,1,true,pVal),...
+    tb,tc,'UniformOutput',false),taskBaseline,taskFR,'UniformOutput', false);
+tUnits = reshape(tUnits,1,1,[]);
+tUnits = cell2mat([tUnits{:}]);
+tUnits = any(tUnits,2);
+for c =1:length(conditions)
+    condSegs = siteSegs{c};
+    condPSTHS = num2cell(cellfun(@(m) mean(m,3,'omitnan'),vertcat(normPSTH{c}{:}),'UniformOutput',false),1);
+    mMapping = cell2mat(arrayfun(@(m,n) ones(1,m)*n,condUnitMapping,...
+        1:length(condUnitMapping),'UniformOutput',false));
+    monk = monkey;
+    vmMask = vMask(monk);
+    vmMask = double(vmMask{1});
+    mInds = contains(siteDateMap.Monkey,monk);
+    muInds = mapSites2Units(condUnitMapping,mInds')' ;
+    mMapping(~muInds) = NaN;
+    mMapping = mMapping-(nanmin(mMapping))+1;
+    
+    condRep =  mapSites2Units(condUnitMapping,siteRep)';
+    trialSegs =  num2cell(vertcat(condSegs{mInds}),1);
+    mutInds = muInds & tUnits==1;
+    currRep = condRep;
+    currRep(~muInds) = "";
+    sessionInds = ~isnan(mMapping) & mutInds;
+    siteUnitMods = mMapping;
+    siteUnitMods(~sessionInds) = 0;
+    [siteIndsN,siteInds] = unique(siteUnitMods);
+    siteInds = siteInds(siteIndsN>0);
+    unitPSTHS = cellfun(@(p) (muInds./muInds)'.*vertcat(p{:}),condPSTHS,'UniformOutput',false);
+    plotColors =cell2struct(num2cell(distinguishable_colors(length(siteDateMap.Date)),2),...
+        arrayfun(@(s) char(datetime(s,'Format','MMMM_dd')),string(siteDateMap.Date),'UniformOutput',false));
+    siteUnits = mapSites2Units(condUnitMapping,cellfun(@(c) string(datetime(c,'Format','MMMM_dd')),siteDateMap.Date','UniformOutput',false));
+    siteUnits(siteUnitMods==0) = "";
+    %
+    % condPSTHS = cellfun(@(n) cellfun(@(t) squeeze(t)',num2cell(n,[2,3]),'UniformOutput',false), vertcat(normPSTH{c}{:}),'Uniformoutput',false);
+    % for s = 2:length(condPSTHS)
+    %     unitPSTHS = {cell2mat(condPSTHS{s-1})};
+    %     currsiteUnits =  siteInds(max(1,s-1)):siteInds(s)-1;
+    %     plotColors =cell2struct(num2cell(distinguishable_colors(length(currsiteUnits)),2),...
+    %     string(arrayfun(@(t) char(datetime(siteDateMap.Date{s-1},'Format','MMMM_dd'))+"_"+t,currsiteUnits,'UniformOutput',false)));
+    %     trialSiteUnits = cellfun(@(n) cellstr(repmat(string(n),size(trialSegs{1}{s-1},1),1)),fieldnames(plotColors),'UniformOutput',false);
+    %     [~,ib,~] = unique(cellstr(cellfun(@string,vertcat(trialSiteUnits{:}))));
+        plotJointPSTHS(params.bins,unitPSTHS(1),trialSegs(1),...%cellfun(@(t) t(s-1), trialSegs,'UniformOutput',false),....
+           siteUnits, siteInds,[],  alignLimits,[0 15],plotColors);
+        saveFigures(gcf,savePath+string(datetime(siteDateMap.Date{s-1},'Format','MMMM_dd'))+"\",...
+            params.condAbbrev(params.condNames(c))+"_PSTH",[]);
+    %end
+    siteUnits(siteUnitMods>0) = "All";
+    allPSTHS = cellfun(@(a,b) vertcat(a,b), allPSTHS, unitPSTHS(1), 'UniformOutput', false);
+    condInd = repmat(string(params.condAbbrev(params.condNames(c))),1,length(siteUnits));
+    condInd(siteUnitMods==0) = "";
+    condInds = [condInds,condInd];
+    allSiteInds = [allSiteInds;diff(siteInds)];
+    allTrials = cellfun(@(a,d) vertcat(a,d), allTrials,trialSegs, 'UniformOutput',false);
+end
+allTrials = cellfun(@(c) cellfun(@(t) [t(:,1:2), NaN(size(t,1),size(t,2)==8),t(:,3:end)],c,'UniformOutput',false),allTrials, 'UniformOutput',false);
+plotJointPSTHS(params.bins,allPSTHS,allTrials,condInds,cumsum(allSiteInds),[],  alignLimits,[0 15],...
+    cell2struct(num2cell(distinguishable_colors(length(conditions)),2),string(params.condAbbrev.values)));
+saveFigures(gcf,savePath,"All_PSTH",[]);
 %% task phase units
 maxCondUnits = max(cellfun(@length, taskFR));
 reachVgrasp = zeros(1,maxCondUnits);
@@ -379,7 +454,7 @@ for s = 1:size(condCombs,1)
         boundaries = bwboundaries(activityIm);
         condAbbrevVS = strjoin(cellfun(@(cn) cn([0,regexp(cn, '\s')]+1),...
             condCombs(s,:), 'UniformOutput', false),'_');
-        
+
         countIm = copyobj(gca(figureCountVS),figure()); hold on;
         cellfun(@(b) plot(b(:,2), b(:,1), 'g', 'LineWidth',lineWidth),...
             boundaries);
@@ -401,7 +476,7 @@ for s = 1:size(condCombs,1)
     end
 end
 for p = 1:length(phaseNames)
-    
+
     jP =  plotJointPSTHS(bins,masterPSTH{d},masterSegs{d},simpRep,masterActivity{d},sessionInds);
     saveFigures(jP,['S:\Lab\ngc14\Figures\Physiology\Results\PSTH\',condAbbrev{d},'\'],saveName, []);
     masterPhaseIndices = cellfun(@(pIn) cellfun(@(p) round(nanmean(p,1)), pIn, 'UniformOutput', false), masterPhaseBins(d,p), 'UniformOutput',false);
@@ -410,10 +485,10 @@ for p = 1:length(phaseNames)
     phaseP = cellfun(@(psth,r) trapz(binSize,psth(round(max(1,nanmean(r(:,1)))):round(min(length(bins),nanmean(r(:,end))))))./(diff(nanmean(r,1))),...
         masterPSTH{d}, masterPhaseBins{d,p},'UniformOutput', true);
     unitAUC = arrayfun(@(r,g) (r-g), phaseP, baseP, 'UniformOutput', true);
-    
+
     trialAUC = cellfun(@(t) t.*tkInds, trialAUC, 'UniformOutput', false);
     unitAUC = unitAUC.*tkInds;
-    
+
     repT = figure('Units', 'normalized', 'Position', [0 0 1 1]);hold on;
     repU = figure('Units', 'normalized', 'Position', [0 0 1 1]);hold on;
     s1 = []; s2 = [];
@@ -427,7 +502,7 @@ for p = 1:length(phaseNames)
             cellfun(@(p) nanstd(p(jointInds{s}))/sqrt(sum(~isnan(p(jointInds{s})))), trialAUCS), 'k','linestyle', 'none');
         xticks(1:length(phaseNames));
         xticklabels(phaseNames);
-        
+
         figure(repU)
         s2(s) = subplot(1,4,s);
         hold on;
@@ -442,13 +517,13 @@ for p = 1:length(phaseNames)
     linkaxes(s2);
     saveFigures(repT,['S:\Lab\ngc14\Figures\Physiology\Results\SI\ByRep\',condAbbrev{d},'\Trial\'],[saveName,'_Task_Trial_',condAbbrev{d}] ,[]);
     saveFigures(repU,['S:\Lab\ngc14\Figures\Physiology\Results\SI\ByRep\',condAbbrev{d},'\Unit\'],[saveName, '_Task_Unit_',condAbbrev{d}] ,[]);
-    
+
     trialAUCFig = modulatedUnitsPerRep(repSave,trialAUC,string(['AUC']),string(sprintf(phaseNames{p})));
     unitAUCFig = modulatedUnitsPerRep(repSave, mat2cell(unitAUC,1),string(['AUC']),string(sprintf(phaseNames{p})));
-    
+
     saveFigures(trialAUCFig,['S:\Lab\ngc14\Figures\Physiology\Results\AUC\',condAbbrev{d},'\Trial\'],[saveName,'_Task_Trial'] ,[]);
     saveFigures(unitAUCFig,['S:\Lab\ngc14\Figures\Physiology\Results\AUC\',condAbbrev{d},'\Unit\'],[saveName,'_Task_Unit'] ,[]);
-    
+
     figMapUnit = mapUnitVals(verticies,vCells,vMask,siteMasks,sessionInds,unitAUC);
     hold on;
     weighting = cellfun(@(c) normalize(c(sessionInds), 'range'), unitAUCS, 'UniformOutput', false)
@@ -611,22 +686,22 @@ for c = 1:length(movementConds)
                     interpft(b,length(ii)),largestSeg), taskFR{c}{:,wM(c)}(condInds{c}),interpTrials,'UniformOutput', false)'),1);
                 allAvgM{m} = nanmean(cell2mat(cellfun(@(b,ii) nanPadArrays(...
                     interpft(b,length(ii)),largestSeg), mTrials{m}{c},interpTrials,'UniformOutput', false)'),1);
-                
-                
+
+
                 yyaxis right
                 cellfun(@(ts) plot(FRBins(1:length(ts)),ts, 'Color', [randi([50 100],[1,1]),...
                     randi([0 50],[1,2])]./100,'LineWidth', .5,'LineStyle',...
                     '--','Marker','none'),interpTo);
                 avgS = cell2mat(cellfun(@(t) nanPadArrays(t,largestSeg),interpTo,'UniformOutput', false)');
                 plot(FRBins(1:length(avgS)),nanmean(avgS,1),'Color',[.5 0 0],'LineWidth',2,'LineStyle', '-','Marker','none');
-                
+
                 yyaxis left
                 cellfun(@(t) plot(FRBins(1:length(t)),t,'Color',[randi([0 50],[1,2]),...
                     randi([50 100],[1,1])]./100,'LineWidth',.5,'LineStyle', '--',...
                     'Marker','none'),interpTrials);
                 avgI = cell2mat(cellfun(@(t) nanPadArrays(t,largestSeg),interpTrials,'UniformOutput',false)');
                 plot(FRBins(1:length(avgI)),nanmean(avgI,1),'Color',[0 0 .5],'LineStyle','-','LineWidth',2,'Marker','none');
-                
+
                 corrs = cellfun(@(t,u) corrcoef(t,u),interpTrials,...
                     interpTo,'UniformOutput',false);
                 allCorrs{c}{f,m} = cellfun(@(r) r(2), corrs);
@@ -647,7 +722,7 @@ for c = 1:length(movementConds)
         [wmV2,wM2] = cellfun(@(av) max(abs([av{f,:}])), avgCorr,'UniformOutput',true);
         for c = 1:3
             subplot(2,2,c); hold on;
-            
+
             title([strcat("Best muscle (trial corr = ", num2str(wmV(c),2),"): ",...
                 string(modelNames{wM(c)})); strcat("Best muscle (avg corr = ", ...
                 num2str(wmV2(c),2), "): ",string(modelNames{wM2(c)}))]);
@@ -659,12 +734,12 @@ for c = 1:length(movementConds)
             end
             plot(FRBins(1:length(allAvgM{wM(c)})),allAvgM{wM(c)},'LineStyle','-','LineWidth',2,'Color',musclesColors(wM(c),:),'Marker','none')
             plot(FRBins(1:length(allAvgM{wM2(c)})),allAvgM{wM2(c)},'LineStyle','-','LineWidth',2,'Color',musclesColors(wM2(c),:),'Marker','none')
-            
+
         end
         if(~exist(['Trials\Winning Muscle\'],'dir'))
             mkdir(['Trials\Winning Muscle\'])
         end
-        
+
     end
     uPhases{c} = cellfun(@(u, uwi) cellfun(@(p) u(p(1):p(end)) , uwi, ...
         'UniformOutput', false), masterPSTH{c}, uwin, 'UniformOutput', false);
@@ -719,7 +794,7 @@ for u = 1:size(PSTH{1},1)
         yP(isnan(yP))=[];
         d = patch(xP,yP,1);
         set(d,'edgecolor','none','facealpha',.5,'facecolor','r');
-         avgSegs = nanmean(allSegs{a}{u},1);
+        avgSegs = nanmean(allSegs{a}{u},1);
         for s = 1:length(avgSegs)
             if(avgSegs(s)>=alignLimits{a}(1) && ...
                     avgSegs(s)<=alignLimits{a}(end) && ...
@@ -748,7 +823,7 @@ for u = 1:size(PSTH{1},1)
     end
     saveFigures(gcf,['\\univ.pitt.edu\nb\Gharbawie\Lab\ngc14\Figures\Physiology\Results\Single PSTHS\05_17_2019\',condAbbrev{c},'\'], num2str(u),[]);
     if(u==size(PSTH{1},1))
-        
+
         figure(); hold on;
         plotStart = 0;
         plotted = false(1,9);
@@ -792,7 +867,7 @@ for u = 1:size(PSTH{1},1)
             plotStart = plotStart + size(PSTH{a},2) + alignmentGap;
         end
     end
-        saveFigures(gcf,['\\univ.pitt.edu\nb\Gharbawie\Lab\ngc14\Figures\Physiology\Results\Single PSTHS\05_17_2019\',condAbbrev{c},'\'], 'Session',[]);
+    saveFigures(gcf,['\\univ.pitt.edu\nb\Gharbawie\Lab\ngc14\Figures\Physiology\Results\Single PSTHS\05_17_2019\',condAbbrev{c},'\'], 'Session',[]);
 
 end
 
@@ -914,45 +989,45 @@ close all;
 
 
 
-    %     condEvents = eventsAll(conditions{c});
-    %     if(strcmp(conditions{c}, 'Photocell'))
-    %         condPhaseAlignments = {{'GoSignal', 'StartHold'},{'GoSignal'},{'StartReach'},{'StartHold'}};
-    %         condPhaseWindows = phaseWindows;
-    %     elseif(strcmp(conditions{c}, 'Rest'))
-    %         condPhaseAlignments = {{'GoSignal', 'StartReplaceHold'}, {'GoSignal'}};
-    %         condPhaseWindows = {[0 0], [-1 1]};
-    %     else
-    %         condPhaseAlignments = phaseAlignments;
-    %         condPhaseWindows = phaseWindows;
-    %     end
-    %
-    %     baselineAlignment = cellfun(@(a) find(strcmp(condEvents,a)),...
-    %         baselineAlignments,'UniformOutput', true);
-    %     psthPhaseAlignment = cellfun(@(pa) cellfun(@(a) find(strcmp(condEvents,a)),...
-    %         pa,'UniformOutput',true),condPhaseAlignments, 'UniformOutput', false);
-    %     % find start and end index in (1) each PSTH for (2) each phase
-    %     psthPhaseEnds = cellfun(@(at) cellfun(@(a) cellfun(@(pa,pw) num2cell(...
-    %         findBins(a(:,pa)+pw,bins),2),psthPhaseAlignment,condPhaseWindows,'UniformOutput',false),at,'UniformOutput', false),...
-    %         masterSegs{c},'UniformOutput', false);
-    %     % create mask that NaNs out all values outside of interrogated phase
-    %     % for each (1) PSTH for each (2) phase
-    %     psthPhases = cellfun(@(pr) cellfun(@(ps) cellfun(@(p) ...
-    %         NaNMaskBins(p,length(bins)),ps, 'UniformOutput',false),...
-    %         pr,'UniformOutput', false), psthPhaseEnds, 'UniformOutput', false);
-    %     % create equivalent sized start and end points in the baseline window
-    %     % for each (1) PSTH for each (2) phase
-    %     psthBaselineEnds = cellfun(@(at,pp) cellfun(@(a,ps) cellfun(@(p) num2cell(...
-    %         max(ones(size(p,1),2), findBins(a(:,baselineAlignment)+baselineWindow,bins)...
-    %         -[zeros(size(p,1),1),nansum(p,2)]),2),ps,'UniformOutput',false),at,pp,'UniformOutput', false),...
-    %         masterSegs{c},psthPhases, 'UniformOutput', false);
-    %
-    %     baselinePSTHSampAUC{c} = cellfun(@(tb,ph,pc) cellfun(@(pb,hh,pt) cellfun(@(p,w)...
-    %         AUCBaselineBootstrap(p,pt,w),pb,hh, 'UniformOutput', false),tb,ph,pc,...
-    %         'UniformOutput', false),psthBaselineEnds,psthPhases,masterTrialPSTH{c},'UniformOutput',false);
-    %
-    %     psthPhasesAUC{c} = cellfun(@(up,ua) cellfun(@(ps,p) cellfun(@(i) permute(trapz(p.*...
-    %         ~isnan(permute(repmat(i,[1,1,size(p,1)]),[3 2 1])),2),[1 3 2]),ps,'UniformOutput', false),up,ua,'UniformOutput',...
-    %         false),psthPhases,masterTrialPSTH{c},'UniformOutput', false);
+%     condEvents = eventsAll(conditions{c});
+%     if(strcmp(conditions{c}, 'Photocell'))
+%         condPhaseAlignments = {{'GoSignal', 'StartHold'},{'GoSignal'},{'StartReach'},{'StartHold'}};
+%         condPhaseWindows = phaseWindows;
+%     elseif(strcmp(conditions{c}, 'Rest'))
+%         condPhaseAlignments = {{'GoSignal', 'StartReplaceHold'}, {'GoSignal'}};
+%         condPhaseWindows = {[0 0], [-1 1]};
+%     else
+%         condPhaseAlignments = phaseAlignments;
+%         condPhaseWindows = phaseWindows;
+%     end
+%
+%     baselineAlignment = cellfun(@(a) find(strcmp(condEvents,a)),...
+%         baselineAlignments,'UniformOutput', true);
+%     psthPhaseAlignment = cellfun(@(pa) cellfun(@(a) find(strcmp(condEvents,a)),...
+%         pa,'UniformOutput',true),condPhaseAlignments, 'UniformOutput', false);
+%     % find start and end index in (1) each PSTH for (2) each phase
+%     psthPhaseEnds = cellfun(@(at) cellfun(@(a) cellfun(@(pa,pw) num2cell(...
+%         findBins(a(:,pa)+pw,bins),2),psthPhaseAlignment,condPhaseWindows,'UniformOutput',false),at,'UniformOutput', false),...
+%         masterSegs{c},'UniformOutput', false);
+%     % create mask that NaNs out all values outside of interrogated phase
+%     % for each (1) PSTH for each (2) phase
+%     psthPhases = cellfun(@(pr) cellfun(@(ps) cellfun(@(p) ...
+%         NaNMaskBins(p,length(bins)),ps, 'UniformOutput',false),...
+%         pr,'UniformOutput', false), psthPhaseEnds, 'UniformOutput', false);
+%     % create equivalent sized start and end points in the baseline window
+%     % for each (1) PSTH for each (2) phase
+%     psthBaselineEnds = cellfun(@(at,pp) cellfun(@(a,ps) cellfun(@(p) num2cell(...
+%         max(ones(size(p,1),2), findBins(a(:,baselineAlignment)+baselineWindow,bins)...
+%         -[zeros(size(p,1),1),nansum(p,2)]),2),ps,'UniformOutput',false),at,pp,'UniformOutput', false),...
+%         masterSegs{c},psthPhases, 'UniformOutput', false);
+%
+%     baselinePSTHSampAUC{c} = cellfun(@(tb,ph,pc) cellfun(@(pb,hh,pt) cellfun(@(p,w)...
+%         AUCBaselineBootstrap(p,pt,w),pb,hh, 'UniformOutput', false),tb,ph,pc,...
+%         'UniformOutput', false),psthBaselineEnds,psthPhases,masterTrialPSTH{c},'UniformOutput',false);
+%
+%     psthPhasesAUC{c} = cellfun(@(up,ua) cellfun(@(ps,p) cellfun(@(i) permute(trapz(p.*...
+%         ~isnan(permute(repmat(i,[1,1,size(p,1)]),[3 2 1])),2),[1 3 2]),ps,'UniformOutput', false),up,ua,'UniformOutput',...
+%         false),psthPhases,masterTrialPSTH{c},'UniformOutput', false);
 %%
 function bin = findBins(allBins, timePoint)
 binSize = mode(diff(allBins));

@@ -15,14 +15,13 @@ allSegs = allSegsIn;
 allReps = allRepsIn;
 
 if(~exist('plotColors','var'))
-   % if(any(contains(allReps,["Reach","Grasp","Both"])))
-    %    plotColors  = struct("Both", [1 .9 0], "Reach", [1 0 0],...
-    %        "GraspEx",[.75 .895 .5], "Grasp", [0 0 1]);
-    %else
-    %    plotColors = MotorMapping.repColors;
-    %end
+   if(any(contains(allReps,["Reach","Grasp","Both"])))
+       plotColors  = struct("Both", [1 .9 0], "Reach", [1 0 0],...
+           "GraspEx",[.75 .895 .5], "Grasp", [0 0 1]);
+    else
+       plotColors = MotorMapping.repColors;
+    end
 end
-plotColors =cell2struct( num2cell(distinguishable_colors(6),2),unique(allReps)');
 plotNames = fieldnames(plotColors);
 jointName =plotNames(ismember(fieldnames(plotColors),unique(allReps)));
 
@@ -37,7 +36,8 @@ xAlignTicks = {};
 for j = 1:length(jointName)
     jointInds = arrayfun(@(s) cellfun(@(a) contains(a,jointName{j}),s), allReps,'UniformOutput',true);
     jointPSTH = cellfun(@(t) t(jointInds,:), PSTH, 'UniformOutput', false);
-    jointSegs = cellfun(@(t) t(contains(allReps(siteInds),jointName{j})), allSegs,'UniformOutput',false);    
+    %jointSegs = cellfun(@(t) t(contains(allReps(siteInds),jointName{j})), allSegs,'UniformOutput',false);
+    jointSegs = allSegs;
     %     [~, ~, activeJointInds] = intersect(find(activityInd),jointInds(activityInd));
     %     [~,~,inactiveJoints] = intersect(find(~activityInd),find(jointInds));
     %% plot PSTHS

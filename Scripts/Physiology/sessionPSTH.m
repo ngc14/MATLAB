@@ -5,7 +5,7 @@ sigma = 10;
 MIN_BLOCKS_FOR_UNIT = 15;
 conds = ["Extra Small Sphere", "Large Sphere", "Photocell"];
 alignSegsConds = {["StartReach"],["StartReach"],["StartReach"]};
-alignLims = {[-.5, 2.5]};
+alignWind = {[-.2, .2]};
 saveDir = 'S:\Lab\ngc14\Working\EMG_UNITS\Stim_Triggered\';
 sessionPath = ['S:\Lab\',monkey,'\All Data\',monkey,'_',date,'\'];
 allmuscles = [{'Deltoid'}, {'Biceps'},{'Triceps'},{'Wrist extensor'},{'Wrist flexor'},{'Digit extensor'},{'Digit flexor'}];
@@ -64,17 +64,21 @@ for f = 1:length(sessionPhys)
         sortedSD.SpikeTimes = sortedSD.SpikeTimes(goodUnitsOnChannel,:);
         unitNames{f} = goodUnitsOnChannel;
         for u = 1:length(goodUnitsOnChannel)
-            [alignedSig,avgSegs] = condSignalAligned(conds,alignSegsConds,...
-                sortedSD,'SpikeTimes');
-            trialHistsSmooth = cellfun(@(a) cellfun(@(ha,al)cell2mat(cellfun(@(h) ...
-                conv(histcounts(h,al(1):binSize:al(end))./binSize,gausswin(sigma)/sum(gausswin(sigma)),'same'),...
-                ha,'UniformOutput',false)'),a,alignLims,'UniformOutput',false),alignedSig, 'UniformOutput', false);
+            windInds = cellfun(@(tc,pc) cell2mat(cellfun(@(pa) arrayfun(@(s) find(strcmp(string(tc), s)),string(pa)),pc,...
+                'UniformOutput', false)),sortedSD.ConditionSegments(1:length(conds)), taskAlign.values,'UniformOutput',false);
+            alignInd = num2cell(cellfun(@(c,s) find(strcmp(c,s)),params.condSegMap.values, alignSegsConds));
+            [alignedSig,avgSegs] = condSignalAligned(conds,alignSegsConds,sortedSD,'SpikeTimes');
+            avgTimes = cellfun(@(a,ti) cellfun(@(t) t-t(ti), a,'UniformOutput', false),avgSegs,alignInd,'UniformOutput',false);
+            windowTimes = cellfun(@(a,ai) cellfun(@(t) t(ai), a,'UniformOutput', false),avgTimes,windInds,'UniformOutput',false);
 
-            [taskBaseline,taskFR] = calculatePhases(params,taskAlign,{[0.2 0]},...
+            trialHistsSmooth = cellfun(@(a,at,wi) cellfun(@(ha,p) cellfun(@(h,al) ...
+                conv(histcounts(h,((p(1)+al(wi(1))):binSize:(p(end)+al(wi(end))))./binSize),gausswin(sigma)/sum(gausswin(sigma)),'same'),...
+                ha,at,'UniformOutput',false),a,alignWind,'UniformOutput',false),alignedSig,avgTimes,windInds,'UniformOutput', false);
+            [taskBaseline,taskFR] = calculatePhases(params,taskAlign,alignWind,...
                 cellfun(@(c) cellfun(@(t) {t-t(min(2,length(t)))},c,'UniformOutput',false), avgSegs,'UniformOutput',false),...
                 cellfun(@(a)cellfun(@(ha,al)cellfun(@(h) ...
                 {conv(histcounts(h,[params.bins,max(params.bins)+binSize])./binSize,gausswin(sigma)/sum(gausswin(sigma)),'same')},...
-                ha,'uniformoutput',false),a,alignLims','UniformOutput',false),alignedSig),...
+                ha,'uniformoutput',false),a,alignWind','UniformOutput',false),alignedSig),...
                 false,true);
             [~,tUnit] = cellfun(@(b,cn) ttestTrials({{cellfun(@cell2mat,[b{:}])}},...
                 {{cellfun(@cell2mat,[cn{:}])}},1,true,0.05),...
@@ -104,17 +108,17 @@ for m = 1:length(muscles)
     Fs = muscleEMG.SampleRate;
     smoothKernel = sigma./(1000/Fs);
     [alignedTimes,~] = condSignalAligned(conds,alignSegsConds,muscleEMG,'SegTimes');
-    [alignedSig,allSegs] = condSignalAligned(conds,cell(1,length(conds)),muscleEMG,'EMGData');
+    [alignedEMGSig,allSegs] = condSignalAligned(conds,cell(1,length(conds)),muscleEMG,'EMGData');
     alignedTimes = cellfun(@(c) {cellfun(@(a) cellfun(@(s) s(1):(1/Fs):s(end),a,'UniformOutput',false),...
         c,'UniformOutput',false)},alignedTimes);
     allSegs = cellfun(@(c) cellfun(@transpose,c,'UniformOutput',false),allSegs,'UniformOutput',false);
     goodTrials{m} = cellfun(@(s,t) getBadTrials(s{1},cellfun(@(tt) uint64(1000*(tt-tt(1))./(1000/Fs)),t,'UniformOutput',false),Fs)==0,...
-        alignedSig, allSegs, 'UniformOutput', false);
+        alignedEMGSig, allSegs, 'UniformOutput', false);
     alignedEMG = cellfun(@(a,at,gt) cellfun(@(ha,as,al) cellfun(@(h,l) conv(abs(h(...
         (l>=al(1) & l<=al(end)))),gausswin(smoothKernel)/sum(gausswin(smoothKernel)),...
-        'same'),ha(gt),as(gt),'UniformOutput',false),a,at,alignLims,'UniformOutput',false),alignedSig,alignedTimes,goodTrials{m},'UniformOutput',false);
+        'same'),ha(gt),as(gt),'UniformOutput',false),a,at,alignWind,'UniformOutput',false),alignedEMGSig,alignedTimes,goodTrials{m},'UniformOutput',false);
     voltData = cellfun(@(a) cellfun(@(ha,al) cell2mat(cellfun(@(h) [h,NaN(1,length(al(1):(1/Fs):al(end))-1-length(h))],...
-        ha,'UniformOutput',false)'),a,alignLims,'UniformOutput',false),alignedEMG,'UniformOutput',false);
+        ha,'UniformOutput',false)'),a,alignWind,'UniformOutput',false),alignedEMG,'UniformOutput',false);
     if(all(cellfun(@isempty,allEMGs)))
         allEMGs = voltData;
     else
@@ -135,9 +139,11 @@ f=tiledlayout(length(alignSegsConds),unitCols+3,"TileIndexing","columnmajor");
 for a = 1:unitCols
     startInd = (unitsPerPlot*(a-1))+1;
     uInds = startInd:min(size(allUnits{1},2),startInd+(unitsPerPlot-1));
-    currUnits = cellfun(@(al) {al(uInds)}, allUnits, 'UniformOutput',false);
+    currUnits = cellfun(@(al)  {cellfun(@(t) cell2mat(cellfun(@(n) [n,NaN(1,max(cellfun(@length,t))-length(n))],...
+        t,'UniformOutput',false)'),al(uInds),'UniformOutput',false)},allUnits, 'UniformOutput',false);
     colors = cellfun(@(ac) ac(uInds,:),unitColors, 'UniformOutput',false);
-    f=plotPSTH(currUnits,alignSegsConds,avgSegs,sortedSpikeData.ConditionSegments,alignLims,binSize,colors,gapWind);
+    avgTimes = cellfun(@(c) cellfun(@(a) cell2mat(cellfun(@(t) [t(1),t(end)], a,'UniformOutput', false)'),c,'Uniformoutput', false), alignedTimes, 'UniformOutput',false);
+    f=plotPSTH(currUnits,alignSegsConds,windowTimes,sortedSpikeData.ConditionSegments,alignWind,binSize,colors,gapWind);
     ch = flipud(get(f.Children,'Children'));
     if(a==1)
         arrayfun(@(n) ylabel(ch(n),conds(n)), 1:length(conds));
@@ -147,7 +153,7 @@ for a = 1:unitCols
 end
 normVals = max(cell2mat(cellfun(@(cp) cellfun(@(n) max(mean(n,1,'omitnan')), cp(~cellfun(@isempty,cp))),allUnits, 'UniformOutput',false)'),[],1);
 avgSession = cellfun(@(m){{cell2mat(cellfun(@(n,v) mean(n,1,'omitnan')./v,m,num2cell(normVals),'UniformOutput',false)')}},allUnits,'UniformOutput',false);
-f=plotPSTH(avgSession,alignSegsConds,avgSegs,sortedSpikeData.ConditionSegments,alignLims,binSize,{[1 0 0],[224,144,38]./255, [0 0 1]},gapWind);
+f=plotPSTH(avgSession,alignSegsConds,avgTimes,sortedSpikeData.ConditionSegments,alignLims,binSize,{[1 0 0],[224,144,38]./255, [0 0 1]},gapWind);
 ch = flipud(get(f.Children,'Children'));
 cols = find(arrayfun(@(m) mod(m,unitsPerPlot)-1,1:length(ch))==0);
 ch(cols(end)).Title.String = "Average of Units";
@@ -196,7 +202,7 @@ for c = 1:length(conds)
             [corrMap(size(psth,2)+1,m),lagMap(size(psth,2)+1,m)] = max(rvals(lags<.2 & lags>0));
         end
     end
-    corrMap(end+1,:) = mean(corrMap,1,'omitnan');
+    corrMap(end+1,:) = median(corrMap,1,'omitnan');
     nexttile(t2);
     hold on;
     imagesc(corrMap);

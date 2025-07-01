@@ -2,23 +2,25 @@ function f = plotPSTH(allUnits,alignSegsConds,avgSegs,conditionSegments,alignLim
 PSTHY=0;
 for c = 1:length(alignSegsConds)
     alignSegs =  alignSegsConds{c};
-    averageSegs = mean(cell2mat(transpose(avgSegs{c})),1,'omitnan');
     ax{c} = nexttile();
     hold on;
     colororder(ax{c},colors{c});
     plotStart=0;
     for a = 1:length(alignSegs)
-        secondsBeforeEvent = alignLims{a}(1);
-        secondsAfterEvent = alignLims{a}(end);
-        totalHists = cell2mat(cellfun(@(p) mean(p,1,'omitnan'),allUnits{c}{a},'UniformOutput',false)');
+        condSegs = cellfun(@(i) i(1):binSize:(i(end)-binSize), (transpose(avgSegs{c})),'UniformOutput',false);
+        secondsBeforeEvent =  mean(cellfun(@(i) i(1), condSegs),'omitnan');
+        secondsAfterEvent = mean(cellfun(@(i) i(end),condSegs),'omitnan');
+        nsteps = max(cellfun(@length,condSegs))+length(alignLims{a}(1):binSize:alignLims{a}(end)-binSize);
+        averageSegs = mean(cell2mat(cellfun(@(bn) [bn(1),bn(end)],condSegs, 'UniformOutput',false)),1,'omitnan');
+        totalHists = cell2mat(cellfun(@(p) mean(p,1,'omitnan'),allUnits{c}{a},'UniformOutput',false)')';
         if(~isempty(totalHists))
-            plot(ax{c},plotStart+(secondsBeforeEvent:binSize:secondsAfterEvent-binSize),totalHists',...
+            plot(ax{c},plotStart+(linspace(secondsBeforeEvent,secondsAfterEvent,nsteps)),totalHists',...
                 'LineWidth', 2);
             uE=cellfun(@(p) mean(p,1,'omitnan')+(std(p,1)/sqrt(size(p,1))),allUnits{c}{a},'UniformOutput',false)';
             lE=cellfun(@(p) mean(p,1,'omitnan')-(std(p,1)/sqrt(size(p,1))),allUnits{c}{a},'UniformOutput',false)';
             yP=cellfun(@(l,u) [l,fliplr(u)],lE,uE,'UniformOutput',false);
-            xP=[plotStart+(secondsBeforeEvent:binSize:secondsAfterEvent-...
-                binSize),plotStart+fliplr(secondsBeforeEvent:binSize:secondsAfterEvent-binSize)];
+            xP=[plotStart+(linspace(secondsBeforeEvent,secondsAfterEvent,nsteps)),...
+                fliplr(plotStart+(linspace(secondsBeforeEvent,secondsAfterEvent,nsteps)))];
             ypInd = any(cell2mat(cellfun(@isnan,yP,'UniformOutput',false)),1);
             xP(ypInd)=[];
             yP = cell2mat(cellfun(@(y) y(~ypInd),yP,'UniformOutput',false));

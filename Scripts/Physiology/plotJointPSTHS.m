@@ -23,7 +23,7 @@ if(~exist('plotColors','var'))
     end
 end
 plotNames = fieldnames(plotColors);
-jointName =plotNames(ismember(fieldnames(plotColors),unique(allReps)));
+jointName =plotNames(ismember(plotNames,unique(allReps)));
 
 zeroBinInd = find(bins==0);
 binSize = mode(diff(bins));
@@ -34,10 +34,9 @@ PSTH =  cellfun(@(t,w) t(:,(fix(w(1)/binSize)+zeroBinInd):...
 figHandle=figure('Units', 'normalized', 'Position', [0 0 1 1]); hold on;
 xAlignTicks = {};
 for j = 1:length(jointName)
-    jointInds = arrayfun(@(s) cellfun(@(a) contains(a,jointName{j}),s), allReps,'UniformOutput',true);
+    jointInds = arrayfun(@(s) cellfun(@(a) strcmp(a,jointName{j}),s), allReps,'UniformOutput',true);
     jointPSTH = cellfun(@(t) t(jointInds,:), PSTH, 'UniformOutput', false);
-    %jointSegs = cellfun(@(t) t(contains(allReps(siteInds),jointName{j})), allSegs,'UniformOutput',false);
-    jointSegs = allSegs;
+    jointSegs = allSegs(1); % cellfun(@(t) t(contains(allReps(siteInds),jointName{j})), allSegs,'UniformOutput',false);
     %     [~, ~, activeJointInds] = intersect(find(activityInd),jointInds(activityInd));
     %     [~,~,inactiveJoints] = intersect(find(~activityInd),find(jointInds));
     %% plot PSTHS
@@ -86,7 +85,7 @@ for j = 1:length(jointName)
                     %plotted(s) = true;
                     pSeg = find(isalmost(PSTHDisplayLimits{a}(1):binSize:...
                         PSTHDisplayLimits{a}(end),avgSegs(s),binSize/1.99),1);
-                    plot([xAlignTicks{a}(pSeg) xAlignTicks{a}(pSeg)],[0 FRLim(end)],...
+                    plot([xAlignTicks{a}(pSeg) xAlignTicks{a}(pSeg)],[0 2*FRLim(end)],...
                         'Color',plotColor,'LineStyle','--');
                 end
             end
@@ -102,6 +101,10 @@ for j = 1:length(jointName)
             plotStart = plotStart + size(currJointAlign,2) + alignmentGap;
         end
     end
-    ylim(FRLim);
+    if(max(yP)>FRLim(end))
+        ylim([FRLim(1),FRLim(end)*2]);
+    else
+        ylim(FRLim);
+    end
 end
 end

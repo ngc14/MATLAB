@@ -10,7 +10,7 @@ numSamples = sum(TimeStamps(end,:));
 analogInputData = NaN(length(dataChannelID),1);
 ds = 5000;
     if(length(dataChannelID)>1)
-        analogInputData=       ns_GetAnalogDataBlock(hFile, dataChannelID, TimeStamps(1,1), TimeStamps(size(TimeStamps,1),size(TimeStamps,2)));
+        [ns_AnalogReadResult,analogInputData] = ns_GetAnalogDataBlock(hFile, dataChannelID, TimeStamps(1,1), TimeStamps(size(TimeStamps,1),size(TimeStamps,2)));
     else
         [~, ~, tempData] = ns_GetAnalogData(hFile, dataChannelID,TimeStamps(1,1), TimeStamps(size(TimeStamps,1),size(TimeStamps,2)));
         analogInputData(:,end+1:end+length(tempData)) = tempData';

@@ -1,5 +1,5 @@
 function Spike_SortRawData(date, monkeyName)
-sessionDate = '03_19_2020';
+sessionDate = '03_17_2020';
 monkey = 'Gilligan';
 if(exist('date', 'var'))
     sessionDate = date;
@@ -244,28 +244,76 @@ for f = 1:sum(spikeChannels)
         end
         % Remove failed trials.
         if(length(recordedTrial)~=max(size((segmentTimes))))
-            disp('Arduino file mistmatch trials');
-            return;
+            disp('Arduino file mistmatch trials, using digital lines');
+            correctTrialIdx = pulseLength(endEventIdx)<0.05;
+            arduinoPseudoTable = cell(sum(correctTrialIdx),length(dataArray)-1);
+            [~, hFile] = ns_OpenFile(filePath);
+            eventEntityID = find(cellfun(@strcmpi, {hFile.Entity.Reason}, repmat({'SMA 2'}, size({hFile.Entity.Reason}))));
+            [~, eventEntityInfo] = ns_GetEntityInfo(hFile, eventEntityID(end));
+            numCount = eventEntityInfo.ItemCount;
+            pulseVal = NaN(1, numCount);
+            SMA2Times = NaN(1, numCount);
+            for i = 1:numCount
+                [~, SMA2Times(i), pulseVal(i), ~] = ns_GetEventData(hFile, eventEntityID, i);
+            end
+            SMA2Times = SMA2Times(pulseVal == 32767);
+            eventEntityID = find(cellfun(@strcmpi, {hFile.Entity.Reason}, repmat({'SMA 3'}, size({hFile.Entity.Reason}))));
+            [~, eventEntityInfo] = ns_GetEntityInfo(hFile, eventEntityID(end));
+            numCount = eventEntityInfo.ItemCount;
+            pulseVal = NaN(1, numCount);
+            SMA3Times = NaN(1, numCount);
+            for i = 1:numCount
+                [~, SMA3Times(i), pulseVal(i), ~] = ns_GetEventData(hFile, eventEntityID, i);
+            end
+            SMA3Times = SMA3Times(pulseVal == 32767);
+            eventEntityID = find(cellfun(@strcmpi, {hFile.Entity.Reason}, repmat({'SMA 4'}, size({hFile.Entity.Reason}))));
+            [~, eventEntityInfo] = ns_GetEntityInfo(hFile, eventEntityID(end));
+            numCount = eventEntityInfo.ItemCount;
+            pulseVal = NaN(1, numCount);
+            SMA4Times = NaN(1, numCount);
+            for i = 1:numCount
+                [~, SMA4Times(i), pulseVal(i), ~] = ns_GetEventData(hFile, eventEntityID, i);
+            end
+            SMA4Times = SMA4Times(pulseVal == 32767);
+
+            trialLength = endEventIdx-startEventIdx;
+            reachTrials = (trialLength>3 & trialLength~=5 | (trialLength==5 & ~correctTrialIdx));
+            SMA2Times = SMA2Times(correctTrialIdx(reachTrials==1));
+            [minVal,minInd]=arrayfun(@(a) min([min(abs(a-SMA3Times)),min(abs(a-SMA4Times))]),SMA2Times);
+            photocellInds = minVal>1;
+            essInds = minInd==1 & ~photocellInds;
+            arduinoPseudoTable(trialLength(correctTrialIdx)==5,1) = {'Rest'};
+            moveConds = find(cellfun(@isempty,arduinoPseudoTable(:,1)));
+            arduinoPseudoTable(moveConds(photocellInds),1) = {'Photocell'};
+            arduinoPseudoTable(moveConds(essInds),1) = {'Extra Small Sphere'};
+            arduinoPseudoTable(moveConds(~essInds & ~photocellInds),1) = {'Large Sphere'};
+            sortedSpikeData.ArduinoData= arduinoPseudoTable;
+
+            sortedSpikeData.SpikeTimes= spikeTimes(:,correctTrialIdx);
+            sortedSpikeData.SegTimes= segmentTimes(:,correctTrialIdx);
+            sortedSpikeData.Date= sessionDate;
+            sortedSpikeData.DataChannel= f;
+            sortedSpikeData.EventChannel= eventChannel;
+            sortedSpikeData.Conditions= conds;
+            sortedSpikeData.ConditionSegments= events;
+            sortedSpikeData.Locations= "ARDUINO_OUTPUT_ERROR";
+        else
+            falseTrialIdx=cellfun(@(s) strcmp(s,"False Start") | strcmp(s,"Failed-to-Reach"),recordedTrial(:,8),'UniformOutput',false);
+            correctTrialIdx = find(~cell2mat(falseTrialIdx));
+            % falseTrialIdx=cellfun(@num2str,recordedTrial(:,8),'UniformOutput',false);
+            % correctTrialIdx=find(~cellfun(@isempty,falseTrialIdx));
+            %[row,~]=find(cellfun(@(x) removeShortSegs(x), recordedTrial(:,2:6)));
+            successfulTrial=recordedTrial(correctTrialIdx,[1:7,9]);
+            sortedSpikeData.SpikeTimes= spikeTimes(:,correctTrialIdx);
+            sortedSpikeData.SegTimes= segmentTimes(:,correctTrialIdx);
+            sortedSpikeData.Date= sessionDate;
+            sortedSpikeData.DataChannel= f;
+            sortedSpikeData.EventChannel= eventChannel;
+            sortedSpikeData.ArduinoData= successfulTrial;
+            sortedSpikeData.Conditions= conds;
+            sortedSpikeData.ConditionSegments= events;
+            sortedSpikeData.Locations= unique(successfulTrial(:,end));
         end
-        falseTrialIdx=cellfun(@(s) strcmp(s,"False Start") | strcmp(s,"Failed-to-Reach"),recordedTrial(:,8),'UniformOutput',false);
-        correctTrialIdx = find(~cell2mat(falseTrialIdx));
-        % falseTrialIdx=cellfun(@num2str,recordedTrial(:,8),'UniformOutput',false);
-        % correctTrialIdx=find(~cellfun(@isempty,falseTrialIdx));
-        
-        %[row,~]=find(cellfun(@(x) removeShortSegs(x), recordedTrial(:,2:6)));
-        
-        
-        successfulTrial=recordedTrial(correctTrialIdx,[1:7,9]);
-        sortedSpikeData.SpikeTimes= spikeTimes(:,correctTrialIdx);
-        sortedSpikeData.SegTimes= segmentTimes(:,correctTrialIdx);
-        sortedSpikeData.Date= sessionDate;
-        sortedSpikeData.DataChannel= f;
-        sortedSpikeData.EventChannel= eventChannel;
-        sortedSpikeData.ArduinoData= successfulTrial;
-        sortedSpikeData.Conditions= conds;
-        sortedSpikeData.ConditionSegments= events;
-        sortedSpikeData.Locations= unique(successfulTrial(:,end));
-        
         if(~exist(['S:\Lab\', monkey, '\All Data\', monkey,'_', sessionDate,...
                 '\Physiology\Results_New\'], 'dir'))
             mkdir(['S:\Lab\', monkey, '\All Data\', monkey,'_', sessionDate,...

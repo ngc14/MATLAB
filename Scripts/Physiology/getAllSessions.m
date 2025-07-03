@@ -27,7 +27,7 @@ numSites = height(siteDateMap);
 [siteLocation, siteRep, siteThresh,siteSegs,siteChannels,...
     siteTrialPSTHS,siteActiveInd] = deal(cell(1,numSites));
 hbar=parfor_progressbar(numSites,strcat("Iterating ", num2str(numSites), " instances..."));
-for  i = 1:numSites
+parfor  i = 1:numSites
     currSession = siteDateMap(i,:);
     if(strcmp(currSession.Monkey,"Gilligan"))
         dateFormat = 'MM_dd_yyyy';
@@ -41,7 +41,7 @@ for  i = 1:numSites
         "_",string(currSession.Date),"\Physiology\Results_New\");
     if(isempty(dir(physDir)))
         if(~ismember(currSession.Date,cellfun(@(d) datetime(d,'InputFormat','MM_dd_yyyy'),...
-                {'05_02_2019','03_17_2020'})))
+                {'05_02_2019'})))
             Spike_SortRawData(char(currSession.Date),char(currSession.Monkey));
             labelSingleUnits(char(currSession.Monkey),char(currSession.Date));
         end
@@ -118,7 +118,7 @@ for  i = 1:numSites
         siteChannels{i} = currUnitChs;
         siteTrialPSTHS{i} = currTrialPSTHS;
         siteActiveInd{i} = currActive;
-        %rawSpikes{i} = trialHists;
+        rawSpikes{i} = spikes;
     end
      hbar.iterate(1);
 end

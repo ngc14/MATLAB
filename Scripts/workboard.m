@@ -55,31 +55,31 @@ for c =1:length(conditions)
     %unitPSTHS = cellfun(@(m,p) (m./m).*vertcat(p{:}),tUnits,condPSTHS,'UniformOutput',false);
     unitPSTHS = cellfun(@(n) cellfun(@(t) squeeze(t)',num2cell(n,[2,3]),'UniformOutput',false), ...
         vertcat(normPSTH{c}{:}),'Uniformoutput',false);
-    for s = 1:length(unitPSTHS)
-        currsiteUnits =  find(siteUnitMods==s);
-        if(~isempty(currsiteUnits))            
-            condtrialPSTHS = {cell2mat(unitPSTHS{s}(tUnits{s}))};
-            allTrialSegs = trialSegs{s};
-            plotColors =cell2struct(num2cell(distinguishable_colors(length(currsiteUnits)),2),...
-                string(arrayfun(@(t) char(datetime(siteDateMap.Date{s},'Format','MMMM_dd'))+"_"+t,currsiteUnits,'UniformOutput',false)));
-            trialSiteUnits = cellfun(@(n) cellstr(repmat(string(n),size(allTrialSegs,1),1)),fieldnames(plotColors),'UniformOutput',false);
-            allTrialLabels = cellfun(@string,vertcat(trialSiteUnits{:}));            
-            plotJointPSTHS(params.bins,condtrialPSTHS(1),{repmat(allTrialSegs,length(currsiteUnits),1)},....
-                allTrialLabels,true(size(allTrialLabels)),[],  alignLimits,[0 25],plotColors);
-            saveFigures(gcf,savePath+"\"+string(datetime(siteDateMap.Date{s},'Format','MMMM_dd'))+"\",...
-                params.condAbbrev(params.condNames(c))+"_PSTH",[]);
-        end
-    end
+    % for s = 1:length(unitPSTHS)
+    %     currsiteUnits =  find(siteUnitMods==s);
+    %     if(~isempty(currsiteUnits))            
+    %         condtrialPSTHS = {cell2mat(unitPSTHS{s}(tUnits{s}))};
+    %         allTrialSegs = trialSegs{s};
+    %         plotColors =cell2struct(num2cell(distinguishable_colors(length(currsiteUnits)),2),...
+    %             string(arrayfun(@(t) char(datetime(siteDateMap.Date{s},'Format','MMMM_dd'))+"_"+t,currsiteUnits,'UniformOutput',false)));
+    %         trialSiteUnits = cellfun(@(n) cellstr(repmat(string(n),size(allTrialSegs,1),1)),fieldnames(plotColors),'UniformOutput',false);
+    %         allTrialLabels = cellfun(@string,vertcat(trialSiteUnits{:}));            
+    %         plotJointPSTHS(params.bins,condtrialPSTHS(1),{repmat(allTrialSegs,length(currsiteUnits),1)},....
+    %             allTrialLabels,true(size(allTrialLabels)),[],  alignLimits,[0 25],plotColors);
+    %         saveFigures(gcf,savePath+"\"+string(datetime(siteDateMap.Date{s},'Format','MMMM_dd'))+"\",...
+    %             params.condAbbrev(params.condNames(c))+"_PSTH",[]);
+    %     end
+    % end
     siteUnits(siteUnitMods>0) = "All";
     allPSTHS = cellfun(@(a,b) vertcat(a,b), allPSTHS, condPSTHS(1), 'UniformOutput', false);
     condInd = repmat(string(params.condAbbrev(params.condNames(c))),1,length(siteUnits));
     condInd(siteUnitMods==0) = "";
     condInds = [condInds,condInd];
-    allSiteInds = [allSiteInds;[1;diff(siteInds)]];
+    allSiteInds = [allSiteInds;cellfun(@sum,tUnits)];
     allTrials = cellfun(@(a,d) vertcat(a,cellfun(@(m,u)repmat(mean(m,1,'omitnan'),sum(u),1),...
         d,tUnits,'UniformOutput',false)), allTrials,{trialSegs}, 'UniformOutput',false);
 end 
-allTrials = cellfun(@(c) cellfun(@(t) [t(:,1:2), NaN(size(t,1),size(t,2)==8),t(:,3:end)],c,'UniformOutput',false),allTrials, 'UniformOutput',false);
+allTrials = cellfun(@(c) cellfun(@(t) [t(:,1:3), NaN(size(t,1),size(t,2)==8),t(:,4:end)],c,'UniformOutput',false),allTrials, 'UniformOutput',false);
 allTrials = cellfun(@(c) cellfun(@(t) [t, NaN(size(t,1),5*double(size(t,2)==4))],c,'UniformOutput',false),allTrials, 'UniformOutput',false);
 plotJointPSTHS(params.bins,{vertcat(allPSTHS{:}{:})},{vertcat(allTrials{:}{:})},condInds,cumsum(allSiteInds),[],  alignLimits,[0 15],...
     cell2struct(num2cell(distinguishable_colors(length(conditions)),2),string(params.condAbbrev.values)));

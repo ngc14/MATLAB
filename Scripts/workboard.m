@@ -4,9 +4,9 @@ taskAlign = containers.Map(conditions(1:end-1),{{["GoSignal" "StartHold"]},{["Go
 taskWindow = {[0.2, 0]};
 alignLimits = {[-.75, 1]};
 pVal=0.05;
-savePath = "S:\Lab\ngc14\Working\PMd\All_Units\";
+savePath = "S:\Lab\ngc14\Working\PMd\Task_Units\";
 monkey = "Gilligan";
-MIN_BLOCKS_FOR_UNIT = 3;
+MIN_BLOCKS_FOR_UNIT = 15;
 params = PhysRecording(string(conditions),.01,.15,-6,5,containers.Map(conditions,...
     {["StartReach"],["StartReach"],["StartReach"],"GoSignal"}));
 %%
@@ -64,17 +64,17 @@ for c =1:length(conditions)
     %             string(arrayfun(@(t) char(datetime(siteDateMap.Date{s},'Format','MMMM_dd'))+"_"+t,currsiteUnits,'UniformOutput',false)));
     %         trialSiteUnits = cellfun(@(n) cellstr(repmat(string(n),size(allTrialSegs,1),1)),fieldnames(plotColors),'UniformOutput',false);
     %         allTrialLabels = cellfun(@string,vertcat(trialSiteUnits{:}));            
-    %         plotJointPSTHS(params.bins,condtrialPSTHS(1),{repmat(allTrialSegs,length(currsiteUnits),1)},....
+    %         plotJointPSTHS(params.bins,condtrialPSTHS,{repmat(allTrialSegs,length(currsiteUnits),1)},....
     %             allTrialLabels,true(size(allTrialLabels)),[],  alignLimits,[0 25],plotColors);
     %         saveFigures(gcf,savePath+"\"+string(datetime(siteDateMap.Date{s},'Format','MMMM_dd'))+"\",...
     %             params.condAbbrev(params.condNames(c))+"_PSTH",[]);
     %     end
     % end
     siteUnits(siteUnitMods>0) = "All";
-    allPSTHS = cellfun(@(a,b) vertcat(a,b), allPSTHS, condPSTHS(1), 'UniformOutput', false);
+    allPSTHS = cellfun(@(a,b) vertcat(a,b), allPSTHS, {cellfun(@(u,t) u(t,:), condPSTHS{1},tUnits,'UniformOutput',false)}, 'UniformOutput', false);
     condInd = repmat(string(params.condAbbrev(params.condNames(c))),1,length(siteUnits));
     condInd(siteUnitMods==0) = "";
-    condInds = [condInds,condInd];
+    condInds = [condInds,condInd(condInd~="")];
     allSiteInds = [allSiteInds;cellfun(@sum,tUnits)];
     allTrials = cellfun(@(a,d) vertcat(a,cellfun(@(m,u)repmat(mean(m,1,'omitnan'),sum(u),1),...
         d,tUnits,'UniformOutput',false)), allTrials,{trialSegs}, 'UniformOutput',false);

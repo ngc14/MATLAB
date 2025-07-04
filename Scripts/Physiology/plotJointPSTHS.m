@@ -36,21 +36,20 @@ xAlignTicks = {};
 for j = 1:length(jointName)
     jointInds = arrayfun(@(s) cellfun(@(a) strcmp(a,jointName{j}),s), allReps,'UniformOutput',true);
     jointPSTH = cellfun(@(t) t(jointInds,:), PSTH, 'UniformOutput', false);
-    jointSegs = allSegs(1); % cellfun(@(t) t(contains(allReps(siteInds),jointName{j})), allSegs,'UniformOutput',false);
+    jointSegs = cellfun(@(t) t(string(allReps(siteInds))==string(jointName{j}),:), allSegs,'UniformOutput',false);
     %     [~, ~, activeJointInds] = intersect(find(activityInd),jointInds(activityInd));
     %     [~,~,inactiveJoints] = intersect(find(~activityInd),find(jointInds));
     %% plot PSTHS
     subplot(ceil(length(jointName)/wrapPlots),wrapPlots,j);hold on;
     title(strcat(jointName{j}, ": n = ", num2str(nansum(~any(isnan(jointPSTH{1}),2))),...
-        " of ", num2str(sum(jointInds))))%, ' units, ', num2str(length(activeJointInds)), ' Active']);
+        " of ", num2str(sum(jointInds))));
     if(sum(jointInds)>0)
         plotStart = 0;
         for a = 1:size(jointPSTH,2)
-            currSegs = cell2mat(jointSegs{a});
+            currSegs = jointSegs{a};
             currJointAlign = jointPSTH{a};
             xAlignTicks{a} = plotStart+(1:size(currJointAlign,2));
             plot(xAlignTicks{a},nanmean(currJointAlign,1), 'LineWidth',2,'Color', plotColors.(jointName{j}));
-            
             %             if(~isempty(activeJointInds))
             %                 plot(xAlignTicks{a},nanmean([jointPSTH{a}(activeJointInds,:)],1),...
             %                     'LineWidth',2,'Color', plotColors.(jointName{j}), 'LineStyle','--');
@@ -59,7 +58,6 @@ for j = 1:length(jointName)
             %                 plot(xAlignTicks{a},nanmean([jointPSTH{a}(inactiveJoints,:)],1),...
             %                     'LineWidth',2,'Color', plotColors.(jointName{j}), 'LineStyle','--');
             %             end
-            
             uE=nanmean(currJointAlign,1)+(nanstd(currJointAlign,1)/sqrt(sum(jointInds)));
             lE=nanmean(currJointAlign,1)-(nanstd(currJointAlign,1)/sqrt(sum(jointInds)));
             yP=[lE,fliplr(uE)];

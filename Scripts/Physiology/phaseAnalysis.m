@@ -1,5 +1,10 @@
 savePath = "S:\Lab\ngc14\Working\PMd\";
 conditions = ["Extra Small Sphere", "Large Sphere", "Photocell"];
+binSize = .01;
+smoothKernel = .15;
+secBeforeAlignment = -6;
+secAfterAlignment = 5;
+params = PhysRecording(conditions,binSize,smoothKernel,secBeforeAlignment,secAfterAlignment);
 alignLimits = {[-.5, .15], [-.20, .20],[-.15,.5]};
 pVal = 0.05;
 unitNames = ["Reach", "Grasp", "Both"];
@@ -14,8 +19,8 @@ phaseAlignmentPoints = {["GoSignal","StartReach","StartHold","StartWithdraw"],..
     ["GoSignal","StartReach","StartHold","StartWithdraw"],...
     ["GoSignal","StartReach","StartHold","StartWithdraw"]};
 %%
-[params, siteDateMap, siteSegs, siteTrialPSTHS, rawSpikes, siteChannels, siteActiveInd,...
-    siteRep,siteLocation,siteMasks,monkeys,vMask,conditions] = getAllSessions(conditions,"Single");
+[siteDateMap, siteSegs, siteTrialPSTHS, rawSpikes, siteChannels, siteActiveInd,...
+    siteRep,siteLocation,siteMasks,monkeys,vMask,conditions] = getAllSessions(params,"Single","M1");
 taskAlign = containers.Map(conditions,taskAlignmentPoints);
 condPhaseAlign = containers.Map(conditions,cellfun(@num2cell,phaseAlignmentPoints,'UniformOutput',false));
 allCondSegs = cellfun(@(c) cellfun(@(a) cellfun(@(t) findBins(t(1)-3,params.bins),a),...

@@ -34,7 +34,7 @@ classdef PhysRecording < BehavioralTask
             addOptional(p,'secondsBeforePSTH',obj.dSecondsBefore,validNumericParams);
             addOptional(p,'secondsAfterPSTH',obj.dSecondsAfter,validNumericParams);
             addOptional(p,'condAlignments',obj.dCondAlignments,(@(x) isobject(x) ...
-                && isa(x,'containers.map')));
+                && isa(x,'containers.Map')));
             parse(p,p.Results.conditions,varargin{:});
             
             obj.binSize = p.Results.binSize;

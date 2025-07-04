@@ -1,5 +1,5 @@
-function [params,siteDateMap,siteSegs,siteTrialPSTHS,rawSpikes,siteChannels,siteActiveInd, simpRep,...
-    siteLocation, siteMasks, monkeys,vMask,conditions] = getAllSessions(conditions,singleOrAllUnits,domain)
+function [siteDateMap,siteSegs,siteTrialPSTHS,rawSpikes,siteChannels,siteActiveInd, simpRep,...
+    siteLocation, siteMasks, monkeys,vMask,conditions] = getAllSessions(params,singleOrAllUnits,domain)
 %  assign parameters
 rawSpikes = [];
 drivePath = "S:\Lab\";
@@ -8,12 +8,13 @@ excludeRep = "Face";
 % PSTH parameters: bin sizes, smoothing kernel, seconds prior to zero 
 % alignment,seconds after zero alignment, alignment point(s) for each 
 % condition (default value)
-params = PhysRecording(conditions,.01,.15,-6,5);
 bins = params.bins;
+conditions = cellstr(params.condNames);
 
 siteDateMap = table();
 allActivityMaps = containers.Map();
 vMask = containers.Map();
+monkeys=monkeys(1);
 for m = 1:length(monkeys)
     [monkeyTable, monkeyMask, monkeyActivityMaps] = getMonkeyInfo(drivePath,...
         monkeys(m),domain,true);
@@ -24,8 +25,9 @@ end
 siteDateMap = siteDateMap(~cellfun(@isempty, siteDateMap.Date),:);
 % load info from all sites
 numSites = height(siteDateMap);
+numSites=14;
 [siteLocation, siteRep, siteThresh,siteSegs,siteChannels,...
-    siteTrialPSTHS,siteActiveInd] = deal(cell(1,numSites));
+    siteTrialPSTHS,siteActiveInd,rawSpikes] = deal(cell(1,numSites));
 hbar=parfor_progressbar(numSites,strcat("Iterating ", num2str(numSites), " instances..."));
 parfor  i = 1:numSites
     currSession = siteDateMap(i,:);
@@ -47,13 +49,13 @@ parfor  i = 1:numSites
         end
     end
     if(isempty(dir(physDir)))
-        spikes = [];
+        [spikes,times,weights,currTrials,sessionConds,channels] = deal([]);
     else
         [spikes,times,weights,currTrials,sessionConds,channels,~,~] =...
             getSessionInfo2(physDir,singleOrAllUnits);
     end
     if(~isempty(spikes))
-        [currSeg,currUnitChs,currTrialPSTHS,currActive,trialHists] = deal(repmat({[]},...
+        [currSeg,currUnitChs,currTrialPSTHS,currActive,trialHists,alignedSpikes] = deal(repmat({[]},...
             1,length(conditions)));
         numUnits = size(spikes,1);
         for c = 1:length(conditions)
@@ -75,14 +77,14 @@ parfor  i = 1:numSites
             % generate and smooth PSTHS  from current session
             if(any(condInds) && ~isempty(spikes))
                 % {alignedPSTHS}{units,trials}
-                alignedSpikes = cellfun(@(ap) cellfun(@(s,t) s-t(ap), ...
+                alignedSpikes{c} = cellfun(@(ap) cellfun(@(s,t) s-t(ap), ...
                     spikes(:,condInds),repmat(times(condInds),size(spikes,1),1),...
                     'UniformOutput',false),condAlign,'UniformOutput',false);
                 alignedTimes = cellfun(@(ap) cell2mat(cellfun(@(t) t-t(ap),...
                     times(condInds),'UniformOutput', false)'), condAlign, 'UniformOutput', false);
                 trialHists{c} = cellfun(@(ac) cellfun(@(a) histcounts(a,...
                     [bins,bins(end)+params.binSize])./(params.binSize),...
-                    ac,'UniformOutput', false),alignedSpikes,'UniformOutput', false);
+                    ac,'UniformOutput', false),alignedSpikes{c},'UniformOutput', false);
                 %{alignedPSTHS}{units,trials}{bins}
                 smoothHists = cellfun(@(ac)  cellfun(@(a) conv(a,...
                     gausswin(params.sigma)/sum(gausswin(params.sigma)),'same'),...
@@ -107,6 +109,7 @@ parfor  i = 1:numSites
                 currTrialPSTHS{c} = repmat({NaN(numUnits,...
                     length(bins),1)},1, ...
                     length(condAlign));
+                alignedSpikes{c} = repmat({NaN(numUnits,1)},1,length(condAlign));
             end
            
         end
@@ -118,7 +121,7 @@ parfor  i = 1:numSites
         siteChannels{i} = currUnitChs;
         siteTrialPSTHS{i} = currTrialPSTHS;
         siteActiveInd{i} = currActive;
-        rawSpikes{i} = spikes;
+        rawSpikes{i} = alignedSpikes;
     end
      hbar.iterate(1);
 end
@@ -135,10 +138,10 @@ siteLocation = vertcat(siteLocation(~emptyInds));
 siteRep = vertcat(siteRep(~emptyInds));
 siteThresh = vertcat(siteThresh(~emptyInds));
 siteSegs = num2cell(vertcat(siteSegs{~emptyInds}),1);
+rawSpikes = num2cell(vertcat(rawSpikes{~emptyInds}),1);
 siteChannels = num2cell(vertcat(siteChannels{~emptyInds}),1);
 siteTrialPSTHS = num2cell(vertcat(siteTrialPSTHS{~emptyInds}),1);
 siteActiveInd = num2cell(vertcat(siteActiveInd{~emptyInds}),1);
-%rawSpikes = num2cell(vertcat(rawSpikes{~emptyInds}),1);
 %%%%%%%%%% Replacing face sites with next best representation %%%%%%%%%%%%%
 nextBest = cellfun(@(r)  ~strcmp(r,excludeRep), siteRep,'UniformOutput',false);
 simpRep = string(cellfun(@(r,t,f) r{find((f.*t)==(min((f./f).*t)),1)},...
@@ -150,7 +153,7 @@ siteSegs = cellfun(@(ss) vertcat(ss(~emptyInds')),siteSegs,'UniformOutput',false
 siteChannels = cellfun(@(sc) sc(~emptyInds'),siteChannels,'UniformOutput',false);
 siteTrialPSTHS = cellfun(@(stp) stp(~emptyInds'),siteTrialPSTHS,'UniformOutput',false);
 siteActiveInd = cellfun(@(sa) sa(~emptyInds'),siteActiveInd,'UniformOutput',false);
-%rawSpikes = cellfun(@(rs) rs(~emptyInds'), rawSpikes, 'UniformOutput',false);
+rawSpikes = cellfun(@(rs) rs(~emptyInds'), rawSpikes, 'UniformOutput',false);
 simpRep = simpRep(~emptyInds);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % voronoi tiles for each monkey

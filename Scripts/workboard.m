@@ -4,10 +4,10 @@ taskAlign = containers.Map(conditions(1:end-1),{{["GoSignal" "StartHold"]},{["Go
 taskWindow = {[0.2, 0]};
 alignLimits = {[-.75, 1]};
 pVal=0.05;
-savePath = "S:\Lab\ngc14\Working\PMd\Task_Units\";
+savePath = "S:\Lab\ngc14\Working\PMd\All_Units\";
 monkey = "Gilligan";
-MIN_BLOCKS_FOR_UNIT = 15;
-params = PhysRecording(conditions,.01,.15,-6,5,containers.Map(conditions,...
+MIN_BLOCKS_FOR_UNIT = 3;
+params = PhysRecording(string(conditions),.01,.15,-6,5,containers.Map(conditions,...
     {["StartReach"],["StartReach"],["StartReach"],"GoSignal"}));
 %%
 [siteDateMap, siteSegs, siteTrialPSTHS, rawSpikes, siteChannels, siteActiveInd,...
@@ -31,11 +31,11 @@ goodUnits = cellfun(@(tn) cell2mat(cellfun(@(s)sum(s,2), tn,'UniformOutput',fals
     tb,tc,'UniformOutput',false),taskBaseline,taskFR,'UniformOutput', false);
 tUnits = cellfun(@(a,b) any(cell2mat(a),2) & sum(b,2)>MIN_BLOCKS_FOR_UNIT*size(b,2), ...
     num2cell(cat(2,tUnit{:}),2),goodUnits,'Uniformoutput',false);
+condUnitMapping = cellfun(@(si) size(si,2),siteChannels{2})';
 %%
 close all;
 [allTrials,allPSTHS]= deal(cell(1,1));
 [condInds,allSiteInds] = deal([]);
-condUnitMapping = cellfun(@(si) size(si,2),siteChannels{2})';
 for c =1:length(conditions)
     condSegs = siteSegs{c};
     trialSegs = vertcat(condSegs{:});
@@ -76,10 +76,11 @@ for c =1:length(conditions)
     condInd(siteUnitMods==0) = "";
     condInds = [condInds,condInd];
     allSiteInds = [allSiteInds;[1;diff(siteInds)]];
-    allTrials = cellfun(@(a,d) vertcat(a,d), allTrials,trialSegs, 'UniformOutput',false);
-end
+    allTrials = cellfun(@(a,d) vertcat(a,cellfun(@(m,u)repmat(mean(m,1,'omitnan'),sum(u),1),...
+        d,tUnits,'UniformOutput',false)), allTrials,{trialSegs}, 'UniformOutput',false);
+end 
 allTrials = cellfun(@(c) cellfun(@(t) [t(:,1:2), NaN(size(t,1),size(t,2)==8),t(:,3:end)],c,'UniformOutput',false),allTrials, 'UniformOutput',false);
-allTrials = cellfun(@(c) cellfun(@(t) [t, NaN(size(t,1),5*size(t,2)==4)],c,'UniformOutput',false),allTrials, 'UniformOutput',false);
+allTrials = cellfun(@(c) cellfun(@(t) [t, NaN(size(t,1),5*double(size(t,2)==4))],c,'UniformOutput',false),allTrials, 'UniformOutput',false);
 plotJointPSTHS(params.bins,{vertcat(allPSTHS{:}{:})},{vertcat(allTrials{:}{:})},condInds,cumsum(allSiteInds),[],  alignLimits,[0 15],...
     cell2struct(num2cell(distinguishable_colors(length(conditions)),2),string(params.condAbbrev.values)));
 saveFigures(gcf,savePath,"All_PSTH",[]);

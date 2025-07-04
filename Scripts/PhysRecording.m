@@ -42,7 +42,7 @@ classdef PhysRecording < BehavioralTask
             obj.secondsBeforePSTHAlignmentPoint = p.Results.secondsBeforePSTH;
             obj.secondsAfterPSTHAlignmentPoint = p.Results.secondsAfterPSTH;
             obj.PSTHAlignments = containers.Map(p.Results.condAlignments.keys,...
-                values(obj.dCondAlignments,p.Results.condAlignments.keys));
+                values(p.Results.condAlignments));
         end
     end
     methods

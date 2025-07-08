@@ -25,10 +25,10 @@ end
 siteDateMap = siteDateMap(~cellfun(@isempty, siteDateMap.Date),:);
 % load info from all sites
 numSites = height(siteDateMap);
-numSites=14;
 [siteLocation, siteRep, siteThresh,siteSegs,siteChannels,...
     siteTrialPSTHS,siteActiveInd,rawSpikes,channelMap] = deal(cell(1,numSites));
 hbar=parfor_progressbar(numSites,strcat("Iterating ", num2str(numSites), " instances..."));
+numSites=14;
 for  i = 2:numSites
     currSession = siteDateMap(i,:);
     if(strcmp(currSession.Monkey,"Gilligan"))

@@ -1,14 +1,14 @@
 conditions = ["Extra Small Sphere", "Large Sphere", "Photocell","Rest"];
 taskAlign = containers.Map(conditions(1:end-1),{{["GoSignal" "StartHold"]},{["GoSignal","StartHold"]},...
     {["GoSignal","StartHold"]}});
-taskWindow = {[0.2, 0]};
+taskWindow = {[-0.3, 0]};
 alignLimits = {[-.75, 1]};
 pVal=0.05;
 savePath = "S:\Lab\ngc14\Working\PMd\Task_Units\";
 monkey = "Gilligan";
 MIN_BLOCKS_FOR_UNIT = 15;
 params = PhysRecording(string(conditions),.01,.15,-6,5,containers.Map(conditions,...
-    {["StartReach"],["StartReach"],["StartReach"],"GoSignal"}));
+    {["GoSignal"],["GoSignal"],["GoSignal"],"GoSignal"}));
 %%
 [siteDateMap, siteSegs, siteTrialPSTHS, rawSpikes, siteChannels, siteActiveInd,...
     siteRep,siteLocation,siteMasks,monkeys,vMask,conditions,chMaps] = getAllSessions(params,"Single","PMd");

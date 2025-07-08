@@ -45,3 +45,6 @@ end
 one = ones(size(b));
 % perform test
 test = (a <= b+tol*one)&(a >= b-tol*one);
+if(isempty(test))
+    test=NaN;
+end

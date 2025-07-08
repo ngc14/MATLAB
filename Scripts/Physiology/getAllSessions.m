@@ -1,5 +1,5 @@
 function [siteDateMap,siteSegs,siteTrialPSTHS,rawSpikes,siteChannels,siteActiveInd, simpRep,...
-    siteLocation, siteMasks, monkeys,vMask,conditions] = getAllSessions(params,singleOrAllUnits,domain)
+    siteLocation, siteMasks, monkeys,vMask,conditions,channelMap] = getAllSessions(params,singleOrAllUnits,domain)
 %  assign parameters
 rawSpikes = [];
 drivePath = "S:\Lab\";
@@ -27,9 +27,9 @@ siteDateMap = siteDateMap(~cellfun(@isempty, siteDateMap.Date),:);
 numSites = height(siteDateMap);
 numSites=14;
 [siteLocation, siteRep, siteThresh,siteSegs,siteChannels,...
-    siteTrialPSTHS,siteActiveInd,rawSpikes] = deal(cell(1,numSites));
+    siteTrialPSTHS,siteActiveInd,rawSpikes,channelMap] = deal(cell(1,numSites));
 hbar=parfor_progressbar(numSites,strcat("Iterating ", num2str(numSites), " instances..."));
-parfor  i = 1:numSites
+for  i = 2:numSites
     currSession = siteDateMap(i,:);
     if(strcmp(currSession.Monkey,"Gilligan"))
         dateFormat = 'MM_dd_yyyy';
@@ -48,12 +48,8 @@ parfor  i = 1:numSites
             labelSingleUnits(char(currSession.Monkey),char(currSession.Date));
         end
     end
-    if(isempty(dir(physDir)))
-        [spikes,times,weights,currTrials,sessionConds,channels] = deal([]);
-    else
-        [spikes,times,weights,currTrials,sessionConds,channels,~,~] =...
-            getSessionInfo2(physDir,singleOrAllUnits);
-    end
+    [spikes,times,weights,currTrials,sessionConds,channels,~,~,chMap] =...
+        getSessionInfo2(physDir,singleOrAllUnits);
     if(~isempty(spikes))
         [currSeg,currUnitChs,currTrialPSTHS,currActive,trialHists,alignedSpikes] = deal(repmat({[]},...
             1,length(conditions)));
@@ -122,6 +118,7 @@ parfor  i = 1:numSites
         siteTrialPSTHS{i} = currTrialPSTHS;
         siteActiveInd{i} = currActive;
         rawSpikes{i} = alignedSpikes;
+        channelMap{i} = chMap;
     end
      hbar.iterate(1);
 end

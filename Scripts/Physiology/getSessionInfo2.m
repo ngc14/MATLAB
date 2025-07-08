@@ -1,5 +1,19 @@
-function [spikes,times,unitTrials,trials,conds,channel,eventNames,labels] = getSessionInfo2(folderName, singleOrAll)
+function [spikes,times,unitTrials,trials,conds,channel,eventNames,labels,chMap] = getSessionInfo2(folderName, singleOrAll)
+folderName = char(folderName);
 sessionDir = dir(folderName+"\*.mat");
+pathInds = regexp(folderName,'\');
+hFilePath = dir([folderName(1:pathInds(end-1)),'*.nev']);
+hFilePath = hFilePath(cellfun(@(s) ~contains(s,'stim') & ~contains(s,'sort','IgnoreCase',true), {hFilePath.name}));
+[res,hFile] = ns_OpenFile([hFilePath.folder,'\',hFilePath.name]);
+if(strcmp(res, 'ns_OK'))
+    chMap = [hFile.Entity.Label];
+    chs = cellfun(@(cn,i) cn(i+1:i+2), chMap,cellfun(@(r) regexp(r,'.e','end'),chMap,'Uniformoutput',false),'UniformOutput',false);
+    [chs,ci,~] = unique(chs(~cellfun(@isempty,chs)));
+    chMap = chMap(cell2mat(cellfun(@(a) find(contains(chMap,string(a)+repmat('empty',a=="")),1), chs(ci),'UniformOutput',false)));
+else
+    chMap = [];
+end
+ns_CloseFile(hFile);
 [~,sortInd] = natsort({sessionDir.name});
 sessionDir = sessionDir(sortInd);
 firstChannel = load([sessionDir(1).folder, '\', sessionDir(1).name]);

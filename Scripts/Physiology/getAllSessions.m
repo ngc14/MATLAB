@@ -27,9 +27,9 @@ siteDateMap = siteDateMap(~cellfun(@isempty, siteDateMap.Date),:);
 numSites = height(siteDateMap);
 [siteLocation, siteRep, siteThresh,siteSegs,siteChannels,...
     siteTrialPSTHS,siteActiveInd,rawSpikes,channelMap] = deal(cell(1,numSites));
-hbar=parfor_progressbar(numSites,strcat("Iterating ", num2str(numSites), " instances..."));
 numSites=14;
-for  i = 2:numSites
+hbar=parfor_progressbar(numSites,strcat("Iterating ", num2str(numSites), " instances..."));
+parfor  i = 1:numSites
     currSession = siteDateMap(i,:);
     if(strcmp(currSession.Monkey,"Gilligan"))
         dateFormat = 'MM_dd_yyyy';
@@ -41,7 +41,7 @@ for  i = 2:numSites
     currSession.Date = du;
     physDir = strcat(drivePath,currSession.Monkey,"\All Data\", currSession.Monkey,...
         "_",string(currSession.Date),"\Physiology\Results_New\");
-    if(isempty(dir(physDir)))
+    if(~exist(physDir,'dir'))
         if(~ismember(currSession.Date,cellfun(@(d) datetime(d,'InputFormat','MM_dd_yyyy'),...
                 {'05_02_2019'})))
             Spike_SortRawData(char(currSession.Date),char(currSession.Monkey));

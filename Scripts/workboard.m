@@ -2,7 +2,7 @@ conditions = ["Extra Small Sphere", "Large Sphere", "Photocell","Rest"];
 taskAlign = containers.Map(conditions(1:end-1),{{["GoSignal" "StartHold"]},{["GoSignal","StartHold"]},...
     {["GoSignal","StartHold"]}});
 taskWindow = {[-0.3, 0]};
-alignLimits = {[-.75, 1]};
+alignLimits = {[-.75, 1.5]};
 pVal=0.05;
 savePath = "S:\Lab\ngc14\Working\PMd\Task_Units\";
 monkey = "Gilligan";

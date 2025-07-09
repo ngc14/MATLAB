@@ -34,7 +34,8 @@ for d = 1:length(dateArray)
             [~, hFileRaw] = ns_OpenFile(rawFile);
             rawSigInds = find([hFileRaw.Entity.FileType] == find(strcmp({hFileRaw.FileInfo.Type},'ns5')) & ...
                 cellfun(@(s) strcmp(deblank(s),'uV'), {hFileRaw.Entity.Units}));
-            rawSigInds = rawSigInds(sort(cellfun(@(r) str2double(extract(string(r),digitsPattern)),{hFileRaw.Entity(rawSigInds).Label})));
+            rawSigInds = rawSigInds(sort(cellfun(@(r) str2double(extract(...
+                extractAfter(r,characterListPattern('. ')+wildcardPattern),digitsPattern)),{hFileRaw.Entity(rawSigInds).Label})));
             if(any(sortedFile))
                 if(any(contains(names(sortedFile),'.plx')))
                     NEVFile = 0;

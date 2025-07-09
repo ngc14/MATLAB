@@ -54,12 +54,9 @@ for c =1:length(conditions)
     siteUnits = mapSites2Units(condUnitMapping,cellfun(@(c) string(datetime(c,'Format','MMMM_dd')),siteDateMap.Date','UniformOutput',false));
     siteUnits(siteUnitMods==0) = "";
 
-    plotColors =cell2struct(num2cell(distinguishable_colors(length(siteDateMap.Date)),2),...
-        arrayfun(@(s) char(datetime(s,'Format','MMMM_dd')),string(siteDateMap.Date),'UniformOutput',false));
     condPSTHS = num2cell(cellfun(@(m) mean(m,3,'omitnan'),vertcat(normPSTH{c}{:}),'UniformOutput',false),1);
-    %unitPSTHS = cellfun(@(m,p) (m./m).*vertcat(p{:}),tUnits,condPSTHS,'UniformOutput',false);
-    unitPSTHS = cellfun(@(n) cellfun(@(t) squeeze(t)',num2cell(n,[2,3]),'UniformOutput',false), ...
-        vertcat(normPSTH{c}{:}),'Uniformoutput',false);
+    unitAvgPSTHS = cellfun(@(m,p) m./m.*vertcat(p),tUnits,condPSTHS{:},'UniformOutput',false);
+    unitPSTHS = cellfun(@(n) cellfun(@(t) squeeze(t)',num2cell(n,[2,3]),'UniformOutput',false),vertcat(normPSTH{c}{:}),'Uniformoutput',false);
     for s = 1:length(unitPSTHS)
         currsiteUnits =  find(siteUnitMods==s);
         if(~isempty(currsiteUnits))            
@@ -75,7 +72,13 @@ for c =1:length(conditions)
                 params.condAbbrev(params.condNames(c))+"_PSTH",[]);
         end
     end
-    siteUnits(siteUnitMods>0) = "All";
+    trialSegs = cellfun(@(t,u) repmat(mean([t(:,1:3), NaN(size(t,1),size(t,2)==8),t(:,4:end)],...
+        1,'omitnan'),length(u),1),trialSegs,tUnits,'UniformOutput',false);
+    plotJointPSTHS(params.bins,{vertcat(unitAvgPSTHS{:})},{vertcat(trialSegs{:})},...
+        siteUnits, siteInds,[],  alignLimits,[0 15],cell2struct(num2cell(distinguishable_colors(length(siteDateMap.Date)),2),...
+        arrayfun(@(s) char(datetime(s,'Format','MMMM_dd')),string(siteDateMap.Date),'UniformOutput',false)));
+    saveFigures(gcf,savePath,strcat("Session_PSTHS_",conditions(c)),[]);
+    
     allPSTHS = cellfun(@(a,b) vertcat(a,b), allPSTHS, {cellfun(@(u,t) u(t,:), condPSTHS{1},tUnits,'UniformOutput',false)}, 'UniformOutput', false);
     condInd = repmat(string(params.condAbbrev(params.condNames(c))),1,length(siteUnits));
     condInd(siteUnitMods==0) = "";
@@ -84,7 +87,6 @@ for c =1:length(conditions)
     allTrials = cellfun(@(a,d) vertcat(a,cellfun(@(m,u)repmat(mean(m,1,'omitnan'),sum(u),1),...
         d,tUnits,'UniformOutput',false)), allTrials,{trialSegs}, 'UniformOutput',false);
 end 
-allTrials = cellfun(@(c) cellfun(@(t) [t(:,1:3), NaN(size(t,1),size(t,2)==8),t(:,4:end)],c,'UniformOutput',false),allTrials, 'UniformOutput',false);
 allTrials = cellfun(@(c) cellfun(@(t) [t, NaN(size(t,1),5*double(size(t,2)==4))],c,'UniformOutput',false),allTrials, 'UniformOutput',false);
 plotJointPSTHS(params.bins,{vertcat(allPSTHS{:}{:})},{vertcat(allTrials{:}{:})},condInds,cumsum(allSiteInds),[],  alignLimits,[0 15],...
     cell2struct(num2cell(distinguishable_colors(length(conditions)),2),string(params.condAbbrev.values)));
@@ -779,7 +781,7 @@ alignmentGap = 25
 
 condAlignment =  cellfun(@(a) find(strcmp(events(conditions{c}),a)), alignmentPoint{c});
 PSTH = cellfun(@(a,w) a(:,(fix(w(1)/binSize)+zeroBinInd):...
-    fix((w(end)/binSize)+zeroBinInd),:),unitPSTHS, alignLimits, 'UniformOutput', false);
+    fix((w(end)/binSize)+zeroBinInd),:),unitAvgPSTHS, alignLimits, 'UniformOutput', false);
 if(strcmp(monkey,'Gilligan'))
     colorRange = [1 30];
     FRLim = [5 20]

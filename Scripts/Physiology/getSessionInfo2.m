@@ -7,7 +7,7 @@ else
     pathInds = regexp(folderName,'\');
     hFilePath = dir([folderName(1:pathInds(end-1)),'*.nev']);
     hFilePath = hFilePath(cellfun(@(s) ~contains(s,'stim') & ~contains(s,'sort','IgnoreCase',true), {hFilePath.name}));
-    [res,hFile] = ns_OpenFile([hFilePath.folder,'\',hFilePath.name]);
+    [res,hFile] = ns_OpenFile([hFilePath.folder,'\',hFilePath.name],'single');
     if(strcmp(res, 'ns_OK'))
         chMap = [hFile.Entity.Label];
         chs = cellfun(@(cn,i) cn(i+1:i+2), chMap,cellfun(@(r) regexp(r,'.e','end'),chMap,'Uniformoutput',false),'UniformOutput',false);

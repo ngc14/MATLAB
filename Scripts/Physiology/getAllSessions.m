@@ -14,7 +14,6 @@ conditions = cellstr(params.condNames);
 siteDateMap = table();
 allActivityMaps = containers.Map();
 vMask = containers.Map();
-monkeys=monkeys(1);
 for m = 1:length(monkeys)
     [monkeyTable, monkeyMask, monkeyActivityMaps] = getMonkeyInfo(drivePath,...
         monkeys(m),domain,true);
@@ -25,7 +24,7 @@ end
 siteDateMap = siteDateMap(~cellfun(@isempty, siteDateMap.Date),:);
 % load info from all sites
 numSites = height(siteDateMap);
-numSites=14;
+numSites=20;
 [siteLocation, siteRep, siteThresh,siteSegs,siteChannels,...
     siteTrialPSTHS,siteActiveInd,rawSpikes,channelMap] = deal(cell(1,numSites));
 hbar=parfor_progressbar(numSites,strcat("Iterating ", num2str(numSites), " instances..."));
@@ -137,6 +136,7 @@ excludeRepInd = find(cellfun(@(f) length(f)==1 & sum(strcmp(f,...
 emptyInds(arrayfun(@(f) find(cumsum(~emptyInds)==f,1),excludeRepInd)) = 1;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 siteDateMap = siteDateMap(~emptyInds,:);
+channelMap = channelMap(~emptyInds);
 siteLocation = vertcat(siteLocation(~emptyInds));
 siteRep = vertcat(siteRep(~emptyInds));
 siteThresh = vertcat(siteThresh(~emptyInds));
@@ -151,6 +151,7 @@ simpRep = string(cellfun(@(r,t,f) r{find((f.*t)==(min((f./f).*t)),1)},...
     siteRep,siteThresh, nextBest,'UniformOutput', false));
 emptyInds = cellfun(@isempty, simpRep);
 siteDateMap = siteDateMap(~emptyInds,:);
+channelMap = channelMap(~emptyInds);
 siteLocation = vertcat(siteLocation(~emptyInds))';
 siteSegs = cellfun(@(ss) vertcat(ss(~emptyInds')),siteSegs,'UniformOutput',false);
 siteChannels = cellfun(@(sc) sc(~emptyInds'),siteChannels,'UniformOutput',false);
@@ -158,6 +159,7 @@ siteTrialPSTHS = cellfun(@(stp) stp(~emptyInds'),siteTrialPSTHS,'UniformOutput',
 siteActiveInd = cellfun(@(sa) sa(~emptyInds'),siteActiveInd,'UniformOutput',false);
 rawSpikes = cellfun(@(rs) rs(~emptyInds'), rawSpikes, 'UniformOutput',false);
 simpRep = simpRep(~emptyInds);
+channelMap = channelMap(~emptyInds);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % voronoi tiles for each monkey
 siteMasks = repmat({},1,height(siteDateMap));
@@ -171,21 +173,23 @@ for m = 1:length(monkeys)
     mRefMask = vMask(monkeys(m));
     mRefMask = mRefMask{1};
     mMap = find(strcmp(siteDateMap.Monkey,monkeys(m)));
-    [verticies, vCells] = voronoin(fliplr([cell2mat(siteLocation(mMap)); ...
-        [0 size(mRefMask,2); size(mRefMask,1) 0; 0 0;size(mRefMask,1) size(mRefMask,2)]]));
-    for i = 1:length(mMap)
-        currSite = siteLocation{mMap(i)};
-        tempCircle = zeros(size(mRefMask)+2*mm.tileBuffer);
-        tempCircle((currSite(2)-mm.siteRadius+mm.tileBuffer):...
-            (currSite(2)+mm.siteRadius+mm.tileBuffer),...
-            (currSite(1)-mm.siteRadius+mm.tileBuffer):...
-            (currSite(1)+mm.siteRadius+mm.tileBuffer)) = ...
-            mm.poolCircle;
-        tempCircle = tempCircle(mm.tileBuffer:end-(...
-            mm.tileBuffer+1),mm.tileBuffer:end-(...
-            mm.tileBuffer+1));
-        siteMasks{mMap(i)} = tempCircle & poly2mask(verticies(vCells{i},2),...
-            verticies(vCells{i},1),size(tempCircle,1),size(tempCircle,2));
+    if(~isempty(mMap))
+        [verticies, vCells] = voronoin(fliplr([cell2mat(siteLocation(mMap)); ...
+            [0 size(mRefMask,2); size(mRefMask,1) 0; 0 0;size(mRefMask,1) size(mRefMask,2)]]));
+        for i = 1:length(mMap)
+            currSite = siteLocation{mMap(i)};
+            tempCircle = zeros(size(mRefMask)+2*mm.tileBuffer);
+            tempCircle((currSite(2)-mm.siteRadius+mm.tileBuffer):...
+                (currSite(2)+mm.siteRadius+mm.tileBuffer),...
+                (currSite(1)-mm.siteRadius+mm.tileBuffer):...
+                (currSite(1)+mm.siteRadius+mm.tileBuffer)) = ...
+                mm.poolCircle;
+            tempCircle = tempCircle(mm.tileBuffer:end-(...
+                mm.tileBuffer+1),mm.tileBuffer:end-(...
+                mm.tileBuffer+1));
+            siteMasks{mMap(i)} = tempCircle & poly2mask(verticies(vCells{i},2),...
+                verticies(vCells{i},1),size(tempCircle,1),size(tempCircle,2));
+        end
     end
 end
 clear tempCircle verticies vCells poolCircle

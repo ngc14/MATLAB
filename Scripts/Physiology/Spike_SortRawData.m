@@ -1,5 +1,5 @@
 function Spike_SortRawData(date, monkeyName)
-sessionDate = '03_17_2020';
+sessionDate = '04_13_2020';
 monkey = 'Gilligan';
 if(exist('date', 'var'))
     sessionDate = date;
@@ -150,7 +150,7 @@ end
 startEventIdx=find(pulseLength>0.0175 & pulseLength<0.03);
 endEventIdx = find(pulseLength>0.030 & pulseLength<0.070);
 
-passed = false;
+passed=false;
 while(~passed)
     for i = 1:min(length(startEventIdx),length(endEventIdx))-1
         if(startEventIdx(i)>endEventIdx(i+1))

@@ -6,15 +6,29 @@ if(isempty(sessionDir))
 else
     pathInds = regexp(folderName,'\');
     hFilePath = dir([folderName(1:pathInds(end-1)),'*.nev']);
-    hFilePath = hFilePath(cellfun(@(s) ~contains(s,'stim') & ~contains(s,'sort','IgnoreCase',true), {hFilePath.name}));
+    dirPath = dir(hFilePath(1).folder);
+    hFilePath = hFilePath(cellfun(@(s) ~contains(s,"withdraw",'IgnoreCase',true) & ...
+        ~contains(s,'stim') & ~contains(s,'sort','IgnoreCase',true), {hFilePath.name}));
+    noteFiles = dirPath(find(cellfun(@(f) contains(f,extract(hFilePath.name,wildcardPattern+lookAheadBoundary(characterListPattern("_")+...
+        digitsPattern+characterListPattern(".")))+"_Note"),{dirPath.name}))).name;
+    notesLines = readlines(hFilePath.folder+"\"+noteFiles);
+    infoLines = notesLines(contains(notesLines,"Channel"));
     [res,hFile] = ns_OpenFile([hFilePath.folder,'\',hFilePath.name],'single');
     if(strcmp(res, 'ns_OK'))
-        chMap = [hFile.Entity.Label];
-        chs = cellfun(@(cn,i) cn(i+1:i+2), chMap,cellfun(@(r) regexp(r,'.e','end'),chMap,'Uniformoutput',false),'UniformOutput',false);
-        [chs,ci,~] = unique(chs(cellfun(@(s) ~isnan(str2double(s)),chs)));
-        chMap = chMap(cell2mat(cellfun(@(a) find(contains(chMap,".e"+string(a)+repmat('empty',a=="")),1), chs(ci),'UniformOutput',false)));
+        chMapR = [hFile.Entity.Label];
+        chs = cellfun(@(r) cell2mat(regexp(r,'(\d+)(?!.*\d)','match')),chMapR,'Uniformoutput',false);
+        chMapR = chMapR(~cellfun(@isempty,chs));
+        chs = chs(~cellfun(@isempty,chs));
+        [chs,ci,~] = unique(cellfun(@str2double,chs));
+        if(any(contains(infoLines,"Microprobes",'IgnoreCase',true)) && ...
+                any(contains(infoLines, "Channel 1"+wildcardPattern+"deep")))
+            ci = flipud(ci);
+        end
+        chMap{1} = chMapR(ci);
+        chMap{2} = chs(ci);
     else
-        chMap = [];
+        chMap{1} = {};
+        chMap{2} = {};
     end
     ns_CloseFile(hFile);
     [~,sortInd] = natsort({sessionDir.name});

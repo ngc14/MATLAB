@@ -6,7 +6,7 @@ alignLimits = {[-.75, 1.5]};
 pVal=0.05;
 savePath = "S:\Lab\ngc14\Working\PMd\Task_Units\";
 monkey = "Gilligan";
-MIN_BLOCKS_FOR_UNIT = 15;
+MIN_BLOCKS_FOR_UNIT = 13;
 params = PhysRecording(string(conditions),.01,.15,-6,5,containers.Map(conditions,...
     {["GoSignal"],["GoSignal"],["GoSignal"],"GoSignal"}));
 %%
@@ -37,6 +37,7 @@ goodUnits = cellfun(@(tn) cell2mat(cellfun(@(s)sum(s>1 & s<200,2), tn,'UniformOu
 tUnits = cellfun(@(a,b) any(cell2mat(a),2) & sum(b,2)>MIN_BLOCKS_FOR_UNIT*size(b,2), ...
     num2cell(cat(2,tUnit{:}),2),goodUnits,'Uniformoutput',false);
 condUnitMapping = cellfun(@(si) size(si,2),siteChannels{2})';
+allMaps = cellfun(@(d) d{end}, chMaps, 'UniformOutput',false);
 %%
 close all;
 [allTrials,allPSTHS]= deal(cell(1,1));
@@ -51,7 +52,8 @@ for c =1:length(conditions)
     siteUnitMods(~sessionInds) = 0;
     [siteIndsN,siteInds] = unique(siteUnitMods);
     siteInds = siteInds(siteIndsN>0);
-    siteUnits = mapSites2Units(condUnitMapping,cellfun(@(c) string(datetime(c,'Format','MMMM_dd')),siteDateMap.Date','UniformOutput',false));
+    siteUnits = mapSites2Units(condUnitMapping,cellfun(@(c) string(datetime(c,'Format','MMMM_dd')),...
+        siteDateMap.Date','UniformOutput',false));
     siteUnits(siteUnitMods==0) = "";
 
     condPSTHS = num2cell(cellfun(@(m) mean(m,3,'omitnan'),vertcat(normPSTH{c}{:}),'UniformOutput',false),1);
@@ -62,21 +64,27 @@ for c =1:length(conditions)
         if(~isempty(currsiteUnits))            
             condtrialPSTHS = {cell2mat(unitPSTHS{s}(tUnits{s}))};
             allTrialSegs = trialSegs{s};
+            unitChannels = allMaps{s}(siteChannels{c}{s}(tUnits{s}));
+            allChannels = unique(unitChannels);
+            unitIndex = histcounts(unitChannels,[allChannels,max(allChannels)+1]);
+            unitChannels = arrayfun(@(aa,bb) [string(aa),repmat(string([num2str(aa),'_',num2str(bb)]),bb-1)],...
+                allChannels,unitIndex,'UniformOutput',false);
             plotColors =cell2struct(num2cell(distinguishable_colors(length(currsiteUnits)),2),...
-                string(arrayfun(@(t) char(datetime(siteDateMap.Date{s},'Format','MMMM_dd'))+"_"+t,currsiteUnits,'UniformOutput',false)));
+                arrayfun(@(d) [char(datetime(siteDateMap.Date{s},'Format','MMMMdd')),'_',char(d)],cell2mat(unitChannels),'UniformOutput',false));
             trialSiteUnits = cellfun(@(n) cellstr(repmat(string(n),size(allTrialSegs,1),1)),fieldnames(plotColors),'UniformOutput',false);
             allTrialLabels = cellfun(@string,vertcat(trialSiteUnits{:}));            
             plotJointPSTHS(params.bins,condtrialPSTHS,{repmat(allTrialSegs,length(currsiteUnits),1)},....
                 allTrialLabels,true(size(allTrialLabels)),[],  alignLimits,[0 25],plotColors);
             saveFigures(gcf,savePath+"\"+string(datetime(siteDateMap.Date{s},'Format','MMMM_dd'))+"\",...
                 params.condAbbrev(params.condNames(c))+"_PSTH",[]);
+            close all;
         end
     end
     trialSegs = cellfun(@(t,u) repmat(mean([t(:,1:3), NaN(size(t,1),size(t,2)==8),t(:,4:end)],...
         1,'omitnan'),length(u),1),trialSegs,tUnits,'UniformOutput',false);
     plotJointPSTHS(params.bins,{vertcat(unitAvgPSTHS{:})},{vertcat(trialSegs{:})},...
         siteUnits, siteInds,[],  alignLimits,[0 15],cell2struct(num2cell(distinguishable_colors(length(siteDateMap.Date)),2),...
-        arrayfun(@(s) char(datetime(s,'Format','MMMM_dd')),string(siteDateMap.Date),'UniformOutput',false)));
+        arrayfun(@(s) [char(datetime(s,'Format','MMMM_dd'))],string(siteDateMap.Date),'UniformOutput',false)));
     saveFigures(gcf,savePath,strcat("Session_PSTHS_",conditions(c)),[]);
     
     allPSTHS = cellfun(@(a,b) vertcat(a,b), allPSTHS, {cellfun(@(u,t) u(t,:), condPSTHS{1},tUnits,'UniformOutput',false)}, 'UniformOutput', false);

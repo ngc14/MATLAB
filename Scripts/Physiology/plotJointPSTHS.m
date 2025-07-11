@@ -41,8 +41,7 @@ for j = 1:length(jointName)
     %     [~,~,inactiveJoints] = intersect(find(~activityInd),find(jointInds));
     %% plot PSTHS
     subplot(ceil(length(jointName)/wrapPlots),wrapPlots,j);hold on;
-    title(strcat(jointName{j}, ": n = ", num2str(nansum(~any(isnan(jointPSTH{1}),2))),...
-        " of ", num2str(sum(jointInds))));
+    title(strcat(jointName{j}, " (n = ", num2str(sum(jointInds)),")"));
     if(sum(jointInds)>0)
         plotStart = 0;
         for a = 1:size(jointPSTH,2)

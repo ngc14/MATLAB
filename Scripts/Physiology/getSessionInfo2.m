@@ -10,7 +10,7 @@ else
     hFilePath = hFilePath(cellfun(@(s) ~contains(s,"withdraw",'IgnoreCase',true) & ...
         ~contains(s,'stim') & ~contains(s,'sort','IgnoreCase',true), {hFilePath.name}));
     noteFiles = dirPath(find(cellfun(@(f) contains(f,extract(hFilePath.name,wildcardPattern+lookAheadBoundary(characterListPattern("_")+...
-        digitsPattern+characterListPattern(".")))+"_Note"),{dirPath.name}))).name;
+        digitsPattern+characterListPattern(".")))+"_Note"),{dirPath.name}),1)).name;
     notesLines = readlines(hFilePath.folder+"\"+noteFiles);
     infoLines = notesLines(contains(notesLines,"Channel"));
     [res,hFile] = ns_OpenFile([hFilePath.folder,'\',hFilePath.name],'single');

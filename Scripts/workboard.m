@@ -4,7 +4,7 @@ taskAlign = containers.Map(conditions(1:end-1),{{["GoSignal" "StartHold"]},{["Go
 taskWindow = {[-0.3, 0]};
 alignLimits = {[-.75, 1.5]};
 pVal=0.05;
-savePath = "S:\Lab\ngc14\Working\PMd\Task_Units\";
+savePath = "S:\Lab\ngc14\Working\PMd\Task_Units\New_Sort\";
 monkey = "Gilligan";
 MIN_BLOCKS_FOR_UNIT = 13;
 params = PhysRecording(string(conditions),.01,.15,-6,5,containers.Map(conditions,...
@@ -319,16 +319,16 @@ figTaskPercAvg = modulatedUnitsPerRep(repSave,{reachPercs-graspPercs},{'Grasp', 
 ylim([-50 0]);
 saveFigures(figTaskPercAvg, [saveDir, 'Representation Distribution\Min Representation\Phase Effect\Combined\R_G\'],[fileSaveName,'_PercSite'],[]);
 
-percRFig = mapUnitVals(verticies, vCells, vMask, siteMasks,unitInds,reachPercs);
+percRFig = mapUnitVals(verticies, vCells, vMask, siteMasks,sessionInds,reachPercs);
 title([fileSaveName,'_Reach_Perc'])
 saveFigures(percRFig, [saveDir, 'Count Maps\Phase Effect\Reach Mod\'],['Reach_Exclusive_',fileSaveName,'_Perc'],[])
-percGFig = mapUnitVals(verticies, vCells, vMask, siteMasks,unitInds,graspPercs);
+percGFig = mapUnitVals(verticies, vCells, vMask, siteMasks,sessionInds,graspPercs);
 title([fileSaveName,'_Grasp_Perc'])
 saveFigures(percGFig, [saveDir, 'Count Maps\Phase Effect\Grasp Mod\'],['Grasp_Exclusive_',fileSaveName,'_Perc'],[])
 
-countRFig = mapUnitVals(verticies, vCells, vMask, siteMasks,unitInds,reachCounts);
+countRFig = mapUnitVals(verticies, vCells, vMask, siteMasks,sessionInds,reachCounts);
 title([fileSaveName,'_Reach_Count'])
-countGFig = mapUnitVals(verticies, vCells, vMask, siteMasks,unitInds,graspCounts);
+countGFig = mapUnitVals(verticies, vCells, vMask, siteMasks,sessionInds,graspCounts);
 title([fileSaveName,'_Grasp_Count'])
 saveFigures(countRFig, [saveDir, 'Count Maps\Phase Effect\Reach Mod\'],['Reach_Exclusive_',fileSaveName,'_Count'],[]);
 saveFigures(countGFig, [saveDir, 'Count Maps\Phase Effect\Grasp Mod\'],['Grasp_Exclusive_',fileSaveName,'_Count'],[])
@@ -337,7 +337,7 @@ reachVgrasp(reachVgrasp==2) = -1;
 reachVgrasp(reachVgrasp==0) = NaN;
 subMap = arrayfun(@(ind) nansum(-reachVgrasp(unitSessionLabels==ind)),unitSessionLabels);
 subMapFig = mapUnitVals(verticies, vCells, vMask, siteMasks,...
-    unitInds,subMap);
+    sessionInds,subMap);
 title([fileSaveName,'_Reach-Grasp'])
 saveFigures(subMapFig, [saveDir, 'Count Maps\Phase Effect\R_G\'],['ReachEx-GraspEx_',fileSaveName],[])
 %%
@@ -345,7 +345,7 @@ saveFigures(subMapFig, [saveDir, 'Count Maps\Phase Effect\R_G\'],['ReachEx-Grasp
 
 for c = 1:length(movementConds)
     figPSTHS = plotJointPSTHS(bins,masterPSTH{c},masterSegs{c},...
-        repSave,masterActivity{c},unitInds);
+        repSave,masterActivity{c},sessionInds);
     taskSessionInds = logical([1; any(diff(cell2mat(siteLocation(taskUnitInds{c}==1)')),2)]);
     figPSTHSTask = plotJointPSTHS(bins,masterPSTH{c}(taskUnitInds{c}==1),...
         masterSegs{c}(taskUnitInds{c}==1),repSave(taskUnitInds{c}==1),...
@@ -355,19 +355,19 @@ for c = 1:length(movementConds)
 end
 cCount = arrayfun(@(ind) sum(condModUnits' & unitSessionLabels==ind),unitSessionLabels);
 cPercs = 100*(cCount./arrayfun(@(ind) sum(unitSessionLabels==ind), unitSessionLabels));
-countCFig = mapUnitVals(verticies, vCells, vMask, siteMasks,unitInds,cCount);
+countCFig = mapUnitVals(verticies, vCells, vMask, siteMasks,sessionInds,cCount);
 title([fileSaveName,'_CondEffect_Count'])
 saveFigures(countCFig, [saveDir, 'Count Maps\Condition Effect\'],[fileSaveName,'_Count'],[])
-percCFig = mapUnitVals(verticies, vCells, vMask, siteMasks,unitInds,cPercs);
+percCFig = mapUnitVals(verticies, vCells, vMask, siteMasks,sessionInds,cPercs);
 title([fileSaveName,'_CondEffect_Perc'])
 saveFigures(percCFig, [saveDir, 'Count Maps\Condition Effect\'],[fileSaveName,'_Perc'],[])
 
 tCount = arrayfun(@(ind) sum(taskU' & unitSessionLabels==ind), unitSessionLabels);
 tPercs = 100*(tCount./arrayfun(@(ind) sum(unitSessionLabels==ind), unitSessionLabels));
-countTFig = mapUnitVals(verticies, vCells, vMask, siteMasks,unitInds,tCount);
+countTFig = mapUnitVals(verticies, vCells, vMask, siteMasks,sessionInds,tCount);
 title([fileSaveName,'_Task_Count'])
 saveFigures(countTFig, [saveDir, 'Count Maps\Phase Effect\Task Mod\'],['TaskMod_',fileSaveName,'_Count'],[])
-percTFig = mapUnitVals(verticies, vCells, vMask, siteMasks,unitInds,tPercs);
+percTFig = mapUnitVals(verticies, vCells, vMask, siteMasks,sessionInds,tPercs);
 title([fileSaveName,'_Task_Perc'])
 saveFigures(percTFig, [saveDir, 'Count Maps\Phase Effect\Task Mod\'],['TaskMod_',fileSaveName,'_Perc'],[])
 %% PSTH FR phase changes, peak rise and fall time, AUC
@@ -438,35 +438,35 @@ saveFigures(figGraspUnits, [saveDir, 'Representation Distribution\Grasp Modulate
 taskCounts = arrayfun(@(ind) sum(taskUnits' & unitSessionLabels==ind),...
     unitSessionLabels);
 countFig = mapUnitVals(verticies, vCells, vMask, siteMasks,...
-    unitInds,taskCounts,cm);
+    sessionInds,taskCounts,cm);
 saveFigures(countFig, [saveDir, 'Count Maps\Task Mod\'],[fileSaveName,'_Count'],[])
 
 reachCounts = arrayfun(@(ind) sum(reachUnits' & unitSessionLabels==ind),...
     unitSessionLabels);
 countRFig = mapUnitVals(verticies, vCells, vMask, siteMasks,...
-    unitInds,reachCounts,cm);
+    sessionInds,reachCounts,cm);
 saveFigures(countRFig, [saveDir, 'Count Maps\Reach Mod\'],[fileSaveName,'_Count'],[])
 
 graspCounts = arrayfun(@(ind) sum(taskUnits' & unitSessionLabels==ind),...
     unitSessionLabels);
 countGFig = mapUnitVals(verticies, vCells, vMask, siteMasks,...
-    unitInds,graspCounts,cm);
+    sessionInds,graspCounts,cm);
 saveFigures(countGFig, [saveDir, 'Count Maps\Grasp Mod\'],[fileSaveName,'_Count'],[])
 
 taskPercs = arrayfun(@(ind) round(100*sum(taskUnits' & ...
     unitSessionLabels==ind)/sum(unitSessionLabels==ind)), unitSessionLabels);
 percFig = mapUnitVals(verticies, vCells, vMask, siteMasks,...
-    unitInds,taskPercs,cm);
+    sessionInds,taskPercs,cm);
 saveFigures(percFig, [saveDir, 'Count Maps\Task Mod\'],[fileSaveName,'_Perc'],[])
 reachPercs = arrayfun(@(ind) round(100*sum(reachUnits' & ...
     unitSessionLabels==ind)/sum(unitSessionLabels==ind)), unitSessionLabels);
 percRFig = mapUnitVals(verticies, vCells, vMask, siteMasks,...
-    unitInds,reachPercs,cm);
+    sessionInds,reachPercs,cm);
 saveFigures(percRFig, [saveDir, 'Count Maps\Reach Mod\'],[fileSaveName,'_Perc'],[])
 graspPercs = arrayfun(@(ind) round(100*sum(graspUnits' & ...
     unitSessionLabels==ind)/sum(unitSessionLabels==ind)), unitSessionLabels);
 percGFig = mapUnitVals(verticies, vCells, vMask, siteMasks,...
-    unitInds,graspPercs,cm);
+    sessionInds,graspPercs,cm);
 saveFigures(percGFig, [saveDir, 'Count Maps\Grasp Mod\'],[fileSaveName,'_Perc'],[])
 
 reachPercsT = arrayfun(@(ind) round(100*sum(reachUnits' & ...
@@ -496,9 +496,9 @@ for s = 1:size(condCombs,1)
     condModPercsVS= arrayfun(@(ind) 100*(sum(condUnits{s}' & ...
         unitSessionLabels==ind))/sum(unitSessionLabels==ind),unitSessionLabels);
     figureCountVS =  mapUnitVals(verticies, vCells, vMask, siteMasks,...
-        unitInds{maxCondInd},condModCountsVS,cm);
+        sessionInds{maxCondInd},condModCountsVS,cm);
     figurePercVS =  mapUnitVals(verticies, vCells, vMask, siteMasks,...
-        unitInds{maxCondInd},condModPercsVS,cm);
+        sessionInds{maxCondInd},condModPercsVS,cm);
     % overlay imaging results onto figure
     activityIm = im2double(imresize(imread([sessionDirPrefix,...
         '\Mapping\tTests\Cond_Subtracted\',condAbbrevVS,'.png']),...
@@ -535,7 +535,7 @@ for s = 1:size(condCombs,1)
 end
 for p = 1:length(phaseNames)
 
-    jP =  plotJointPSTHS(bins,masterPSTH{d},masterSegs{d},simpRep,masterActivity{d},unitInds);
+    jP =  plotJointPSTHS(bins,masterPSTH{d},masterSegs{d},simpRep,masterActivity{d},sessionInds);
     saveFigures(jP,['S:\Lab\ngc14\Figures\Physiology\Results\PSTH\',condAbbrev{d},'\'],saveName, []);
     masterPhaseIndices = cellfun(@(pIn) cellfun(@(p) round(nanmean(p,1)), pIn, 'UniformOutput', false), masterPhaseBins(d,p), 'UniformOutput',false);
     trialAUC = cellfun(@(rin, gin) cellfun(@(r,g) nanmean((r-g)),rin,gin), phaseFR(d,p), baselineFR(d),'UniformOutput', false);
@@ -582,18 +582,18 @@ for p = 1:length(phaseNames)
     saveFigures(trialAUCFig,['S:\Lab\ngc14\Figures\Physiology\Results\AUC\',condAbbrev{d},'\Trial\'],[saveName,'_Task_Trial'] ,[]);
     saveFigures(unitAUCFig,['S:\Lab\ngc14\Figures\Physiology\Results\AUC\',condAbbrev{d},'\Unit\'],[saveName,'_Task_Unit'] ,[]);
 
-    figMapUnit = mapUnitVals(verticies,vCells,vMask,siteMasks,unitInds,unitAUC);
+    figMapUnit = mapUnitVals(verticies,vCells,vMask,siteMasks,sessionInds,unitAUC);
     hold on;
-    weighting = cellfun(@(c) normalize(c(unitInds), 'range'), unitAUCS, 'UniformOutput', false)
-    centr =nansum((cell2mat(siteLocation(unitInds)').*weighting{p}')/nansum(weighting{p}'),1);
+    weighting = cellfun(@(c) normalize(c(sessionInds), 'range'), unitAUCS, 'UniformOutput', false)
+    centr =nansum((cell2mat(siteLocation(sessionInds)').*weighting{p}')/nansum(weighting{p}'),1);
     scatter(centr(1), centr(2),250,'b','filled','square');
-    figMapTrial = mapUnitVals(verticies,vCells,vMask,siteMasks,unitInds,trialAUC{1});
+    figMapTrial = mapUnitVals(verticies,vCells,vMask,siteMasks,sessionInds,trialAUC{1});
     saveFigures(figMapTrial,['S:\Lab\ngc14\Figures\Physiology\Results\Maps\AUC\',condAbbrev{d},'Trial\'],[saveName,'_', phaseNames{p},'_Task_Trial'] ,[]);
     saveFigures(figMapUnit,['S:\Lab\ngc14\Figures\Physiology\Results\Maps\AUC\',condAbbrev{d},'Unit\'],[saveName,'_',phaseNames{p} '_Task_Unit'] ,[]);
 end
 condModUnits = [];
-condCompUnits = repmat({false(1,length(unitInds))}, 1,size(condCombs,1));
-for u = 1:length(unitInds)
+condCompUnits = repmat({false(1,length(sessionInds))}, 1,size(condCombs,1));
+for u = 1:length(sessionInds)
     currUnitFR = cellfun(@(p) p{u} ,taskFR, 'UniformOutput', false);
     maxTrials = max(cellfun(@length,currUnitFR));
     paddedUnitFR = cell2mat(cellfun(@(uFR) [uFR; ...

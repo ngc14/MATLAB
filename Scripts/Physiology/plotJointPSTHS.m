@@ -23,7 +23,7 @@ if(~exist('plotColors','var'))
     end
 end
 plotNames = fieldnames(plotColors);
-jointName =plotNames(ismember(plotNames,unique(allReps)));
+jointName =plotNames(matches(unique(allReps),plotNames));
 
 zeroBinInd = find(bins==0);
 binSize = mode(diff(bins));
@@ -36,12 +36,17 @@ xAlignTicks = {};
 for j = 1:length(jointName)
     jointInds = arrayfun(@(s) cellfun(@(a) strcmp(a,jointName{j}),s), allReps,'UniformOutput',true);
     jointPSTH = cellfun(@(t) t(jointInds,:), PSTH, 'UniformOutput', false);
-    jointSegs = cellfun(@(t) t(siteInds(strcmp(allReps(siteInds),jointName{j})),:), allSegs,'UniformOutput',false);
+    jointSegs = cellfun(@(t) t(strcmp(allReps(siteInds),jointName{j}),:), allSegs,'UniformOutput',false);
     %     [~, ~, activeJointInds] = intersect(find(activityInd),jointInds(activityInd));
     %     [~,~,inactiveJoints] = intersect(find(~activityInd),find(jointInds));
     %% plot PSTHS
     subplot(ceil(length(jointName)/wrapPlots),wrapPlots,j);hold on;
-    title(strcat(jointName{j}, " (n = ", num2str(sum(jointInds)),")"));
+    titleName = replace(jointName{j},"_", " ");
+    titleName = strcat(titleName, " (n= ", num2str(size(jointSegs{1},1)),")");
+    if(sum(siteInds)~=length(allReps))
+        titleName = strcat(titleName{:}(1:end-1), " of ", num2str(sum(jointInds)),")");
+    end
+    title(titleName);
     if(sum(jointInds)>0)
         plotStart = 0;
         for a = 1:size(jointPSTH,2)

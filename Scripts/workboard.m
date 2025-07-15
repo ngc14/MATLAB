@@ -4,7 +4,7 @@ taskAlign = containers.Map(conditions(1:end-1),{{["GoSignal" "StartHold"]},{["Go
 taskWindow = {[-0.3, 0]};
 alignLimits = {[-.75, 1.5]};
 pVal=0.05;
-savePath = "S:\Lab\ngc14\Working\PMd\Task_Units\New_Sort";
+savePath = "S:\Lab\ngc14\Working\PMd\Task_Units\New_Sort\";
 monkey = "Gilligan";
 MIN_BLOCKS_FOR_UNIT = 13;
 params = PhysRecording(string(conditions),.01,.15,-6,5,containers.Map(conditions,...
@@ -49,10 +49,8 @@ close all;
 for c =1:length(conditions)
     condSegs = siteSegs{c};
     trialSegs = vertcat(condSegs{:});
-    mMapping = cell2mat(arrayfun(@(m,n) ones(1,m)*n,condUnitMapping,...
-        1:length(condUnitMapping),'UniformOutput',false));
-    sessionInds = ~isnan(mMapping) & vertcat(tUnits{:})';
-    siteUnitMods = mMapping;
+    siteUnitMods = cell2mat(arrayfun(@(m,n) ones(1,m)*n,condUnitMapping,1:length(condUnitMapping),'UniformOutput',false));
+    sessionInds = ~isnan(siteUnitMods) & vertcat(tUnits{:})';
     siteUnitMods(~sessionInds) = 0;
     [siteIndsN,siteInds] = unique(siteUnitMods);
     siteInds = siteInds(siteIndsN>0);

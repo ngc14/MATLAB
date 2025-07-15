@@ -1,5 +1,5 @@
 function Spike_SortRawData(date, monkeyName)
-sessionDate = '08_09_2019';
+sessionDate = '03_21_2020';
 monkey = 'Gilligan';
 if(exist('date', 'var'))
     sessionDate = date;

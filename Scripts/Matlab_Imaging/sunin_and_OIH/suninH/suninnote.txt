@@ -1,0 +1,18 @@
+
+
+
+Note: if process is based on 'ivf' file
+
+* Need have 'ivf' files available in location (e.g. 050401rat\run0\blkavg\singlecond\*.ivf)
+* Assume only one set of single-condition ivf files in that directory.
+* NStim will depends on the number of ivf files in that directory.
+* stim() in 'suninuser' no longer useful.
+* Stim order is the order of 'ivf' file name. 
+* sum frame range is not applicable 
+* operation is not applicable
+* super pixel is not applicable
+* flagmap is set to 1 (only save block averaged subtraction map)
+* Following parameters still applicable
+	* clipping
+	* filtering
+	* vector?

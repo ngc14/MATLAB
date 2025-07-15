@@ -70,3 +70,7 @@
 /.MATLABDriveAppData/snapshots/right.db
 
 /Scripts/Physiology/plotPSTH.asv
+
+*.MATLABDriveTag
+
+*.asv

@@ -4,7 +4,7 @@ taskAlign = containers.Map(conditions(1:end-1),{{["GoSignal" "StartHold"]},{["Go
 taskWindow = {[-0.3, 0]};
 alignLimits = {[-.75, 1.5]};
 pVal=0.05;
-savePath = "S:\Lab\ngc14\Working\PMd\Task_Units\New_Sort\";
+savePath = "S:\Lab\ngc14\Working\PMd\Task_Units\";
 monkey = "Gilligan";
 MIN_BLOCKS_FOR_UNIT = 13;
 params = PhysRecording(string(conditions),.01,.15,-6,5,containers.Map(conditions,...
@@ -85,7 +85,7 @@ for c =1:length(conditions)
         siteTrialSegs = repmat(siteCondSegs(s),length(unitLabels),1);
         plotJointPSTHS(params.bins,{cell2mat(unitPSTHS{s})},{cell2mat(siteTrialSegs)},...
             unitTrialLabels,true(size(unitTrialLabels)), [],alignLimits,[0 25],plotColors);
-        saveFigures(gcf,savePath+string(datetime(siteDates.Date{s},'Format','MMMM_dd'))+"\",...
+        saveFigures(gcf,savePath+string(datetime(siteDates.Date{s},'Format','MMMM_dd_yyyy'))+"\",...
             params.condAbbrev(params.condNames(c))+"_PSTH",[]);
         close all;
     end
@@ -108,7 +108,7 @@ for c =1:length(conditions)
     end
     % end
     allSiteInds = [allSiteInds;tUnits];
-    allRestInds = [allRestInds;condGroupUnits];
+    allRestInds = [allRestInds;cellfun(@(u,d) d(u)==(t-1), tUnits, restUnits(taskSiteInds),'UniformOutput',false)];
     condInds = [condInds,repmat(string(params.condAbbrev(params.condNames(c))),1,length(unitChannelMapping))];
     allTrials = cellfun(@(a,d) vertcat(a,cellfun(@(m) vertcat(m{:}),d,'UniformOutput',false)),...
         allTrials,{trialSegs}, 'UniformOutput',false);

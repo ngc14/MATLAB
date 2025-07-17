@@ -23,7 +23,7 @@ if(~exist('plotColors','var'))
     end
 end
 plotNames = fieldnames(plotColors);
-jointName =plotNames(matches(unique(allReps),plotNames));
+jointName =plotNames(matches(unique(allReps(allReps~="")),plotNames));
 
 zeroBinInd = find(bins==0);
 binSize = mode(diff(bins));
@@ -36,7 +36,7 @@ xAlignTicks = {};
 for j = 1:length(jointName)
     jointInds = arrayfun(@(s) cellfun(@(a) strcmp(a,jointName{j}),s), allReps,'UniformOutput',true);
     jointPSTH = cellfun(@(t) t(jointInds,:), PSTH, 'UniformOutput', false);
-    jointSegs = cellfun(@(t) t(strcmp(allReps(siteInds),jointName{j}),:), allSegs,'UniformOutput',false);
+    jointSegs = cellfun(@(t) t(find(strcmp(allReps,jointName{j}).*siteInds'),:), allSegs,'UniformOutput',false);
     %     [~, ~, activeJointInds] = intersect(find(activityInd),jointInds(activityInd));
     %     [~,~,inactiveJoints] = intersect(find(~activityInd),find(jointInds));
     %% plot PSTHS

@@ -114,16 +114,13 @@ for c =1:length(conditions)
         allTrials,{trialSegs}, 'UniformOutput',false);
     allPSTHS = cellfun(@(a,b) vertcat(a,b), allPSTHS, {condPSTHS}, 'UniformOutput', false);
 end
-%%
 allPSTHSCond = vertcat(allPSTHS{:}{:});
 allTrialsCond = vertcat(allTrials{:}{:});
-newCondInds = condInds;
-newCondInds(~vertcat(allSiteInds{:})) = "";
-plotJointPSTHS(params.bins,{allPSTHSCond},{allTrialsCond},condInds,vertcat(allSiteInds{:}),[],  alignLimits,[0 15],...
+allTaskInds = vertcat(allSiteInds{:});
+plotJointPSTHS(params.bins,{allPSTHSCond},{allTrialsCond},condInds,true(size(condInds)),[],  alignLimits,[0 15],...
     cell2struct(num2cell(distinguishable_colors(length(conditions)),2),string(params.condAbbrev.values)));
 saveFigures(gcf,savePath,"All_PSTH",[]);
 
-allTaskInds = vertcat(allSiteInds{:});
 allRestTaskInds = vertcat(allRestInds{:});
 restPSTHSCond = (allRestTaskInds./allRestTaskInds) .* allPSTHSCond(allTaskInds,:);
 restTrialsCond = (allRestTaskInds./allRestTaskInds) .*allTrialsCond(allTaskInds,:);
@@ -131,10 +128,10 @@ plotJointPSTHS(params.bins,{restPSTHSCond},{restTrialsCond},condInds(allTaskInds
     [],  alignLimits,[0 15],cell2struct(num2cell(distinguishable_colors(length(conditions)),2),string(params.condAbbrev.values)));
 saveFigures(gcf,savePath,"All_PSTH_EqRest",[]);
 
-allRestTaskInds = ~allRestTaskInds;
+allRestTaskInds = ~vertcat(allRestInds{:});
 restPSTHSCond = (allRestTaskInds./allRestTaskInds) .* allPSTHSCond(allTaskInds,:);
 restTrialsCond = (allRestTaskInds./allRestTaskInds) .*allTrialsCond(allTaskInds,:);
-plotJointPSTHS(params.bins,{restPSTHSCond},{restTrialsCond},condInds(vertcat(allSiteInds{:})),allRestTaskInds,...
+plotJointPSTHS(params.bins,{restPSTHSCond},{restTrialsCond},condInds(allTaskInds),allRestTaskInds,...
     [], alignLimits,[0 15],cell2struct(num2cell(distinguishable_colors(length(conditions)),2),string(params.condAbbrev.values)));
 saveFigures(gcf,savePath,"All_PSTH_DiffRest",[]);
 %% task phase units

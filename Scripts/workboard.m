@@ -59,7 +59,7 @@ for c =1:length(conditions)
     plotJointPSTHS(params.bins,{vertcat(condPSTHS{:})},{cell2mat(siteUnitSegs)},...
         siteUnitNames,cell2mat(tUnits), [],alignLimits,[0 25],cell2struct(num2cell(...
         distinguishable_colors(length(taskSiteInds)),2),arrayfun(@(t) "SiteNo"+num2str(siteDateMap{t,'Site'}),taskSiteInds)));
-    saveFigures(gcf,savePath,strcat("Session_PSTHS_Task_Units_",params.condAbbrev(char(conditions(c))),"_"),[]);
+    saveFigures(gcf,strcat(savePath,"Session_PSTHS\"),strcat("Task_Units_",params.condAbbrev(char(conditions(c))),"_"),[]);
 
     if(contains(conditions(c),'sphere','IgnoreCase',true))
         trialSegs = cellfun(@(t) [t(:,1:2), NaN(size(t,1),double(size(t,2)==8)), t(:,3:end)], siteCondSegs,'UniformOutput',false);
@@ -77,7 +77,7 @@ for c =1:length(conditions)
     for s = 1:length(unitPSTHS)
         unitChannels = condUnitMapping{s}(tUnits{s});
         unitIndex = histcounts(unitChannels,[unique(unitChannels),max(unitChannels)+1]);
-        utc = arrayfun(@(aa,bb) [string(aa),repmat(string([num2str(aa),'_',num2str(bb)]),bb-1)],...
+        utc = arrayfun(@(aa,bb) [string(aa),string(arrayfun(@(bi) string([num2str(aa),'_',num2str(bi)]),2:bb,'UniformOutput',false))],...
             unique(unitChannels),unitIndex,'UniformOutput',false);
         unitLabels = string(arrayfun(@(t) "SiteNo"+num2str(siteDates{s,'Site'})+"_"+t,cell2mat(utc),'UniformOutput',false))';
         plotColors =cell2struct(num2cell(distinguishable_colors(length(unitChannels)),2),unitLabels);
@@ -104,7 +104,7 @@ for c =1:length(conditions)
             siteCondSegs,condGroupUnits,'UniformOutput',false))},...
             taskUnitMappings, cell2mat(condGroupUnits), [],alignLimits,[0 15],cell2struct(num2cell(...
             distinguishable_colors(length(condGroupUnits)),2),"SiteNo"+num2str(siteDates{:,'Site'})));
-        saveFigures(gcf,savePath,strcat("Session_PSTHS_",params.condAbbrev(params.condNames(c)),"_",typeName),[]);
+        saveFigures(gcf,strcat(savePath,"Session_PSTHS\"),strcat(params.condAbbrev(params.condNames(c)),"_",typeName),[]);
     end
     % end
     allSiteInds = [allSiteInds;tUnits];

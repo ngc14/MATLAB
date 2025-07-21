@@ -4,7 +4,7 @@ taskAlign = containers.Map(conditions(1:end-1),{{["GoSignal" "StartHold"]},{["Go
 taskWindow = {[-0.3, 0]};
 alignLimits = {[-.75, 1.5]};
 pVal=0.05;
-savePath = "S:\Lab\ngc14\Working\PMd\Task_Units\";
+savePath = "S:\Lab\ngc14\Working\PMd\Task_Units\Rostral\";
 monkey = "Gilligan";
 MIN_BLOCKS_FOR_UNIT = 13;
 params = PhysRecording(string(conditions),.01,.15,-6,5,containers.Map(conditions,...
@@ -48,6 +48,10 @@ unitChannelMapping=cell2mat(arrayfun(@(m,n) ones(1,m)*n,cellfun(@(s)size(s,2),ma
 close all;
 [allTrials,allPSTHS]= deal(cell(1,1));
 [condInds,allSiteInds,allRestInds] = deal([]);
+taskUnits(~ismember(1:length(taskUnits),[12,13,18])) = ...
+    cellfun(@(a) false(length(a),1),  taskUnits(~ismember(1:length(taskUnits),[12,13,18])), 'UniformOutput',false)
+savePath = "S:\Lab\ngc14\Working\PMd\Task_Units\Rostral\";
+
 for c =1:length(conditions)
     siteUnitNames = "SiteNo"+num2str(siteDateMap{unitChannelMapping,'Site'});
     [~,taskSiteInds] = intersect(unique(siteUnitNames),unique(siteUnitNames(cell2mat(taskUnits))));
@@ -64,7 +68,6 @@ for c =1:length(conditions)
     end
     trialSegs = cellfun(@(su,tu) repmat({mean(su,1,'omitnan')},length(tu),1), trialSegs,tUnits,'UniformOutput',false);
 
-    % if(0)
     unitPSTHS = cellfun(@(n,ti) cellfun(@(t) squeeze(t)',num2cell(n(ti,:,:),[2,3]),'UniformOutput',false),...
         vertcat(normPSTH{c}{taskSiteInds}),tUnits,'Uniformoutput',false);
     siteDates = siteDateMap(taskSiteInds,:);
@@ -72,6 +75,7 @@ for c =1:length(conditions)
 
     siteUnitSegs = cellfun(@(si,tu) repmat(mean(si,1,'omitnan'),length(tu),1),siteCondSegs,tUnits,'UniformOutput',false);
     condPSTHS = cellfun(@(m,i) (i./i).*mean(m,3,'omitnan'),vertcat(normPSTH{c}{taskSiteInds}),tUnits,'UniformOutput',false);
+         if(0)
     plotJointPSTHS(params.bins,{vertcat(condPSTHS{:})},{cell2mat(siteUnitSegs)},...
         siteUnitNames,cell2mat(tUnits)', [],alignLimits,[0 25],cell2struct(num2cell(...
         distinguishable_colors(length(taskSiteInds)),2),arrayfun(@(t) "SiteNo"+num2str(siteDateMap{t,'Site'}),taskSiteInds)));
@@ -109,7 +113,7 @@ for c =1:length(conditions)
             distinguishable_colors(length(condGroupUnits)),2),"SiteNo"+num2str(siteDates{:,'Site'})));
         saveFigures(gcf,strcat(savePath,"Session_PSTHS\"),strcat(params.condAbbrev(params.condNames(c)),"_",typeName),[]);
     end
-    % end
+     end
     allSiteInds = [allSiteInds;tUnits];
     allRestInds = [allRestInds;cellfun(@(u,d) d(u)==(t-1), tUnits, restUnits(taskSiteInds),'UniformOutput',false)];
     condInds = [condInds,repmat(string(params.condAbbrev(params.condNames(c))),1,length(siteUnitNames))];

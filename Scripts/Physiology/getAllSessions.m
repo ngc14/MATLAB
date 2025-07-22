@@ -22,13 +22,13 @@ for m = 1:length(monkeys)
     vMask(monkeys(m)) = monkeyMask;
 end
 siteDateMap = siteDateMap(~cellfun(@isempty, siteDateMap.Date),:);
-siteDateMap = siteDateMap([1:28,43,46,53],:);
+siteDateMap = siteDateMap([1:20],:);
 % load info from all sites
 numSites = height(siteDateMap);
 [siteLocation, siteRep, siteThresh,siteSegs,siteChannels,...
     siteTrialPSTHS,siteActiveInd,rawSpikes,channelMap] = deal(cell(1,numSites));
 hbar=parfor_progressbar(numSites,strcat("Iterating ", num2str(numSites), " instances..."));
-parfor  i = 1:numSites
+for  i = 1:numSites
     currSession = siteDateMap(i,:);
     if(strcmp(currSession.Monkey,"Gilligan"))
         dateFormat = 'MM_dd_yyyy';
@@ -40,7 +40,7 @@ parfor  i = 1:numSites
     currSession.Date = du;
     physDir = strcat(drivePath,currSession.Monkey,"\All Data\", currSession.Monkey,...
         "_",string(currSession.Date),"\Physiology\");
-    delete(fullfile(fullfile(physDir,'*.cache')));
+    %delete(fullfile(fullfile(physDir,'*.cache')));
     physDir = strcat(physDir,"Results_New\");
     if(~exist(physDir,'dir'))
         if(~ismember(currSession.Date,cellfun(@(d) datetime(d,'InputFormat','MM_dd_yyyy'),...

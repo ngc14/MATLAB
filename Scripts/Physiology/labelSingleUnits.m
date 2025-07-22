@@ -88,9 +88,9 @@ for d = 1:length(dateArray)
                         savedFields = fieldnames(savedStruct);
                         if(~any(contains(savedFields, 'label')) | writeLabels | plotWaveforms)
                             if(NEVFile)
-                                [dataTime, ids] = loadSpikeData(nevFile,find([nevFile.Entity.ElectrodeID]==sChInd));
-                                %sortedIDs = 1:hFileRaw.Entity(spkInds(sChInd)).nUnits;
-                                sortedIDs = 1:sum(unique(ids) > 0 & unique(ids)<255);
+                                [dataTime, ids] = loadSpikeData(nevFile,nevFile.Entity(sChInd).ElectrodeID);
+                                sortedIDs = 1:nevFile.Entity(spkInds(find(nevFile.Entity(sChInd).ElectrodeID==spkInds,1))).nUnits;
+                                %sortedIDs = 1:sum(unique(ids) > 0 & unique(ids)<255);
                             else
                                 info = plx_info([loadFile.folder, '\', loadFile.name],1);
                                 sortedIDs = 1:sum(info(2:end,sChInd+1)>0);
@@ -103,7 +103,8 @@ for d = 1:length(dateArray)
                                     currUnitTime = dataTime(ids==sortedIDs(a));
                                     data = [];
                                     for s = 1:length(unitIndx)
-                                        [~,~,data(:,s),~,~] = ns_GetSegmentData(hFileRaw, spkInds(sChInd), unitIndx(s));
+                                        [~,~,data(:,s),~,~] = ns_GetSegmentData(hFileRaw, ...
+                                            find(nevFile.Entity(sChInd).ElectrodeID==spkInds,1), unitIndx(s));
                                     end
                                 else
                                     [~,~,currUnitTime,data] = plx_waves_v(...

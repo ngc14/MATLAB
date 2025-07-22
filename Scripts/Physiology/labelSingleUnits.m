@@ -17,7 +17,6 @@ else
 end
 %%
 for d = 1:length(dateArray)
-    disp(datetime(dateArray(d),'InputFormat',dateFormat))
     currName = ['S:\Lab\',monkey,'\All Data\', monkey,'_', char(datetime(dateArray(d),'InputFormat' ,dateFormat,'Format',dateFormat)),'\Physiology'];
     if(exist(currName, 'dir'))
         currDir = dir(currName);
@@ -192,7 +191,7 @@ for d = 1:length(dateArray)
     end
 end
 done = char(dateArray(d));
-disp('Saved')
+disp([done,' Saved'])
 end
 function parSave(fileName, savedStruct, lab)
 label = lab;

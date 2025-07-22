@@ -8,9 +8,10 @@ else
     hFilePath = dir([folderName(1:pathInds(end-1)),'*.nev']);
     dirPath = dir(hFilePath(1).folder);
     hFilePath = hFilePath(cellfun(@(s) ~contains(s,"withdraw",'IgnoreCase',true) & ...
-        ~contains(s,'stim') & ~contains(s,'sort','IgnoreCase',true), {hFilePath.name}));
+        ~contains(s,'stim') & ~contains(s,'sort','IgnoreCase',true) & ...
+        contains(s,folderName(pathInds(2)+1:pathInds(3)-1)), {hFilePath.name}));
     noteFiles = dirPath(find(cellfun(@(f) contains(f,extract(hFilePath.name,wildcardPattern+lookAheadBoundary(characterListPattern("_")+...
-        digitsPattern+characterListPattern(".")))+"_Note"),{dirPath.name}),1)).name;
+        digitsPattern+characterListPattern(".")))+"_Note"),{dirPath(~[dirPath.isdir]).name}),1)).name;
     notesLines = readlines(hFilePath.folder+"\"+noteFiles);
     infoLines = notesLines(contains(notesLines,"Channel"));
     [res,hFile] = ns_OpenFile([hFilePath.folder,'\',hFilePath.name],'single');

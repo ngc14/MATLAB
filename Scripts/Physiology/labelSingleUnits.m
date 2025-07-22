@@ -82,14 +82,15 @@ for d = 1:length(dateArray)
                     if(NEVFile)
                         [~,nevFile] = ns_OpenFile([loadFile.folder, '\', loadFile.name]);
                     end
+                    %%
                     for e = 1:dirTotal
                         sChInd = channelMap(e);
-                        savedStruct = matfile([currName, subDirName,'\', channelMats{sChInd}], 'Writable', true);
+                        savedStruct = matfile([currName, subDirName,'\', channelMats{e}], 'Writable', true);
                         savedFields = fieldnames(savedStruct);
                         if(~any(contains(savedFields, 'label')) | writeLabels | plotWaveforms)
                             if(NEVFile)
-                                [dataTime, ids] = loadSpikeData(nevFile,nevFile.Entity(sChInd).ElectrodeID);
-                                sortedIDs = 1:nevFile.Entity(spkInds(find(nevFile.Entity(sChInd).ElectrodeID==spkInds,1))).nUnits;
+                                [dataTime, ids] = loadSpikeData(nevFile, sChInd);
+                                sortedIDs = 1:nevFile.Entity(sChInd).nUnits;
                                 %sortedIDs = 1:sum(unique(ids) > 0 & unique(ids)<255);
                             else
                                 info = plx_info([loadFile.folder, '\', loadFile.name],1);
@@ -104,7 +105,8 @@ for d = 1:length(dateArray)
                                     data = [];
                                     for s = 1:length(unitIndx)
                                         [~,~,data(:,s),~,~] = ns_GetSegmentData(hFileRaw, ...
-                                            find(nevFile.Entity(sChInd).ElectrodeID==spkInds,1), unitIndx(s));
+                                           find([hFileRaw.Entity(spkInds).ElectrodeID]== ...
+                                           nevFile.Entity(sChInd).ElectrodeID,1), unitIndx(s));
                                     end
                                 else
                                     [~,~,currUnitTime,data] = plx_waves_v(...
@@ -159,7 +161,7 @@ for d = 1:length(dateArray)
                                 if(isfield(savedStruct.sortedSpikeData,'labels'))
                                     savedStruct.labels = [];
                                 end
-                                parSave([currName, subDirName,'\', channelMats{sChInd}],...
+                                parSave([currName, subDirName,'\', channelMats{e}],...
                                     savedStruct,label);
                             end
                         else

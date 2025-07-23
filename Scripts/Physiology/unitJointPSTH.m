@@ -1,7 +1,7 @@
 function figHandle = unitJointPSTH(bins,PSTHIn,allRepsIn,sortVals,allSegsIn,...
     sessionInds,activityIn,PSTHDisplayLimits)
 alignmentGap = .1;
-FRLim = [.2 .8];
+FRLim = [-.1 .1];
 
 plotColors = fieldnames(MotorMapping.repColors);
 zeroBinInd = find(bins==0);

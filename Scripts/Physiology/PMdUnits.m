@@ -26,7 +26,7 @@ goodUnits = cellfun(@(tn) cell2mat(cellfun(@(s)sum(s,2), tn,'UniformOutput',fals
     num2cell(cat(2,goodFR{:}),2),'UniformOutput',false);
 %%
 [taskBaseline,taskFR] = calculatePhases(params,taskAlign,taskWindow,siteSegs(1:end-1),siteTrialPSTHS(1:end-1),false,true);
-allCondSegs = cellfun(@(c) cellfun(@(a) cellfun(@(t) findBins(params.bins,mean(t(:,1),'omitnan')-3),a),...
+allCondSegs = cellfun(@(c) cellfun(@(a) cellfun(@(t) findBins(mean(t(:,1),'omitnan')-3,params.bins),a),...
     c,'UniformOutput',false),siteSegs,'UniformOutput',false);
 normBaseline = cellfun(@(p,t)cellfun(@(a,n) [max(1,median(cell2mat(reshape(cellfun(@(c,s) ...
     permute(mean(c(:,s:s+(1/params.binSize),:),[2],'omitnan'),[1 3 2]),a(~isnan(n)),...
@@ -48,12 +48,12 @@ unit2SiteMap=cell2mat(arrayfun(@(m,n) ones(1,m)*n,cellfun(@(s)size(s,2),unitChan
 %%
 [allTrials,allPSTHS]= deal(cell(1,1));
 [condInds,allSiteInds,allRestInds] = deal([]);
-%taskUnits(~ismember(1:length(taskUnits),[12,13,18])) = cellfun(@(a) false(length(a),1),  taskUnits(~ismember(1:length(taskUnits),[12,13,18])), 'UniformOutput',false)
 for c =1:length(conditions)
     close all;
     tUnits = cell2mat(taskUnits);
-    siteUnitMods = arrayfun(@(a) tUnits(unit2SiteMap==a),min(unit2SiteMap):max(unit2SiteMap),'UniformOutput', false);
-    taskSiteInds = find(cellfun(@any,siteUnitMods)');
+    [~,siteUnitMods] = unique(unit2SiteMap);
+    taskSiteInds = find(cellfun(@any,arrayfun(@(a) tUnits(unit2SiteMap==a),...
+        min(unit2SiteMap):max(unit2SiteMap),'UniformOutput', false))'); %[19,20,21];
     tUnits = taskUnits(taskSiteInds);
     rUnits = restUnits(taskSiteInds);
     siteDates = siteDateMap(taskSiteInds,:);
@@ -61,8 +61,8 @@ for c =1:length(conditions)
     unitChannelMaps = unitChannels(taskSiteInds);
     siteCondSegs = vertcat(siteSegs{c}{taskSiteInds});
     unitLocation = mapSites2Units(cellfun(@length,unitChannelMaps),siteLocation(taskSiteInds));
-    siteUnitNames = mapSites2Units(cellfun(@length,unitChannelMaps),"SiteNo"+num2str(siteDateMap{taskSiteInds,'Site'}));
-    siteUnitNames(~vertcat(tUnits)) = "";
+    siteUnitNo = mapSites2Units(cellfun(@length,unitChannelMaps),[siteDateMap{taskSiteInds,'Site'}]);
+    siteUnitNames = "SiteNo"+arrayfun(@num2str,siteUnitNo,'UniformOutput',false); 
     if(contains(conditions(c),'sphere','IgnoreCase',true))
         trialSegs = cellfun(@(t) [t(:,1:2), NaN(size(t,1),double(size(t,2)==8)), t(:,3:end)], siteCondSegs,'UniformOutput',false);
     elseif(strcmp(conditions(c),"Photocell"))
@@ -119,9 +119,15 @@ for c =1:length(conditions)
     allTrials = cellfun(@(a,d) vertcat(a,cellfun(@(m) vertcat(m{:}),d,'UniformOutput',false)),...
         allTrials,{cellfun(@(su,tu) repmat({mean(su,1,'omitnan')},length(tu),1),trialSegs,tUnits,...
         'UniformOutput',false)},'UniformOutput',false);
-
-    heatmap_distribution_plots(repmat("sites",size(siteUnitNames)),cell2mat(tUnits),(siteUnitMods),...
-    {cell2mat(siteUnitSegs)},params.bins,{cell2mat(taskPSTHS)},maxUnitFR,unitLocation,alignLimits,savePath,conditions{c});
+    
+    siteUnitInds = siteUnitNo;
+    siteUnitInds(~ismember(1:length(siteUnitNo),siteUnitMods)) = NaN;
+    siteUnitNames(~cell2mat(tUnits)) = "";
+    
+    heatmap_distribution_plots(siteUnitNames,cell2mat(tUnits)',(siteUnitInds'),...
+    {siteUnitSegs},params.bins,{cell2mat(unitPSTHS)},...
+    cell2mat(cellfun(@(c) max(c,[],2,'omitnan'),unitPSTHS, 'UniformOutput',false)),...
+    unitLocation,alignLimits,strcat(savePath,"Deriv"),conditions{c});
 end
 allPSTHSCond = vertcat(allPSTHS{:}{:});
 allTrialsCond = vertcat(allTrials{:}{:});

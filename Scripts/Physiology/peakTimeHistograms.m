@@ -32,7 +32,6 @@ end
 linkaxes([ar{:}]);
 maxYlim = ylim();
 cellfun(@(aa) set(findobj(aa.Parent, 'Type', 'Line','LineWidth', 2),'YData', maxYlim), ar, 'UniformOutput', false)
-xlim([-1 1]);
 saveFigures(gcf,saveDir,unitName,[]);
 figHandle = ar;
 end

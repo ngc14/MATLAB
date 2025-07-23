@@ -27,6 +27,7 @@ siteDateMap = siteDateMap([1:20,43,46,53],:);
 numSites = height(siteDateMap);
 [siteLocation, siteRep, siteThresh,siteSegs,siteChannels,...
     siteTrialPSTHS,siteActiveInd,rawSpikes,channelMap] = deal(cell(1,numSites));
+parpool('local');
 hbar=parfor_progressbar(numSites,strcat("Iterating ", num2str(numSites), " instances..."));
 parfor  i = 1:numSites
     currSession = siteDateMap(i,:);

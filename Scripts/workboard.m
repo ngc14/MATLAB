@@ -4,8 +4,6 @@ taskAlign = containers.Map(conditions(1:end-1),{{["GoSignal" "StartHold"]},{["Go
 taskWindow = {[-0.3, 0]};
 alignLimits = {[-.75, 1.5]};
 pVal=0.05;
-savePath = "S:\Lab\ngc14\Working\PMd\Task_Units\";
-monkey = "Gilligan";
 MIN_BLOCKS_FOR_UNIT = 13;
 params = PhysRecording(string(conditions),.01,.15,-6,5,containers.Map(conditions,...
     {["GoSignal"],["GoSignal"],["GoSignal"],"GoSignal"}));
@@ -42,105 +40,8 @@ restUnits = cellfun(@(d) any(vertcat(d{:}),1)', num2cell([rUnit{:}],2), 'Uniform
 allMaps = cellfun(@(d) d{end}, chMaps, 'UniformOutput',false);
 taskUnits = cellfun(@(a,b) any(cell2mat(a),2) & sum(b,2)>MIN_BLOCKS_FOR_UNIT*size(b,2), ...
     num2cell(cat(2,tUnit{:}),2),goodUnits,'Uniformoutput',false);
-mappedChannels = cellfun(@(sc,am) arrayfun(@(s) find(s==am),sc),siteChannels{1},allMaps','UniformOutput',false);
-unitChannelMapping=cell2mat(arrayfun(@(m,n) ones(1,m)*n,cellfun(@(s)size(s,2),mappedChannels)',1:length(mappedChannels),'UniformOutput',false));
-%%
-close all;
-[allTrials,allPSTHS]= deal(cell(1,1));
-[condInds,allSiteInds,allRestInds] = deal([]);
-taskUnits(~ismember(1:length(taskUnits),[12,13,18])) = ...
-    cellfun(@(a) false(length(a),1),  taskUnits(~ismember(1:length(taskUnits),[12,13,18])), 'UniformOutput',false)
-savePath = "S:\Lab\ngc14\Working\PMd\Task_Units\Rostral\";
-
-for c =1:length(conditions)
-    siteUnitNames = "SiteNo"+num2str(siteDateMap{unitChannelMapping,'Site'});
-    [~,taskSiteInds] = intersect(unique(siteUnitNames),unique(siteUnitNames(cell2mat(taskUnits))));
-    siteUnitNames(ismember(unitChannelMapping,setdiff(1:length(mappedChannels),taskSiteInds))) = [];
-    tUnits = taskUnits(taskSiteInds);
-    siteCondSegs = vertcat(siteSegs{c}{taskSiteInds});
-
-    if(contains(conditions(c),'sphere','IgnoreCase',true))
-        trialSegs = cellfun(@(t) [t(:,1:2), NaN(size(t,1),double(size(t,2)==8)), t(:,3:end)], siteCondSegs,'UniformOutput',false);
-    elseif(strcmp(conditions(c),"Photocell"))
-        trialSegs = cellfun(@(t) [t(:,1:3), NaN(size(t,1),double(size(t,2)==8)), t(:,4:end)], siteCondSegs,'UniformOutput',false);
-    else
-        trialSegs = cellfun(@(t) [t(:,1:4), NaN(size(t,1),5*double(size(t,2)==4)), t(:,5:end)],siteCondSegs,'UniformOutput',false);
-    end
-    trialSegs = cellfun(@(su,tu) repmat({mean(su,1,'omitnan')},length(tu),1), trialSegs,tUnits,'UniformOutput',false);
-
-    unitPSTHS = cellfun(@(n,ti) cellfun(@(t) squeeze(t)',num2cell(n(ti,:,:),[2,3]),'UniformOutput',false),...
-        vertcat(normPSTH{c}{taskSiteInds}),tUnits,'Uniformoutput',false);
-    siteDates = siteDateMap(taskSiteInds,:);
-    condUnitMapping = mappedChannels(taskSiteInds);
-
-    siteUnitSegs = cellfun(@(si,tu) repmat(mean(si,1,'omitnan'),length(tu),1),siteCondSegs,tUnits,'UniformOutput',false);
-    condPSTHS = cellfun(@(m,i) (i./i).*mean(m,3,'omitnan'),vertcat(normPSTH{c}{taskSiteInds}),tUnits,'UniformOutput',false);
-         if(0)
-    plotJointPSTHS(params.bins,{vertcat(condPSTHS{:})},{cell2mat(siteUnitSegs)},...
-        siteUnitNames,cell2mat(tUnits)', [],alignLimits,[0 25],cell2struct(num2cell(...
-        distinguishable_colors(length(taskSiteInds)),2),arrayfun(@(t) "SiteNo"+num2str(siteDateMap{t,'Site'}),taskSiteInds)));
-    saveFigures(gcf,strcat(savePath,"Session_PSTHS\"),strcat("Task_Units_",params.condAbbrev(char(conditions(c))),"_"),[]);
-
-    for s = 1:length(unitPSTHS)
-        unitChannels = condUnitMapping{s}(tUnits{s});
-        unitIndex = histcounts(unitChannels,[unique(unitChannels),max(unitChannels)+1]);
-        utc = arrayfun(@(aa,bb) [string(aa),string(arrayfun(@(bi) string([num2str(aa),'_',num2str(bi)]),2:bb,'UniformOutput',false))],...
-            unique(unitChannels),unitIndex,'UniformOutput',false);
-        unitLabels = string(arrayfun(@(t) "SiteNo"+num2str(siteDates{s,'Site'})+"_"+t,cell2mat(utc),'UniformOutput',false))';
-        plotColors =cell2struct(num2cell(distinguishable_colors(length(unitChannels)),2),unitLabels);
-        unitTrialLabels = cell2mat(arrayfun(@(n) repmat(n,size(siteCondSegs{s},1),1),unitLabels,'UniformOutput',false));
-        siteTrialSegs = repmat(siteCondSegs(s),length(unitLabels),1);
-        plotJointPSTHS(params.bins,{cell2mat(unitPSTHS{s})},{cell2mat(siteTrialSegs)},...
-            unitTrialLabels,true(fliplr(size(unitTrialLabels))), [],alignLimits,[0 25],plotColors);
-        saveFigures(gcf,savePath+string(datetime(siteDates.Date{s},'Format','MMMM_dd_yyyy'))+"\",...
-            params.condAbbrev(params.condNames(c))+"_PSTH",[]);
-        close all;
-    end
-    rUnits = restUnits(taskSiteInds);
-    taskPSTHS = cellfun(@(c,t) c(t,:), condPSTHS,tUnits, 'UniformOutput',false);
-    taskUnitMappings = siteUnitNames(vertcat(tUnits{:}));
-    for t = 1:2
-        if(t==1)
-            typeName = "EqRest";
-        else
-            typeName = "DiffRest";
-        end
-        condGroupUnits = cellfun(@(u,d) d(u)==(t-1), tUnits, rUnits,'UniformOutput',false);
-        unitAvgPSTHS = cellfun(@(m,p) (m./m).*p,condGroupUnits,taskPSTHS,'UniformOutput',false);
-        plotJointPSTHS(params.bins,{vertcat(unitAvgPSTHS{:})},{cell2mat(cellfun(@(s,u)repmat(mean(s,1,'omitnan'),length(u),1),...
-            siteCondSegs,condGroupUnits,'UniformOutput',false))},...
-            taskUnitMappings, cell2mat(condGroupUnits)', [],alignLimits,[0 15],cell2struct(num2cell(...
-            distinguishable_colors(length(condGroupUnits)),2),"SiteNo"+num2str(siteDates{:,'Site'})));
-        saveFigures(gcf,strcat(savePath,"Session_PSTHS\"),strcat(params.condAbbrev(params.condNames(c)),"_",typeName),[]);
-    end
-     end
-    allSiteInds = [allSiteInds;tUnits];
-    allRestInds = [allRestInds;cellfun(@(u,d) d(u)==(t-1), tUnits, restUnits(taskSiteInds),'UniformOutput',false)];
-    condInds = [condInds,repmat(string(params.condAbbrev(params.condNames(c))),1,length(siteUnitNames))];
-    allTrials = cellfun(@(a,d) vertcat(a,cellfun(@(m) vertcat(m{:}),d,'UniformOutput',false)),...
-        allTrials,{trialSegs}, 'UniformOutput',false);
-    allPSTHS = cellfun(@(a,b) vertcat(a,b), allPSTHS, {condPSTHS}, 'UniformOutput', false);
-end
-allPSTHSCond = vertcat(allPSTHS{:}{:});
-allTrialsCond = vertcat(allTrials{:}{:});
-allTaskInds = vertcat(allSiteInds{:});
-plotJointPSTHS(params.bins,{allPSTHSCond},{allTrialsCond},condInds,allTaskInds,[],  alignLimits,[0 15],...
-    cell2struct(num2cell(distinguishable_colors(length(conditions)),2),string(params.condAbbrev.values)));
-saveFigures(gcf,savePath,"All_PSTH",[]);
-
-allRestTaskInds = vertcat(allRestInds{:});
-restPSTHSCond = (allRestTaskInds./allRestTaskInds) .* allPSTHSCond(allTaskInds,:);
-restTrialsCond = (allRestTaskInds./allRestTaskInds) .*allTrialsCond(allTaskInds,:);
-plotJointPSTHS(params.bins,{restPSTHSCond},{restTrialsCond},condInds(allTaskInds),allRestTaskInds,...
-    [],  alignLimits,[0 15],cell2struct(num2cell(distinguishable_colors(length(conditions)),2),string(params.condAbbrev.values)));
-saveFigures(gcf,savePath,"All_PSTH_EqRest",[]);
-
-allRestTaskInds = ~vertcat(allRestInds{:});
-restPSTHSCond = (allRestTaskInds./allRestTaskInds) .* allPSTHSCond(allTaskInds,:);
-restTrialsCond = (allRestTaskInds./allRestTaskInds) .*allTrialsCond(allTaskInds,:);
-plotJointPSTHS(params.bins,{restPSTHSCond},{restTrialsCond},condInds(allTaskInds),allRestTaskInds,...
-    [], alignLimits,[0 15],cell2struct(num2cell(distinguishable_colors(length(conditions)),2),string(params.condAbbrev.values)));
-saveFigures(gcf,savePath,"All_PSTH_DiffRest",[]);
+unitChannels = cellfun(@(sc,am) arrayfun(@(s) find(s==am),sc),siteChannels{1},allMaps','UniformOutput',false);
+unit2SiteMap=cell2mat(arrayfun(@(m,n) ones(1,m)*n,cellfun(@(s)size(s,2),unitChannels)',1:length(unitChannels),'UniformOutput',false));
 %% task phase units
 maxCondUnits = max(cellfun(@length, taskFR));
 reachVgrasp = zeros(1,maxCondUnits);
@@ -615,7 +516,7 @@ end
 cluster_PSTHS(saveFigs, monkey, singleOrAll, sessionOrUnitPSTHS, ...
     jointName, jointClass, masterPSTH, activation)
 unitPhaseVals = cellfun(@(a,b,c) nanmean(nanmean(a(:,c(1):c(2)),2)./...
-    nanmean(a(:,b(1):b(2)),2)),condPSTHS,baselineSegs(condInd),currSegs);
+    nanmean(a(:,b(1):b(2)),2)),unitPSTHS,baselineSegs(condInd),currSegs);
 
 %
 cMapJointEnd = cellfun(@(jc) rgb2hsv(jointColors.(jc)),repNames,'UniformOutput', false);

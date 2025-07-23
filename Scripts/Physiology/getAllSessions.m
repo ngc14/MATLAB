@@ -22,13 +22,13 @@ for m = 1:length(monkeys)
     vMask(monkeys(m)) = monkeyMask;
 end
 siteDateMap = siteDateMap(~cellfun(@isempty, siteDateMap.Date),:);
-siteDateMap = siteDateMap([1:20],:);
+siteDateMap = siteDateMap([1:20,43,46,53],:);
 % load info from all sites
 numSites = height(siteDateMap);
 [siteLocation, siteRep, siteThresh,siteSegs,siteChannels,...
     siteTrialPSTHS,siteActiveInd,rawSpikes,channelMap] = deal(cell(1,numSites));
 hbar=parfor_progressbar(numSites,strcat("Iterating ", num2str(numSites), " instances..."));
-for  i = 1:numSites
+parfor  i = 1:numSites
     currSession = siteDateMap(i,:);
     if(strcmp(currSession.Monkey,"Gilligan"))
         dateFormat = 'MM_dd_yyyy';

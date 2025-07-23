@@ -1,7 +1,7 @@
 function figHandle = unitJointPSTH(bins,PSTHIn,allRepsIn,sortVals,allSegsIn,...
     sessionInds,activityIn,PSTHDisplayLimits)
 alignmentGap = .1;
-FRLim = [-.1 .1];
+FRLim = [0.2 .8];
 
 plotColors = fieldnames(MotorMapping.repColors);
 zeroBinInd = find(bins==0);
@@ -98,7 +98,7 @@ for j = 1:length(plotJoints)+1
                 ylim(gca,[1,sum(numUnits)]);
                 nSteps = 4-(3*(sum(numUnits)<3)-((sum(numUnits)<3)*sum(numUnits)));
                 set(gca,'ytick',linspace(1,sum(numUnits),nSteps));
-                set(gca,'yticklabels',round(sortedVals(fix(linspace(1,length(sortedVals),nSteps))),2));
+                set(gca,'yticklabels',round(sortedVals(fix(linspace(1,length(sortedVals),nSteps))),4));
                 set(gca,'YDir','reverse');
                 cb = colorbar;
                 cb.Location = 'westoutside';

@@ -4,7 +4,7 @@ taskAlign = containers.Map(conditions(1:end-1),{{["GoSignal" "StartHold"]},{["Go
 taskWindow = {[-0.3, 0]};
 alignLimits = {[-.75, 1.5]};
 pVal=0.05;
-savePath = "S:\Lab\ngc14\Working\PMd\Task_Units\";
+savePath = "S:\Lab\ngc14\Working\PMd\Task_Units\Deriv\";
 monkey = "Gilligan";
 MIN_BLOCKS_FOR_UNIT = 13;
 params = PhysRecording(string(conditions),.01,.15,-6,5,containers.Map(conditions,...
@@ -74,13 +74,13 @@ for c =1:length(conditions)
     unitLocation = unitLocation-min(unitLocation(:,:)).*ImagingParameters.px2mm;
 
     unitPSTHS = cellfun(@(m,i) (i./i).*mean(m,3,'omitnan'),vertcat(normPSTH{c}{taskSiteInds}),tUnits,'UniformOutput',false);
-    plotJointPSTHS(params.bins,{vertcat(unitPSTHS{:})},{cell2mat(siteUnitSegs)},...
-        siteUnitNames,cell2mat(tUnits)', [],alignLimits,[0 25],cell2struct(num2cell(...
-        distinguishable_colors(length(siteUnitSegs)),2),arrayfun(@(t) "SiteNo"+num2str(siteDateMap{t,'Site'}),taskSiteInds)));
-    saveFigures(gcf,strcat(savePath,"Session_PSTHS\"),strcat("Task_Units_",params.condAbbrev(char(conditions(c))),"_"),[]);
     sitePSTHS = cellfun(@(n,ti) cellfun(@(t) squeeze(t)',num2cell(n(ti,:,:),[2,3]),'UniformOutput',false),...
         vertcat(normPSTH{c}{taskSiteInds}),tUnits,'Uniformoutput',false);
     if(plotUnits)
+        plotJointPSTHS(params.bins,{vertcat(unitPSTHS{:})},{cell2mat(siteUnitSegs)},...
+            siteUnitNames,cell2mat(tUnits)', [],alignLimits,[0 25],cell2struct(num2cell(...
+            distinguishable_colors(length(siteUnitSegs)),2),arrayfun(@(t) "SiteNo"+num2str(siteDateMap{t,'Site'}),taskSiteInds)));
+        saveFigures(gcf,strcat(savePath,"Session_PSTHS\"),strcat("Task_Units_",params.condAbbrev(char(conditions(c))),"_"),[]);
         for s = 1:length(sitePSTHS)
             unitChannels = unitChannelMaps{s}(tUnits{s});
             unitIndex = histcounts(unitChannels,[unique(unitChannels),max(unitChannels)+1]);
@@ -106,14 +106,16 @@ for c =1:length(conditions)
         end
         condGroupUnits = cellfun(@(u,d) d(u)==(t-1), tUnits, rUnits,'UniformOutput',false);
         unitAvgPSTHS = cellfun(@(m,p) (m./m).*p,condGroupUnits,taskPSTHS,'UniformOutput',false);
-        plotJointPSTHS(params.bins,{vertcat(unitAvgPSTHS{:})},{cell2mat(cellfun(@(s,u)repmat(mean(s,1,'omitnan'),length(u),1),...
-            siteCondSegs,condGroupUnits,'UniformOutput',false))},siteUnitNames(vertcat(tUnits{:})),...
-            cell2mat(condGroupUnits)', [],alignLimits,[0 15],cell2struct(num2cell(...
-            distinguishable_colors(length(condGroupUnits)),2),"SiteNo"+num2str(siteDates{:,'Site'})));
-        saveFigures(gcf,strcat(savePath,"Session_PSTHS\"),strcat(params.condAbbrev(params.condNames(c)),"_",typeName),[]);
+        if(plotUnits)
+            plotJointPSTHS(params.bins,{vertcat(unitAvgPSTHS{:})},{cell2mat(cellfun(@(s,u)repmat(mean(s,1,'omitnan'),length(u),1),...
+                siteCondSegs,condGroupUnits,'UniformOutput',false))},siteUnitNames(vertcat(tUnits{:})),...
+                cell2mat(condGroupUnits)', [],alignLimits,[0 15],cell2struct(num2cell(...
+                distinguishable_colors(length(condGroupUnits)),2),"SiteNo"+num2str(siteDates{:,'Site'})));
+            saveFigures(gcf,strcat(savePath,"Session_PSTHS\"),strcat(params.condAbbrev(params.condNames(c)),"_",typeName),[]);
+        end
     end
     allSiteInds = [allSiteInds;tUnits];
-    allRestInds = [allRestInds;cellfun(@(u) ~u, condGroupUnits,'UniformOutput',false)];
+    allRestInds = [allRestInds;cellfun(@(u,d) d(u)==0, tUnits, rUnits,'UniformOutput',false)];
     condInds = [condInds,repmat(string(params.condAbbrev(params.condNames(c))),1,length(siteUnitNames))];
     allPSTHS = cellfun(@(a,b) vertcat(a,b), allPSTHS, {unitPSTHS}, 'UniformOutput', false);
     allTrials = cellfun(@(a,d) vertcat(a,cellfun(@(m) vertcat(m{:}),d,'UniformOutput',false)),...
@@ -127,12 +129,16 @@ for c =1:length(conditions)
     heatmap_distribution_plots(siteUnitNames,cell2mat(tUnits)',(siteUnitInds'),...
     {siteUnitSegs},params.bins,{cell2mat(unitPSTHS)},...
     cell2mat(cellfun(@(c) max(c,[],2,'omitnan'),unitPSTHS, 'UniformOutput',false)),...
-    unitLocation,alignLimits,strcat(savePath,"Deriv"),conditions{c});
+    unitLocation,alignLimits,strcat(savePath,"\FR\"),conditions{c});
+    close all;
 end
+%%
 allPSTHSCond = vertcat(allPSTHS{:}{:});
 allTrialsCond = vertcat(allTrials{:}{:});
 allTaskInds = vertcat(allSiteInds{:});
-plotJointPSTHS(params.bins,{allPSTHSCond},{allTrialsCond},condInds,allTaskInds,[], alignLimits,[0 15],...
+%allPSTHSCond = [diff(allPSTHSCond,1,2),zeros(size(allPSTHSCond,1),1)];
+
+plotJointPSTHS(params.bins,{allPSTHSCond},{allTrialsCond},condInds,allTaskInds,[], alignLimits,[0 1],...
     cell2struct(num2cell(distinguishable_colors(length(conditions)),2),string(params.condAbbrev.values)));
 saveFigures(gcf,savePath,"All_PSTH",[]);
 
@@ -140,12 +146,12 @@ allRestTaskInds = vertcat(allRestInds{:});
 restPSTHSCond = (allRestTaskInds./allRestTaskInds) .* allPSTHSCond(allTaskInds,:);
 restTrialsCond = (allRestTaskInds./allRestTaskInds) .*allTrialsCond(allTaskInds,:);
 plotJointPSTHS(params.bins,{restPSTHSCond},{restTrialsCond},condInds(allTaskInds),allRestTaskInds,...
-    [],  alignLimits,[0 15],cell2struct(num2cell(distinguishable_colors(length(conditions)),2),string(params.condAbbrev.values)));
+    [],  alignLimits,[0 1],cell2struct(num2cell(distinguishable_colors(length(conditions)),2),string(params.condAbbrev.values)));
 saveFigures(gcf,savePath,"All_PSTH_EqRest",[]);
 
 allRestTaskInds = ~vertcat(allRestInds{:});
 restPSTHSCond = (allRestTaskInds./allRestTaskInds) .* allPSTHSCond(allTaskInds,:);
 restTrialsCond = (allRestTaskInds./allRestTaskInds) .*allTrialsCond(allTaskInds,:);
 plotJointPSTHS(params.bins,{restPSTHSCond},{restTrialsCond},condInds(allTaskInds),allRestTaskInds,...
-    [], alignLimits,[0 15],cell2struct(num2cell(distinguishable_colors(length(conditions)),2),string(params.condAbbrev.values)));
+    [], alignLimits,[0 1],cell2struct(num2cell(distinguishable_colors(length(conditions)),2),string(params.condAbbrev.values)));
 saveFigures(gcf,savePath,"All_PSTH_DiffRest",[]);

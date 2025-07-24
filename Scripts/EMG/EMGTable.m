@@ -1,5 +1,5 @@
 %rawActivity =  load("C:\Users\ngc14\Desktop\RawEMG.mat");
-phaseNames = ["Baseline","Go", "Reach", "Grasp","Withdraw"];
+phaseNames = ["Go", "Reach", "Grasp","Withdraw"];
 %  rAc = num2cell(cellfun(@(d) cellfun(@(c) vertcat(c), d, 'UniformOutput',false), rawActivity,'UniformOutput',false),2);
 % rAc = cellfun(@(cm) num2cell((horzcat(cm{:})),1),rAc,'UniformOutput',false);
 %rAc = cellfun(@(s) cellfun(@(n) cell2mat(n'),s,'UniformOutput',false),rawActivity,'UniformOutput',false);
@@ -12,8 +12,8 @@ conditions = [ "Extra Small Sphere","Large Sphere","Photocell"];
 for c = 1:length(conditions)
     trial=1;
     for a = 1:size(rAc,1)
-        AUCrep= rAc(a,:);
-        AUCVals = cell2mat(cellfun(@(cn) mean(cn{c},2,'omitnan'), AUCrep, 'UniformOutput',false));
+        AUCrep=cellfun(@(r) r{c} ,rAc,'UniformOutput',false);
+        AUCVals = cell2mat(cellfun(@(cn) mean(cn,2,'omitnan'), AUCrep(a,:), 'UniformOutput',false));
         condTable = table();
         condTable.Trial = [trial:trial + length(AUCVals)-1]';
         condTable.LimbSeg = repmat(repNames(a),length(AUCVals),1);

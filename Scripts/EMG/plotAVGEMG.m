@@ -1,8 +1,8 @@
 monkeys = ["Gilligan","Skipper"];
 drive = "S:\Lab\"
-alignments = [{'StartReach'},{'StartHold'},{'StartWithdraw'}];
-alignWindows = {[-.5 .15],[-.20 .20],[-.15 .5]};
-phaseWindows = {[-.15 .05],[-.2 0.0],[-.15 .05]};
+alignments = [{'GoSignal'},{'StartReach'},{'StartHold'},{'StartWithdraw'}];
+alignWindows = {[-.2 .2],[-.5 .15],[-.20 .20],[-.15 .5]};
+phaseWindows = {[0 0.2],[-.15 .05],[-.2 0.0],[-.15 .05]};
 gap = .1;
 groupings = {{"Deltoid.mat","Biceps.mat","Triceps.mat"},...
     {"Wrist Extensor.mat","Wrist Flexor.mat","Digit Extensor.mat","Digit Flexor.mat"}};
@@ -12,7 +12,7 @@ groupNames = cellfun(@(g) cellfun(@(s) string(s{1}(1:end-4)),g), groupings,'Unif
 pVal = 0.01;
 condLabels = {'E', 'L', 'P'};
 saveFigs = true;
-savePath = drive+"ngc14\Working\Save\Muscles";
+savePath = "C:\Users\ngc14\Desktop\";
 if(saveFigs && ~exist(savePath,'dir'))
     mkdir(savePath);
     mkdir(savePath+"Phase_Boxplot\")
@@ -55,8 +55,8 @@ for m = 1:length(muscles)
     mSegs = sessionSegs{m};
     for s = 1:length(allSessions)
         allCondSig = cellfun(@(as,d) as(string(d)==allSessions(s)),mSigs, mDates, 'UniformOutput', false);
-        allCondSegs = cellfun(@(g,d) g(string(d)==allSessions(s))',mSegs, mDates, 'UniformOutput', false);
-        allCondSegs = cellfun(@(c) cellfun(@(t) t(1),c'), allCondSegs,'UniformOutput',false);
+        allCondSegs = cellfun(@(g,d) g(string(d)==allSessions(s)),mSegs, mDates, 'UniformOutput', false);
+        allCondSegs = cellfun(@(c) cellfun(@(t) t(1),c), allCondSegs,'UniformOutput',false);
         % normBaseline{s} = mean(cellfun(@(c,s) max(1,mean(c(s:s+Fs),2,'omitnan')),...
         %     [allCondSig{:}],num2cell([allCondSegs{:}])));
         % mTrials{s} =cellfun(@(c) cellfun(@(n)(n./normBaseline{s}),c,'UniformOutput', false),...
@@ -64,7 +64,7 @@ for m = 1:length(muscles)
         normBaseline = cellfun(@(c,s) cellfun(@(t,a) max(1,max(t(a:a+2*Fs))),...
             c,num2cell(s),'UniformOutput', false),allCondSig,allCondSegs,'UniformOutput',false);
         maxSession =mean(maxk(cell2mat(cellfun(@cell2mat,normBaseline,'UniformOutput',false)'),3));
-        mTrials{s} =cellfun(@(c) cellfun(@(n)(n./1),c,'UniformOutput', false),...
+        mTrials{s} =cellfun(@(c) cellfun(@(n)(n./maxSession),c,'UniformOutput', false),...
             allCondSig,'UniformOutput',false);
     end
     allCondSig = [];

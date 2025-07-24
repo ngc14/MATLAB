@@ -28,9 +28,10 @@ else
     avgSegTimes = [avgSegTimes(1),avgSegTimes(2)];
 end
 avgSegTimes = findBins(avgSegTimes+alignLim{HISTALIGNMENT},bins);
-sortVals = [diff(horzcat(unitNormPSTHS{HISTALIGNMENT}),1,2),zeros(size(maxFRs,1),1)];
-sortValsNaN = mean(sortVals(:,avgSegTimes(1):avgSegTimes(end)),2,'omitnan');
+sortVals = [abs(diff(horzcat(unitNormPSTHS{HISTALIGNMENT}),1,2)),zeros(size(maxFRs,1),1)];
+sortValsNaN = mean(abs(sortVals(:,avgSegTimes(1):avgSegTimes(end))),2,'omitnan');
 sortValsNaN(~unitInds) = NaN;
+unitNormPSTHS =  {[abs(diff(horzcat(unitPSTHS{HISTALIGNMENT}),1,2)),zeros(size(maxFRs,1),1)]};
 
 peakTimeHistograms(linspace(min(sortValsNaN),max(sortValsNaN),15),reps,sortValsNaN,...
     trialSegs{HISTALIGNMENT},siteInds,strcat(saveDirPath,"Histograms\"),saveName);
@@ -44,16 +45,14 @@ mlSort = unitLocation(:,2);
 mlSort(~unitInds,:) = NaN;
 rcSort = unitLocation(:,1);
 rcSort(~unitInds) = NaN;
-mlHMFig = unitJointPSTH(bins,unitNormPSTHS,reps,mlSort,trialSegs,...
-    siteInds,[],alignLim);
+mlHMFig = unitJointPSTH(bins,unitNormPSTHS,reps,mlSort,trialSegs,siteInds,[],alignLim);
 labelUnitPSTHS(mlHMFig);
 
 cellfun(@(ph,rh) saveFigures(ph, strcat(saveDirPath, "MedLat\",rh,"\"),...
     strcat(saveName,"_Heatmaps"),[]),mlHMFig,[rp(ismember(string(rp),...
     unique(reps())))',"All"]);
 %%
-rcHMFig = unitJointPSTH(bins,unitNormPSTHS,reps,rcSort,trialSegs,...
-    siteInds,[],alignLim);
+rcHMFig = unitJointPSTH(bins,unitNormPSTHS,reps,rcSort,trialSegs,siteInds,[],alignLim);
 labelUnitPSTHS(rcHMFig);
 cellfun(@(f) camroll(gca(f),90),rcHMFig,'UniformOutput',false);
 cellfun(@(ph,rh) saveFigures(ph, strcat(saveDirPath, "RostCaud\",rh,"\"),...

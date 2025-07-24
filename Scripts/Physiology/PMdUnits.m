@@ -4,7 +4,7 @@ taskAlign = containers.Map(conditions(1:end-1),{{["GoSignal" "StartHold"]},{["Go
 taskWindow = {[-0.3, 0]};
 alignLimits = {[-.75, 1.5]};
 pVal=0.05;
-savePath = "S:\Lab\ngc14\Working\PMd\Task_Units\Deriv\";
+savePath = "S:\Lab\ngc14\Working\PMd\Task_Units\Heatmaps\";
 monkey = "Gilligan";
 MIN_BLOCKS_FOR_UNIT = 13;
 params = PhysRecording(string(conditions),.01,.15,-6,5,containers.Map(conditions,...
@@ -48,6 +48,8 @@ unit2SiteMap=cell2mat(arrayfun(@(m,n) ones(1,m)*n,cellfun(@(s)size(s,2),unitChan
 %%
 [allTrials,allPSTHS]= deal(cell(1,1));
 [condInds,allSiteInds,allRestInds] = deal([]);
+maxCondsFR = cellfun(@(c) cellfun(@(d) max(mean(d{1},3,'omitnan'),[],2,'omitnan'),...
+    c,'UniformOutput',false),siteTrialPSTHS, 'UniformOutput',false);
 for c =1:length(conditions)
     close all;
     tUnits = cell2mat(taskUnits);
@@ -62,7 +64,8 @@ for c =1:length(conditions)
     siteCondSegs = vertcat(siteSegs{c}{taskSiteInds});
     unitLocation = mapSites2Units(cellfun(@length,unitChannelMaps),siteLocation(taskSiteInds));
     siteUnitNo = mapSites2Units(cellfun(@length,unitChannelMaps),[siteDateMap{taskSiteInds,'Site'}]);
-    siteUnitNames = "SiteNo"+arrayfun(@num2str,siteUnitNo,'UniformOutput',false); 
+    siteUnitNames = "SiteNo"+arrayfun(@num2str,siteUnitNo,'UniformOutput',false);
+    maxUnitFR = cell2mat(cellfun(@(m) cell2mat(m(taskSiteInds)), maxCondsFR, 'UniformOutput',false));
     if(contains(conditions(c),'sphere','IgnoreCase',true))
         trialSegs = cellfun(@(t) [t(:,1:2), NaN(size(t,1),double(size(t,2)==8)), t(:,3:end)], siteCondSegs,'UniformOutput',false);
     elseif(strcmp(conditions(c),"Photocell"))
@@ -127,16 +130,15 @@ for c =1:length(conditions)
     siteUnitNames(~cell2mat(tUnits)) = "";
     
     heatmap_distribution_plots(siteUnitNames,cell2mat(tUnits)',(siteUnitInds'),...
-    {siteUnitSegs},params.bins,{cell2mat(unitPSTHS)},...
-    cell2mat(cellfun(@(c) max(c,[],2,'omitnan'),unitPSTHS, 'UniformOutput',false)),...
-    unitLocation,alignLimits,strcat(savePath,"\FR\"),conditions{c});
+    {siteUnitSegs},params.bins,{cell2mat(unitPSTHS)},maxUnitFR(:,c),unitLocation,...
+    alignLimits,strcat(savePath,"\Deriv\NORM\"),conditions{c});
     close all;
 end
 %%
 allPSTHSCond = vertcat(allPSTHS{:}{:});
 allTrialsCond = vertcat(allTrials{:}{:});
 allTaskInds = vertcat(allSiteInds{:});
-%allPSTHSCond = [diff(allPSTHSCond,1,2),zeros(size(allPSTHSCond,1),1)];
+%allPSTHSCond = [abs(diff(allPSTHSCond,1,2)),zeros(size(allPSTHSCond,1),1)];
 
 plotJointPSTHS(params.bins,{allPSTHSCond},{allTrialsCond},condInds,allTaskInds,[], alignLimits,[0 1],...
     cell2struct(num2cell(distinguishable_colors(length(conditions)),2),string(params.condAbbrev.values)));

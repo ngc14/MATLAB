@@ -9,7 +9,6 @@ groupings = {{"Deltoid.mat","Biceps.mat","Triceps.mat"},...
 muscles = string([groupings{:}]);
 groupInds = cellfun(@(g) contains(muscles,string(g)), groupings, 'UniformOutput',false);
 groupNames = cellfun(@(g) cellfun(@(s) string(s{1}(1:end-4)),g), groupings,'UniformOutput',false);
-pVal = 0.01;
 condLabels = {'E', 'L', 'P'};
 saveFigs = true;
 savePath = "C:\Users\ngc14\Desktop\";

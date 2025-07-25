@@ -1,6 +1,13 @@
 function heatmap_distribution_plots(repsIn,unitIndsIn,siteUnitModsIn,trialSegs,bins,PSTHS,...
     maxFRs,unitLocationIn,alignLim,saveDirPath,saveName,FRRange)
 HISTALIGNMENT = 1;
+HOLDIND = 5;
+condInd = 0;
+if(contains(saveName,"photocell"))
+    condInd = 1;
+elseif(contains(saveName,"rest"))
+    condInd = 3;
+end
 rp = fieldnames(MotorMapping.repColors);
 if(exist('FRRange', 'var'))
    FRLim = FRRange;
@@ -16,26 +23,21 @@ siteUnitMods = siteUnitModsIn;
 siteUnitMods(~sessionInds) = 0;
 [siteIndsN,siteInds] = unique(siteUnitMods);
 siteInds = siteInds(siteIndsN>0);
-unitPSTHS = cellfun(@(p) (unitInds./unitInds)'.*p, PSTHS,'UniformOutput',false);
+avgSegTimes = findBins(vertcat(trialSegs{:}),bins);
 
+unitPSTHS = cellfun(@(p) (unitInds./unitInds)'.*p, PSTHS,'UniformOutput',false);
 unitNormPSTHS = cellfun(@(u) u./maxFRs, unitPSTHS,'UniformOutput', false);
-avgSegTimes = mean(cell2mat(vertcat(trialSegs{:})),1);
-if(contains(saveName,"Sphere","IgnoreCase",true))
-    avgSegTimes = [avgSegTimes(1),avgSegTimes(5)];
-elseif(contains(saveName,"Photocell","IgnoreCase",true))
-    avgSegTimes = [avgSegTimes(1),avgSegTimes(4)];
-else
-    avgSegTimes = [avgSegTimes(1),avgSegTimes(2)];
-end
-avgSegTimes = findBins(avgSegTimes+alignLim{HISTALIGNMENT},bins);
+
 sortVals = [abs(diff(horzcat(unitNormPSTHS{HISTALIGNMENT}),1,2)),zeros(size(maxFRs,1),1)];
-sortValsNaN = mean(abs(sortVals(:,avgSegTimes(1):avgSegTimes(end))),2,'omitnan');
-sortValsNaN(~unitInds) = NaN;
-unitNormPSTHS =  {[abs(diff(horzcat(unitPSTHS{HISTALIGNMENT}),1,2)),zeros(size(maxFRs,1),1)]};
+sortValsNaN = cellfun(@(s,a) mean(s(a(1):a(end)),'omitnan'),num2cell(sortVals,2),...
+    num2cell([avgSegTimes(:,1),avgSegTimes(:,HOLDIND-condInd)]+...
+    int64(alignLim{HISTALIGNMENT}./mode(diff(bins))),2));
+sortValsNaN(~unitInds,:) = NaN;
+unitNormPSTHS =  {[abs(diff(horzcat(unitNormPSTHS{HISTALIGNMENT}),1,2)),zeros(size(maxFRs,1),1)]};
 
 peakTimeHistograms(linspace(min(sortValsNaN),max(sortValsNaN),15),reps,sortValsNaN,...
-    trialSegs{HISTALIGNMENT},siteInds,strcat(saveDirPath,"Histograms\"),saveName);
-phaseHMFig = unitJointPSTH(bins,unitNormPSTHS,reps,sortValsNaN,trialSegs,siteInds,[],alignLim);
+    {trialSegs{HISTALIGNMENT}},siteInds,strcat(saveDirPath,"Histograms\"),saveName);
+phaseHMFig = unitJointPSTH(bins,unitNormPSTHS,reps,sortValsNaN,{trialSegs},siteInds,[],alignLim);
 labelUnitPSTHS(phaseHMFig);
 cellfun(@(ph,rh) saveFigures(ph, strcat(saveDirPath, "Peak\",rh,"\"),...
     strcat(saveName,"_Heatmaps"),[]),phaseHMFig,[rp(ismember(string(rp),...
@@ -45,14 +47,14 @@ mlSort = unitLocation(:,2);
 mlSort(~unitInds,:) = NaN;
 rcSort = unitLocation(:,1);
 rcSort(~unitInds) = NaN;
-mlHMFig = unitJointPSTH(bins,unitNormPSTHS,reps,mlSort,trialSegs,siteInds,[],alignLim);
+mlHMFig = unitJointPSTH(bins,unitNormPSTHS,reps,mlSort,{trialSegs},siteInds,[],alignLim);
 labelUnitPSTHS(mlHMFig);
 
 cellfun(@(ph,rh) saveFigures(ph, strcat(saveDirPath, "MedLat\",rh,"\"),...
     strcat(saveName,"_Heatmaps"),[]),mlHMFig,[rp(ismember(string(rp),...
     unique(reps())))',"All"]);
 %%
-rcHMFig = unitJointPSTH(bins,unitNormPSTHS,reps,rcSort,trialSegs,siteInds,[],alignLim);
+rcHMFig = unitJointPSTH(bins,unitNormPSTHS,reps,rcSort,{trialSegs},siteInds,[],alignLim);
 labelUnitPSTHS(rcHMFig);
 cellfun(@(f) camroll(gca(f),90),rcHMFig,'UniformOutput',false);
 cellfun(@(ph,rh) saveFigures(ph, strcat(saveDirPath, "RostCaud\",rh,"\"),...

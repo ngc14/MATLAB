@@ -128,9 +128,10 @@ for c =1:length(conditions)
     siteUnitInds = siteUnitNo;
     siteUnitInds(~ismember(1:length(siteUnitNo),siteUnitMods)) = NaN;
     siteUnitNames(~cell2mat(tUnits)) = "";
-    
+    allUnitSegs = vertcat(siteUnitSegs{:});
+
     heatmap_distribution_plots(siteUnitNames,cell2mat(tUnits)',(siteUnitInds'),...
-    {siteUnitSegs},params.bins,{cell2mat(unitPSTHS)},maxUnitFR(:,c),unitLocation,...
+    {allUnitSegs},params.bins,{cell2mat(unitPSTHS)},maxUnitFR(:,c),unitLocation,...
     alignLimits,strcat(savePath,"\Deriv\NORM\"),conditions{c});
     close all;
 end

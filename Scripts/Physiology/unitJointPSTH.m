@@ -1,7 +1,7 @@
 function figHandle = unitJointPSTH(bins,PSTHIn,allRepsIn,sortVals,allSegsIn,...
     sessionInds,activityIn,PSTHDisplayLimits)
 alignmentGap = .1;
-FRLim = [0.2 .8];
+FRLim = [0.0 .05];
 
 plotColors = fieldnames(MotorMapping.repColors);
 zeroBinInd = find(bins==0);
@@ -68,7 +68,7 @@ for j = 1:length(plotJoints)+1
                     if(avgSegs(s)==0)
                         plotColor = 'k';
                     else
-                        plotColor = [.75 .75 .75];
+                        plotColor = [1 1 1];
                     end
                     plotted(s) = true;
                     pSeg = find(isalmost(PSTHDisplayLimits{a}(1):binSize:...

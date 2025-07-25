@@ -27,7 +27,7 @@ siteDateMap = siteDateMap([1:20,43,46,53],:);
 numSites = height(siteDateMap);
 [siteLocation, siteRep, siteThresh,siteSegs,siteChannels,...
     siteTrialPSTHS,siteActiveInd,rawSpikes,channelMap] = deal(cell(1,numSites));
-parpool('local');
+delete(gcp('nocreate'));parpool('local');
 hbar=parfor_progressbar(numSites,strcat("Iterating ", num2str(numSites), " instances..."));
 parfor  i = 1:numSites
     currSession = siteDateMap(i,:);
@@ -44,7 +44,7 @@ parfor  i = 1:numSites
     %delete(fullfile(fullfile(physDir,'*.cache')));
     physDir = strcat(physDir,"Results_New\");
     if(~exist(physDir,'dir'))
-        if(~ismember(currSession.Date,cellfun(@(d) datetime(d,'InputFormat','MM_dd_yyyy'),...
+        if(~ismember(currSession.Date,cellfun(@(d) datetime(d,'InputFormat',du.Format),...
                 {'05_02_2019'})))
             Spike_SortRawData(char(currSession.Date),char(currSession.Monkey));
             labelSingleUnits(char(currSession.Monkey),char(currSession.Date));

@@ -132,7 +132,7 @@ for c =1:length(conditions)
 
     heatmap_distribution_plots(siteUnitNames,cell2mat(tUnits)',(siteUnitInds'),...
     {allUnitSegs},params.bins,{cell2mat(unitPSTHS)},maxUnitFR(:,c),unitLocation,...
-    alignLimits,strcat(savePath,"\Deriv\NORM\"),conditions{c});
+    alignLimits,strcat(savePath,"\FR\"),conditions{c});
     close all;
 end
 %%

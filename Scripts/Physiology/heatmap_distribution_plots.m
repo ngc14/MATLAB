@@ -3,9 +3,9 @@ function heatmap_distribution_plots(repsIn,unitIndsIn,siteUnitModsIn,trialSegs,b
 HISTALIGNMENT = 1;
 HOLDIND = 5;
 condInd = 0;
-if(contains(saveName,"photocell"))
+if(contains(saveName,"photocell",'IgnoreCase',1))
     condInd = 1;
-elseif(contains(saveName,"rest"))
+elseif(contains(saveName,"rest",'IgnoreCase',1))
     condInd = 3;
 end
 rp = fieldnames(MotorMapping.repColors);
@@ -26,14 +26,14 @@ siteInds = siteInds(siteIndsN>0);
 avgSegTimes = findBins(vertcat(trialSegs{:}),bins);
 
 unitPSTHS = cellfun(@(p) (unitInds./unitInds)'.*p, PSTHS,'UniformOutput',false);
-unitNormPSTHS = cellfun(@(u) u./maxFRs, unitPSTHS,'UniformOutput', false);
+unitNormPSTHS = unitPSTHS;%
 
 sortVals = [abs(diff(horzcat(unitNormPSTHS{HISTALIGNMENT}),1,2)),zeros(size(maxFRs,1),1)];
 sortValsNaN = cellfun(@(s,a) mean(s(a(1):a(end)),'omitnan'),num2cell(sortVals,2),...
     num2cell([avgSegTimes(:,1),avgSegTimes(:,HOLDIND-condInd)]+...
     int64(alignLim{HISTALIGNMENT}./mode(diff(bins))),2));
 sortValsNaN(~unitInds,:) = NaN;
-unitNormPSTHS =  {[abs(diff(horzcat(unitNormPSTHS{HISTALIGNMENT}),1,2)),zeros(size(maxFRs,1),1)]};
+unitNormPSTHS =  cellfun(@(u) u./maxFRs, unitPSTHS,'UniformOutput', false);%{[abs(diff(horzcat(unitNormPSTHS{HISTALIGNMENT}),1,2)),zeros(size(maxFRs,1),1)]};
 
 peakTimeHistograms(linspace(min(sortValsNaN),max(sortValsNaN),15),reps,sortValsNaN,...
     {trialSegs{HISTALIGNMENT}},siteInds,strcat(saveDirPath,"Histograms\"),saveName);

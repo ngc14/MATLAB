@@ -5,7 +5,6 @@ if(~exist('FRLimIn', 'var'))
 else
     FRLim = FRLimIn;
 end
-wrapPlots = 3;
 alignmentGap = .1;
 segColors = ['k','r'];
 
@@ -24,6 +23,7 @@ if(~exist('plotColors','var'))
 end
 plotNames = fieldnames(plotColors);
 jointName =plotNames(matches(unique(allReps(allReps~="")),plotNames));
+wrapPlots = min(length(jointName),3);
 
 zeroBinInd = find(bins==0);
 binSize = mode(diff(bins));
@@ -62,15 +62,15 @@ for j = 1:length(jointName)
             %                 plot(xAlignTicks{a},nanmean([jointPSTH{a}(inactiveJoints,:)],1),...
             %                     'LineWidth',2,'Color', plotColors.(jointName{j}), 'LineStyle','--');
             %             end
-            uE=nanmean(currJointAlign,1)+(nanstd(currJointAlign,1)/sqrt(sum(jointInds)));
-            lE=nanmean(currJointAlign,1)-(nanstd(currJointAlign,1)/sqrt(sum(jointInds)));
+            uE=nanmean(currJointAlign,1)+(nanstd(currJointAlign,0,1)/sqrt(sum(jointInds)));
+            lE=nanmean(currJointAlign,1)-(nanstd(currJointAlign,0,1)/sqrt(sum(jointInds)));
             yP=[lE,fliplr(uE)];
             xP=[xAlignTicks{a},fliplr(xAlignTicks{a})];
             xP(isnan(yP))=[];
             yP(isnan(yP))=[];
             d = patch(xP,yP,1);
             set(d,'edgecolor','none','facealpha',.5,'facecolor',plotColors.(jointName{j}));
-            
+            maxPlot = FRLim(end)*max(1,ceil(max(yP)/FRLim(end)));
             avgSegs = nanmean(currSegs,1);
             if(a==1)
                 plotted = false(1,size(currSegs,2));
@@ -87,7 +87,7 @@ for j = 1:length(jointName)
                     %plotted(s) = true;
                     pSeg = find(isalmost(PSTHDisplayLimits{a}(1):binSize:...
                         PSTHDisplayLimits{a}(end),avgSegs(s),binSize/1.99),1);
-                    plot([xAlignTicks{a}(pSeg) xAlignTicks{a}(pSeg)],[0 2*FRLim(end)],...
+                    plot([xAlignTicks{a}(pSeg) xAlignTicks{a}(pSeg)],[0 maxPlot],...
                         'Color',plotColor,'LineStyle','--');
                 end
             end
@@ -103,10 +103,6 @@ for j = 1:length(jointName)
             plotStart = plotStart + size(currJointAlign,2) + alignmentGap;
         end
     end
-    if(max(yP)>FRLim(end))
-        ylim([FRLim(1),FRLim(end)*2]);
-    else
-        ylim(FRLim);
-    end
+    ylim([FRLim(1),maxPlot]);
 end
 end

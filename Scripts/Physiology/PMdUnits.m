@@ -7,7 +7,7 @@ pVal=0.05;
 savePath = "S:\Lab\ngc14\Working\PMd\Task_Units\";
 monkey = "Gilligan";
 MIN_BLOCKS_FOR_UNIT = 13;
-params = PhysRecording(string(conditions),.01,.15,-5,7,containers.Map(conditions,...
+params = PhysRecording(string(conditions),.01,.15,-5,6,containers.Map(conditions,...
     {["GoSignal"],["GoSignal"],["GoSignal"],"GoSignal"}));
 plotUnits = false;
 %%
@@ -45,6 +45,8 @@ taskUnits = cellfun(@(a,b) any(cell2mat(a),2) & sum(b,2)>MIN_BLOCKS_FOR_UNIT*siz
     num2cell(cat(2,tUnit{:}),2),goodUnits,'Uniformoutput',false);
 unitChannels = cellfun(@(sc,am) arrayfun(@(s) find(s==am),sc),siteChannels{1},allMaps','UniformOutput',false);
 unit2SiteMap=cell2mat(arrayfun(@(m,n) ones(1,m)*n,cellfun(@(s)size(s,2),unitChannels)',1:length(unitChannels),'UniformOutput',false));
+maxCondsFR = cellfun(@(c) cellfun(@(d) max(mean(d{1},3,'omitnan'),[],2,'omitnan'),...
+    c,'UniformOutput',false),siteTrialPSTHS, 'UniformOutput',false);
 %%
 maxClusters = 10;
 for c =1:length(conditions)
@@ -54,15 +56,18 @@ for c =1:length(conditions)
     tUnits = taskUnits(taskSiteInds);
     maxUnitFR = cell2mat(cellfun(@(m) cell2mat(m(taskSiteInds)), maxCondsFR, 'UniformOutput',false));
     unitPSTHS = cell2mat(cellfun(@(m,i) (i./i).*mean(m,3,'omitnan'),vertcat(normPSTH{c}{taskSiteInds}),tUnits,'UniformOutput',false));
-    unitPSTHS =  unitPSTHS./maxUnitFR(:,c);
-    clusterP = evalclusters(unitPSTHS,'kmeans','CalinskiHarabasz','KList',1:maxClusters);
+    unitPSTHS = unitPSTHS./maxUnitFR(:,c);
+    clusterP = evalclusters(unitPSTHS,'kmeans','DaviesBouldin','KList',1:maxClusters);
     close all;
     plot(1:maxClusters,clusterP.CriterionValues);
+    hold on;
+    xlim([1,maxClusters]);
+    scatter(clusterP.OptimalK,clusterP.CriterionValues(clusterP.OptimalK),'r','filled','o');
     saveFigures(gcf,savePath+params.condAbbrev(params.condNames(c))+"\","EvaluationValues",[]);
     for s = 1:length(clusterP.InspectedK)
         close all;
         sCluster{s} = kmeans(unitPSTHS,s);
-        clusterGroups = arrayfun(@(f) "A_"+num2str(f),sCluster{s});
+        clusterGroups = arrayfun(@(f) "Cluster_"+num2str(f),sCluster{s});
         siteUnitSegs = cellfun(@(si,tu) repmat(mean(si{1},1,'omitnan'),length(tu),1),...
             siteSegs{c}(taskSiteInds),tUnits,'UniformOutput',false);
         clusterColors = cell2struct(num2cell(distinguishable_colors(s),2),...
@@ -70,7 +75,7 @@ for c =1:length(conditions)
         plotJointPSTHS(params.bins,{unitPSTHS},{cell2mat(siteUnitSegs)},...
             clusterGroups,cell2mat(tUnits)',[],alignLimits,[0,1],clusterColors);
         if(clusterP.OptimalK==s)
-            saveFigures(gcf,savePath+params.condAbbrev(params.condNames(c))+"\","Optimal"+num2str(s)+"_PSTH",[]);
+            saveFigures(gcf,savePath+params.condAbbrev(params.condNames(c))+"\",num2str(s)+"_Optimal_PSTH",[]);
         else
             saveFigures(gcf,savePath+params.condAbbrev(params.condNames(c))+"\",num2str(s)+"_PSTH",[]);
         end
@@ -79,8 +84,6 @@ end
 %%
 [allTrials,allPSTHS]= deal(cell(1,1));
 [condInds,allSiteInds,allRestInds] = deal([]);
-maxCondsFR = cellfun(@(c) cellfun(@(d) max(mean(d{1},3,'omitnan'),[],2,'omitnan'),...
-    c,'UniformOutput',false),siteTrialPSTHS, 'UniformOutput',false);
 for c =1:length(conditions)
     close all;
     tUnits = cell2mat(taskUnits);
@@ -167,10 +170,10 @@ for c =1:length(conditions)
     close all;
 end
 %%
+%allPSTHSCond = [abs(diff(allPSTHSCond,1,2)),zeros(size(allPSTHSCond,1),1)];
 allPSTHSCond = vertcat(allPSTHS{:}{:});
 allTrialsCond = vertcat(allTrials{:}{:});
 allTaskInds = vertcat(allSiteInds{:});
-%allPSTHSCond = [abs(diff(allPSTHSCond,1,2)),zeros(size(allPSTHSCond,1),1)];
 
 plotJointPSTHS(params.bins,{allPSTHSCond},{allTrialsCond},condInds,allTaskInds,[], alignLimits,[0 10],...
     cell2struct(num2cell(distinguishable_colors(length(conditions)),2),string(params.condAbbrev.values)));

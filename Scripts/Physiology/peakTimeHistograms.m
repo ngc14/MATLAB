@@ -23,11 +23,11 @@ for r=1:length(histNames)
         [1 0 0; 1 0 0],['<','>']',[5,5]');
     legend('off');
     currLim = ylim();
-    for a=1:length(avgSegs)
-        if(avgSegs(a)>=-1 & avgSegs(a)<=1)
-            line([avgSegs(a),avgSegs(a)], currLim, 'Color', 'k', 'LineWidth', 2,'LineStyle', '--');
-        end
-    end
+    % for a=1:length(avgSegs)
+    %     if(avgSegs(a)>=-1 & avgSegs(a)<=1)
+    %         line([avgSegs(a),avgSegs(a)], currLim, 'Color', 'k', 'LineWidth', 2,'LineStyle', '--');
+    %     end
+    % end
 end
 linkaxes([ar{:}]);
 maxYlim = ylim();

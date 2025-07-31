@@ -26,15 +26,13 @@ siteInds = siteInds(siteIndsN>0);
 avgSegTimes = findBins(vertcat(trialSegs{:}),bins);
 
 unitPSTHS = cellfun(@(p) (unitInds./unitInds)'.*p, PSTHS,'UniformOutput',false);
-unitNormPSTHS = unitPSTHS;%
-
-sortVals = [abs(diff(horzcat(unitNormPSTHS{HISTALIGNMENT}),1,2)),zeros(size(maxFRs,1),1)];
-sortValsNaN = cellfun(@(s,a) mean(s(a(1):a(end)),'omitnan'),num2cell(sortVals,2),...
+sortVals = [abs(diff(horzcat(unitPSTHS{HISTALIGNMENT}),1,2)),zeros(size(maxFRs,1),1)];
+sortValsNaN = cellfun(@(s,a) mean(s(a(1):a(end))),num2cell(sortVals,2),...
     num2cell([avgSegTimes(:,1),avgSegTimes(:,HOLDIND-condInd)]+...
     int64(alignLim{HISTALIGNMENT}./mode(diff(bins))),2));
 sortValsNaN(~unitInds,:) = NaN;
-unitNormPSTHS =  cellfun(@(u) u./maxFRs, unitPSTHS,'UniformOutput', false);%{[abs(diff(horzcat(unitNormPSTHS{HISTALIGNMENT}),1,2)),zeros(size(maxFRs,1),1)]};
 
+unitNormPSTHS =  cellfun(@(u) u./maxFRs, unitPSTHS,'UniformOutput', false);
 peakTimeHistograms(linspace(min(sortValsNaN),max(sortValsNaN),15),reps,sortValsNaN,...
     {trialSegs{HISTALIGNMENT}},siteInds,strcat(saveDirPath,"Histograms\"),saveName);
 phaseHMFig = unitJointPSTH(bins,unitNormPSTHS,reps,sortValsNaN,{trialSegs},siteInds,[],alignLim);

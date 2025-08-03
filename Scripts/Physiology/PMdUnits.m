@@ -7,7 +7,7 @@ pVal=0.05;
 savePath = "S:\Lab\ngc14\Working\PMd\Task_Units\";
 monkey = "Gilligan";
 MIN_BLOCKS_FOR_UNIT = 13;
-params = PhysRecording(string(conditions),.01,.15,-5,6,containers.Map(conditions,...
+params = PhysRecording(string(conditions),.01,.15,-5,11,containers.Map(conditions,...
     {["GoSignal"],["GoSignal"],["GoSignal"],"GoSignal"}));
 plotUnits = false;
 %%
@@ -56,14 +56,14 @@ for c =1:length(conditions)
     tUnits = taskUnits(taskSiteInds);
     maxUnitFR = cell2mat(cellfun(@(m) cell2mat(m(taskSiteInds)), maxCondsFR, 'UniformOutput',false));
     unitPSTHS = cell2mat(cellfun(@(m,i) (i./i).*mean(m,3,'omitnan'),vertcat(normPSTH{c}{taskSiteInds}),tUnits,'UniformOutput',false));
-    unitPSTHS = unitPSTHS./maxUnitFR(:,c);
-    clusterP = evalclusters(unitPSTHS,'kmeans','DaviesBouldin','KList',1:maxClusters);
+    unitPSTHS = sqrt(unitPSTHS);
+    clusterP = evalclusters(unitPSTHS,'kmeans','gap','KList',1:maxClusters,'Distance','correlation');
     close all;
     plot(1:maxClusters,clusterP.CriterionValues);
     hold on;
     xlim([1,maxClusters]);
     scatter(clusterP.OptimalK,clusterP.CriterionValues(clusterP.OptimalK),'r','filled','o');
-    saveFigures(gcf,savePath+params.condAbbrev(params.condNames(c))+"\","EvaluationValues",[]);
+    saveFigures(gcf,savePath+"Clustering\Correlation\"+params.condAbbrev(params.condNames(c))+"\","EvaluationValues",[]);
     for s = 1:length(clusterP.InspectedK)
         close all;
         sCluster{s} = kmeans(unitPSTHS,s);
@@ -75,9 +75,9 @@ for c =1:length(conditions)
         plotJointPSTHS(params.bins,{unitPSTHS},{cell2mat(siteUnitSegs)},...
             clusterGroups,cell2mat(tUnits)',[],alignLimits,[0,1],clusterColors);
         if(clusterP.OptimalK==s)
-            saveFigures(gcf,savePath+params.condAbbrev(params.condNames(c))+"\",num2str(s)+"_Optimal_PSTH",[]);
+            saveFigures(gcf,savePath+"Clustering\Correlation\"+params.condAbbrev(params.condNames(c))+"\",num2str(s)+"_Optimal_PSTH",[]);
         else
-            saveFigures(gcf,savePath+params.condAbbrev(params.condNames(c))+"\",num2str(s)+"_PSTH",[]);
+            saveFigures(gcf,savePath+"Clustering\Correlation\"+params.condAbbrev(params.condNames(c))+"\",num2str(s)+"_PSTH",[]);
         end
     end
 end
@@ -134,23 +134,6 @@ for c =1:length(conditions)
             close all;
         end
     end
-    taskPSTHS = cellfun(@(c,t) c(t,:), unitPSTHS,tUnits, 'UniformOutput',false);
-    for t = 1:2
-        if(t==1)
-            typeName = "EqRest";
-        else
-            typeName = "DiffRest";
-        end
-        condGroupUnits = cellfun(@(u,d) d(u)==(t-1), tUnits, rUnits,'UniformOutput',false);
-        unitAvgPSTHS = cellfun(@(m,p) (m./m).*p,condGroupUnits,taskPSTHS,'UniformOutput',false);
-        if(plotUnits)
-            plotJointPSTHS(params.bins,{vertcat(unitAvgPSTHS{:})},{cell2mat(cellfun(@(s,u)repmat(mean(s,1,'omitnan'),length(u),1),...
-                siteCondSegs,condGroupUnits,'UniformOutput',false))},siteUnitNames(vertcat(tUnits{:})),...
-                cell2mat(condGroupUnits)', [],alignLimits,[0 15],cell2struct(num2cell(...
-                distinguishable_colors(length(condGroupUnits)),2),"SiteNo"+num2str(siteDates{:,'Site'})));
-            saveFigures(gcf,strcat(savePath,"PSTHS\Session_PSTHS\"),strcat(params.condAbbrev(params.condNames(c)),"_",typeName),[]);
-        end
-    end
     allSiteInds = [allSiteInds;tUnits];
     allRestInds = [allRestInds;cellfun(@(u,d) d(u)==0, tUnits, rUnits,'UniformOutput',false)];
     condInds = [condInds,repmat(string(params.condAbbrev(params.condNames(c))),1,length(siteUnitNames))];
@@ -164,9 +147,9 @@ for c =1:length(conditions)
     siteUnitNames(~cell2mat(tUnits)) = "";
     allUnitSegs = vertcat(siteUnitSegs{:});
 
-    heatmap_distribution_plots(siteUnitNames,cell2mat(tUnits)',(siteUnitInds'),...
-    {allUnitSegs},params.bins,{cell2mat(unitPSTHS)},maxUnitFR(:,c),unitLocation,...
-    alignLimits,strcat(savePath,"Heatmaps\FR\"),conditions{c});
+    % heatmap_distribution_plots(siteUnitNames,cell2mat(tUnits)',(siteUnitInds'),...
+    % {allUnitSegs},params.bins,{cell2mat(unitPSTHS)},maxUnitFR(:,c),unitLocation,...
+    % alignLimits,strcat(savePath,"Heatmaps\FR\"),conditions{c});
     close all;
 end
 %%
@@ -192,3 +175,22 @@ restTrialsCond = (allRestTaskInds./allRestTaskInds) .*allTrialsCond(allTaskInds,
 plotJointPSTHS(params.bins,{restPSTHSCond},{restTrialsCond},condInds(allTaskInds),allRestTaskInds,...
     [], alignLimits,[0 1],cell2struct(num2cell(distinguishable_colors(length(conditions)),2),string(params.condAbbrev.values)));
 saveFigures(gcf,savePath+"PSTHS\","All_PSTH_DiffRest",[]);
+%%
+
+taskPSTHS = cellfun(@(c,t) c(t,:), unitPSTHS,tUnits, 'UniformOutput',false);
+for t = 1:2
+    if(t==1)
+        typeName = "EqRest";
+    else
+        typeName = "DiffRest";
+    end
+    condGroupUnits = cellfun(@(u,d) d(u)==(t-1), tUnits, rUnits,'UniformOutput',false);
+    unitAvgPSTHS = cellfun(@(m,p) (m./m).*p,condGroupUnits,taskPSTHS,'UniformOutput',false);
+    if(plotUnits)
+        plotJointPSTHS(params.bins,{vertcat(unitAvgPSTHS{:})},{cell2mat(cellfun(@(s,u)repmat(mean(s,1,'omitnan'),length(u),1),...
+            siteCondSegs,condGroupUnits,'UniformOutput',false))},siteUnitNames(vertcat(tUnits{:})),...
+            cell2mat(condGroupUnits)', [],alignLimits,[0 15],cell2struct(num2cell(...
+            distinguishable_colors(length(condGroupUnits)),2),"SiteNo"+num2str(siteDates{:,'Site'})));
+        saveFigures(gcf,strcat(savePath,"PSTHS\Session_PSTHS\"),strcat(params.condAbbrev(params.condNames(c)),"_",typeName),[]);
+    end
+end

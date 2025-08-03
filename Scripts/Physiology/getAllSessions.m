@@ -22,14 +22,14 @@ for m = 1:length(monkeys)
     vMask(monkeys(m)) = monkeyMask;
 end
 siteDateMap = siteDateMap(~cellfun(@isempty, siteDateMap.Date),:);
-siteDateMap = siteDateMap([1:20,43,46,53],:);
+siteDateMap = siteDateMap([1:21,23,24,25,27,28,31,32,38,43,46,47,48,49,51,53,56],:);
 % load info from all sites
 numSites = height(siteDateMap);
 [siteLocation, siteRep, siteThresh,siteSegs,siteChannels,...
     siteTrialPSTHS,siteActiveInd,rawSpikes,channelMap] = deal(cell(1,numSites));
-delete(gcp('nocreate'));parpool('local');
+%delete(gcp('nocreate'));parpool('local');
 hbar=parfor_progressbar(numSites,strcat("Iterating ", num2str(numSites), " instances..."));
-parfor  i = 1:numSites
+for  i = 1:numSites
     currSession = siteDateMap(i,:);
     if(strcmp(currSession.Monkey,"Gilligan"))
         dateFormat = 'MM_dd_yyyy';
@@ -44,6 +44,7 @@ parfor  i = 1:numSites
     %delete(fullfile(fullfile(physDir,'*.cache')));
     physDir = strcat(physDir,"Results_New\");
     if(~exist(physDir,'dir'))
+        disp(du);
         if(~ismember(currSession.Date,cellfun(@(d) datetime(d,'InputFormat',du.Format),...
                 {'05_02_2019'})))
             Spike_SortRawData(char(currSession.Date),char(currSession.Monkey));

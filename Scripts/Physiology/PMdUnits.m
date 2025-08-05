@@ -52,7 +52,7 @@ maxClusters = 10;
 for c =1:length(conditions)
     tUnits = cell2mat(taskUnits);
     taskSiteInds = find(cellfun(@any,arrayfun(@(a) tUnits(unit2SiteMap==a),...
-        min(unit2SiteMap):max(unit2SiteMap),'UniformOutput', false))'); %[19,20,21];
+        min(unit2SiteMap):max(unit2SiteMap),'UniformOutput', false))');
     tUnits = taskUnits(taskSiteInds);
     maxUnitFR = cell2mat(cellfun(@(m) cell2mat(m(taskSiteInds)), maxCondsFR, 'UniformOutput',false));
     unitPSTHS = cell2mat(cellfun(@(m,i) (i./i).*mean(m,3,'omitnan'),vertcat(normPSTH{c}{taskSiteInds}),tUnits,'UniformOutput',false));
@@ -89,7 +89,8 @@ for c =1:length(conditions)
     tUnits = cell2mat(taskUnits);
     [~,siteUnitMods] = unique(unit2SiteMap);
     taskSiteInds = find(cellfun(@any,arrayfun(@(a) tUnits(unit2SiteMap==a),...
-        min(unit2SiteMap):max(unit2SiteMap),'UniformOutput', false))'); %[19,20,21];
+        min(unit2SiteMap):max(unit2SiteMap),'UniformOutput', false))');
+    %taskSiteInds = intersect(taskSiteInds,find(cellfun(@(s) s(1), siteLocation)>515 & cellfun(@(s) s(1), siteLocation)<600));
     tUnits = taskUnits(taskSiteInds);
     rUnits = restUnits(taskSiteInds);
     siteDates = siteDateMap(taskSiteInds,:);
@@ -152,7 +153,6 @@ for c =1:length(conditions)
     % alignLimits,strcat(savePath,"Heatmaps\FR\"),conditions{c});
     close all;
 end
-%%
 %allPSTHSCond = [abs(diff(allPSTHSCond,1,2)),zeros(size(allPSTHSCond,1),1)];
 allPSTHSCond = vertcat(allPSTHS{:}{:});
 allTrialsCond = vertcat(allTrials{:}{:});

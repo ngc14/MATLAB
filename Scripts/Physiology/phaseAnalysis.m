@@ -1,4 +1,4 @@
-savePath = "S:\Lab\ngc14\Working\PMd\";
+savePath = "S:\Lab\ngc14\Working\M1\";
 conditions = ["Extra Small Sphere", "Large Sphere", "Photocell"];
 binSize = .01;
 smoothKernel = .15;

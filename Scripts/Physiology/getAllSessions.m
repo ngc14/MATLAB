@@ -22,43 +22,42 @@ for m = 1:length(monkeys)
     vMask(monkeys(m)) = monkeyMask;
 end
 siteDateMap = siteDateMap(~cellfun(@isempty, siteDateMap.Date),:);
-siteDateMap = siteDateMap([1:21,23,24,25,27,28,31,32,38,43,46,47,48,49,51,53,56],:);
+%siteDateMap = siteDateMap([1:21,23,24,25,27,28,31,32,38,43,46,47,48,49,51,53,56],:);
 % load info from all sites
 numSites = height(siteDateMap);
 [siteLocation, siteRep, siteThresh,siteSegs,siteChannels,...
     siteTrialPSTHS,siteActiveInd,rawSpikes,channelMap] = deal(cell(1,numSites));
 %delete(gcp('nocreate'));parpool('local');
 hbar=parfor_progressbar(numSites,strcat("Iterating ", num2str(numSites), " instances..."));
-for  i = 1:numSites
+parfor  i = 1:numSites
     currSession = siteDateMap(i,:);
-    if(strcmp(currSession.Monkey,"Gilligan"))
-        dateFormat = 'MM_dd_yyyy';
+    if(strcmpi(currSession.Monkey,"Gilligan"))
+        dateFormat = 'MM_dd_uuuu';
     else
-        dateFormat = 'yyyy_MM_dd';
+        dateFormat = 'uuuu_MM_dd';
     end
     du = [currSession.Date{:}];
     du.Format = dateFormat;
-    currSession.Date = du;
+    currSession.Date = char(du);
     physDir = strcat(drivePath,currSession.Monkey,"\All Data\", currSession.Monkey,...
         "_",string(currSession.Date),"\Physiology\");
     %delete(fullfile(fullfile(physDir,'*.cache')));
-    physDir = strcat(physDir,"Results_New\");
+    physDir = strcat(physDir,"Results\");
     if(~exist(physDir,'dir'))
         disp(du);
-        if(~ismember(currSession.Date,cellfun(@(d) datetime(d,'InputFormat',du.Format),...
-                {'05_02_2019'})))
-            Spike_SortRawData(char(currSession.Date),char(currSession.Monkey));
-            labelSingleUnits(char(currSession.Monkey),char(currSession.Date));
+        if(~ismember(currSession.Date,{'05_02_2019'}))
+            Spike_SortRawData(currSession.Date,char(currSession.Monkey));
+            labelSingleUnits(char(currSession.Monkey),currSession.Date);
         end
     else
         firstChannelDir = dir(strcat(physDir,"*.mat"));
         firstChannelDir = load([firstChannelDir(1).folder,'\',firstChannelDir(1).name]);
         if(~isfield(firstChannelDir, 'label') && ~contains(fieldnames(firstChannelDir, '-full'),'label'))
-            labelSingleUnits(char(currSession.Monkey),char(currSession.Date));
+            labelSingleUnits(char(currSession.Monkey),currSession.Date);
         end
     end
     [spikes,times,weights,currTrials,sessionConds,channels,~,~,chMap] =...
-        getSessionInfo2(physDir,singleOrAllUnits);
+        getSessionInfo2(physDir,singleOrAllUnits,false);
     if(~isempty(spikes))
         [currSeg,currUnitChs,currTrialPSTHS,currActive,trialHists,alignedSpikes] = deal(repmat({[]},...
             1,length(conditions)));

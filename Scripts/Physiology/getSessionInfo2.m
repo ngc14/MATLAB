@@ -1,6 +1,9 @@
-function [spikes,times,unitTrials,trials,conds,channel,eventNames,labels,chMap] = getSessionInfo2(folderName, singleOrAll)
+function [spikes,times,unitTrials,trials,conds,channel,eventNames,labels,chMap] = getSessionInfo2(folderName, singleOrAll,loadChannelMap)
 folderName = char(folderName);
 sessionDir = dir(folderName+"\*.mat");
+if(~exist('loadChannelMap','var'))
+    loadChannelMap = true;
+end
 if(isempty(sessionDir))
     [spikes,times,unitTrials,trials,conds,channel,eventNames,labels,chMap] = deal([]);
 else
@@ -14,24 +17,25 @@ else
         digitsPattern+characterListPattern(".")))+"_Note"),{dirPath(~[dirPath.isdir]).name}),1)).name;
     notesLines = readlines(hFilePath.folder+"\"+noteFiles);
     infoLines = notesLines(contains(notesLines,"Channel"));
-    [res,hFile] = ns_OpenFile([hFilePath.folder,'\',hFilePath.name],'single');
-    if(strcmp(res, 'ns_OK'))
-        chMapR = [hFile.Entity.Label];
-        chs = cellfun(@(r) cell2mat(regexp(r,'(\d+)(?!.*\d)','match')),chMapR,'Uniformoutput',false);
-        chMapR = chMapR(~cellfun(@isempty,chs));
-        chs = chs(~cellfun(@isempty,chs));
-        [chs,ci,~] = unique(cellfun(@str2double,chs));
-        if(any(contains(infoLines,"Microprobes",'IgnoreCase',true)) && ...
-                any(contains(infoLines, "Channel 1"+wildcardPattern+"deep")))
-            ci = flipud(ci);
+    chMap{1} = {};
+    chMap{2} = {};
+    if(loadChannelMap)
+        [res,hFile] = ns_OpenFile([hFilePath.folder,'\',hFilePath.name],'single');
+        if(strcmp(res, 'ns_OK'))
+            chMapR = [hFile.Entity.Label];
+            chs = cellfun(@(r) cell2mat(regexp(r,'(\d+)(?!.*\d)','match')),chMapR,'Uniformoutput',false);
+            chMapR = chMapR(~cellfun(@isempty,chs));
+            chs = chs(~cellfun(@isempty,chs));
+            [chs,ci,~] = unique(cellfun(@str2double,chs));
+            if(any(contains(infoLines,"Microprobes",'IgnoreCase',true)) && ...
+                    any(contains(infoLines, "Channel 1"+wildcardPattern+"deep")))
+                ci = flipud(ci);
+            end
+            chMap{1} = chMapR(ci);
+            chMap{2} = chs(ci);
         end
-        chMap{1} = chMapR(ci);
-        chMap{2} = chs(ci);
-    else
-        chMap{1} = {};
-        chMap{2} = {};
+        ns_CloseFile(hFile);
     end
-    ns_CloseFile(hFile);
     [~,sortInd] = natsort({sessionDir.name});
     sessionDir = sessionDir(sortInd);
     firstChannel = load([sessionDir(1).folder, '\', sessionDir(1).name]);

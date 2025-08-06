@@ -134,8 +134,10 @@ for c = 1:length(conds)
                 end
                 linkaxes([sax(m,1:end-1)]);
             end
-%          saveFigures(figure(1),savePath,"BothSites"+conds(c)+"_"+dir(d),[]);
-%           saveFigures(figure(2),savePath+"CDF\","BothSites"+conds(c)+"_"+dir(d),[]);
+            writetable(cell2table([num2cell(pairs,2),num2cell(pvalue)',num2cell(ks)'],'VariableNames',{'pair','pvalue','ksvalue'}),...
+                savePath+"CDF\stats"+conds(c)+"_"+dir(d));
+          saveFigures(figure(1),savePath,"BothSites"+conds(c)+"_"+dir(d),[]);
+           saveFigures(figure(2),savePath+"CDF\","BothSites"+conds(c)+"_"+dir(d),[]);
             close all;
         end
 %    end

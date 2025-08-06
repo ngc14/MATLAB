@@ -82,6 +82,8 @@ for c = 1:length(conditions)
     condTable.Y = unitLocation(:,2);
     condTable.Y(~mInds) = condTable.Y(~mInds) - min(condTable.Y(~mInds));
     condTable.Y(mInds) = condTable.Y(mInds) - min(condTable.Y(mInds));
+    condTable.X = mapSites2Units(condUnitMapping,siteDateMap.x);
+    condTable.Y = mapSites2Units(condUnitMapping,siteDateMap.y);
     condTable.Condition = categorical(cellstr(repmat(conditions{c}(1),length(mLabs),1)));
     condTable.TaskUnits =  logical(tUnits);
     condTable.Go = AUCVals(:,strcmp(phaseNames,"Go"));
@@ -103,7 +105,6 @@ avgTask = cellfun(@(cn,ct,cp) cellfun(@(tp,tt)cellfun(@(ap,at) mean(ap(:,max(1,.
     tp,tt,'UniformOutput', false),cn, ct,'UniformOutput', false),normPSTH(1:length(taskAlignments)),...
     avgSeg(1:length(taskAlignments)),taskAlignments,"UniformOutput",false);
 meanTask = cellfun(@(c) cell2mat(cellfun(@(s) median(cat(3,s{:}),3,'omitnan'),c,'UniformOutput', false)), avgTask, 'UniformOutput',false);
-clear normPSTH;
 plotNames = arrayfun(@(p) arrayfun(@(c) p+"_"+c{1}(1), conditions, 'UniformOutput', true), [phaseNames,"rSI","gSI","Task"], 'UniformOutput', false);
 plotNames = [plotNames{:}];
 tPhys = unstack(tPhys,varNames(9:end),"Condition");
@@ -111,7 +112,7 @@ tPhys = addvars(tPhys,meanTask{1},meanTask{2},meanTask{3}, 'NewVariableNames',pl
 %tPhys = addvars(tPhys, NaN(height(tPhys),1),'After','Y','NewVariableNames',"BIN");
 %tPhys = addvars(tPhys, NaN(height(tPhys),1),'After','XB','NewVariableNames',"YB");
 %quads = locationBins(tPhys,repNames);
-tPhys(~(tPhys.TaskUnits_E | tPhys.TaskUnits_L | tPhys.TaskUnits_P),:) = [];
+% tPhys(~(tPhys.TaskUnits_E | tPhys.TaskUnits_L | tPhys.TaskUnits_P),:) = [];
 tPhys = addvars(tPhys,mode(table2array(tPhys(:,{'unitType_E','unitType_L','unitType_P'})),2),'NewVariableNames','Type');
 percs = table2array(rowfun(@(a,s,m) sum(a==tPhys.SiteNum & s==tPhys.Type)/sum(s==tPhys.Type), tPhys,...
     'InputVariables',{'SiteNum','Type','Monkey'}, 'OutputVariableNames', "Percentage"));

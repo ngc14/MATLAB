@@ -53,11 +53,12 @@ parfor  i = 1:numSites
         firstChannelDir = dir(strcat(physDir,"*.mat"));
         firstChannelDir = load([firstChannelDir(1).folder,'\',firstChannelDir(1).name]);
         if(~isfield(firstChannelDir, 'label') && ~contains(fieldnames(firstChannelDir, '-full'),'label'))
+            disp(du);
             labelSingleUnits(char(currSession.Monkey),currSession.Date);
         end
     end
     [spikes,times,weights,currTrials,sessionConds,channels,~,~,chMap] =...
-        getSessionInfo2(physDir,singleOrAllUnits,false);
+        getSessionInfo2(physDir,singleOrAllUnits);
     if(~isempty(spikes))
         [currSeg,currUnitChs,currTrialPSTHS,currActive,trialHists,alignedSpikes] = deal(repmat({[]},...
             1,length(conditions)));

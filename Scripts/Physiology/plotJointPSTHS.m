@@ -22,8 +22,7 @@ if(~exist('plotColors','var'))
     end
 end
 plotNames = fieldnames(plotColors);
-jointName =plotNames(matches(unique(allReps(allReps~="")),plotNames));
-wrapPlots = min(length(jointName),3);
+jointName = natsort(plotNames(matches(unique(allReps(allReps~="")),plotNames)));
 
 zeroBinInd = find(bins==0);
 binSize = mode(diff(bins));
@@ -31,8 +30,18 @@ alignmentGap = alignmentGap/binSize;
 
 PSTH =  cellfun(@(t,w) t(:,(fix(w(1)/binSize)+zeroBinInd):...
     fix((w(end)/binSize)+zeroBinInd)),PSTH,PSTHDisplayLimits,'UniformOutput',false);
-figHandle=figure('Units', 'normalized', 'Position', [0 0 1 1]); hold on;
+g = groot;
+figHandle = g.CurrentFigure;
+if(~isempty(figHandle))
+    pos = cell2mat(arrayfun(@(n) get(n,'Position'), get(figHandle,'Children'), 'UniformOutput', false));
+    wrapPlots = numel(unique(pos(:,1)));
+    nrows = numel(unique(pos(:,2)));
+else
+    wrapPlots = min(length(jointName),3);
+    nrows = ceil(length(jointName)/wrapPlots);
+end
 xAlignTicks = {};
+maxPlot = 0;
 for j = 1:length(jointName)
     jointInds = arrayfun(@(s) cellfun(@(a) strcmp(a,jointName{j}),s), allReps,'UniformOutput',true);
     jointPSTH = cellfun(@(t) t(jointInds,:), PSTH, 'UniformOutput', false);
@@ -40,7 +49,7 @@ for j = 1:length(jointName)
     %     [~, ~, activeJointInds] = intersect(find(activityInd),jointInds(activityInd));
     %     [~,~,inactiveJoints] = intersect(find(~activityInd),find(jointInds));
     %% plot PSTHS
-    subplot(ceil(length(jointName)/wrapPlots),wrapPlots,j);hold on;
+    subplot(nrows,wrapPlots,j);hold on;
     titleName = replace(jointName{j},"_", " ");
     titleName = strcat(titleName, " (n= ", num2str(size(jointSegs{1},1)),")");
     if(sum(siteInds)~=length(allReps))
@@ -70,7 +79,7 @@ for j = 1:length(jointName)
             yP(isnan(yP))=[];
             d = patch(xP,yP,1);
             set(d,'edgecolor','none','facealpha',.5,'facecolor',plotColors.(jointName{j}));
-            maxPlot = FRLim(end)*max(1,ceil(max(yP)/FRLim(end)));
+            maxPlot = max(maxPlot,FRLim(end)*max(1,ceil(max(yP)/FRLim(end))));
             avgSegs = nanmean(currSegs,1);
             if(a==1)
                 plotted = false(1,size(currSegs,2));
@@ -103,6 +112,6 @@ for j = 1:length(jointName)
             plotStart = plotStart + size(currJointAlign,2) + alignmentGap;
         end
     end
-    ylim([FRLim(1),maxPlot]);
 end
+set(figHandle.Children,'YLim',[FRLim(1),maxPlot]);
 end

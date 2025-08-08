@@ -22,12 +22,12 @@ for m = 1:length(monkeys)
     vMask(monkeys(m)) = monkeyMask;
 end
 siteDateMap = siteDateMap(~cellfun(@isempty, siteDateMap.Date),:);
-%siteDateMap = siteDateMap([1:21,23,24,25,27,28,31,32,38,43,46,47,48,49,51,53,56],:);
+siteDateMap = siteDateMap([1:21,23,24,25,27,28,31,32,38,43,46,47,48,49,51,53,56],:);
 % load info from all sites
 numSites = height(siteDateMap);
 [siteLocation, siteRep, siteThresh,siteSegs,siteChannels,...
     siteTrialPSTHS,siteActiveInd,rawSpikes,channelMap] = deal(cell(1,numSites));
-%delete(gcp('nocreate'));parpool('local');
+delete(gcp('nocreate'));parpool('local');
 hbar=parfor_progressbar(numSites,strcat("Iterating ", num2str(numSites), " instances..."));
 parfor  i = 1:numSites
     currSession = siteDateMap(i,:);
@@ -42,9 +42,9 @@ parfor  i = 1:numSites
     physDir = strcat(drivePath,currSession.Monkey,"\All Data\", currSession.Monkey,...
         "_",string(currSession.Date),"\Physiology\");
     %delete(fullfile(fullfile(physDir,'*.cache')));
-    physDir = strcat(physDir,"Results\");
+    physDir = strcat(physDir,"Results_New\");
     if(~exist(physDir,'dir'))
-        disp(du);
+        disp(['Sorting and labeling session: ', currSession.Date]);
         if(~ismember(currSession.Date,{'05_02_2019'}))
             Spike_SortRawData(currSession.Date,char(currSession.Monkey));
             labelSingleUnits(char(currSession.Monkey),currSession.Date);
@@ -53,12 +53,12 @@ parfor  i = 1:numSites
         firstChannelDir = dir(strcat(physDir,"*.mat"));
         firstChannelDir = load([firstChannelDir(1).folder,'\',firstChannelDir(1).name]);
         if(~isfield(firstChannelDir, 'label') && ~contains(fieldnames(firstChannelDir, '-full'),'label'))
-            disp(du);
+            disp(['Labeling session: ', currSession.Date]);
             labelSingleUnits(char(currSession.Monkey),currSession.Date);
         end
     end
     [spikes,times,weights,currTrials,sessionConds,channels,~,~,chMap] =...
-        getSessionInfo2(physDir,singleOrAllUnits);
+        getSessionInfo2(physDir,singleOrAllUnits,true);
     if(~isempty(spikes))
         [currSeg,currUnitChs,currTrialPSTHS,currActive,trialHists,alignedSpikes] = deal(repmat({[]},...
             1,length(conditions)));

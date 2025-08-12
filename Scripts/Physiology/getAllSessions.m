@@ -28,7 +28,7 @@ numSites = height(siteDateMap);
 [siteLocation, siteRep, siteThresh,siteSegs,siteChannels,...
     siteTrialPSTHS,siteActiveInd,rawSpikes,channelMap] = deal(cell(1,numSites));
 delete(gcp('nocreate'));parpool('local');
-hbar=parfor_progressbar(numSites,strcat("Iterating ", num2str(numSites), " instances..."));
+hbar = parforProgress(numSites);
 parfor  i = 1:numSites
     currSession = siteDateMap(i,:);
     if(strcmpi(currSession.Monkey,"Gilligan"))
@@ -43,18 +43,20 @@ parfor  i = 1:numSites
         "_",string(currSession.Date),"\Physiology\");
     %delete(fullfile(fullfile(physDir,'*.cache')));
     physDir = strcat(physDir,"Results_New\");
-    if(~exist(physDir,'dir'))
-        disp(['Sorting and labeling session: ', currSession.Date]);
+    if(~exist(physDir,'dir'))        
         if(~ismember(currSession.Date,{'05_02_2019'}))
+            disp(['Sorting and labeling session: ', currSession.Date]);
             Spike_SortRawData(currSession.Date,char(currSession.Monkey));
-            labelSingleUnits(char(currSession.Monkey),currSession.Date);
+            labelSingleUnits(currSession.Date,char(currSession.Monkey));
+        else
+            disp(['Bad session: ', currSession.Date]);
         end
     else
         firstChannelDir = dir(strcat(physDir,"*.mat"));
         firstChannelDir = load([firstChannelDir(1).folder,'\',firstChannelDir(1).name]);
         if(~isfield(firstChannelDir, 'label') && ~contains(fieldnames(firstChannelDir, '-full'),'label'))
             disp(['Labeling session: ', currSession.Date]);
-            labelSingleUnits(char(currSession.Monkey),currSession.Date);
+            labelSingleUnits(currSession.Date,char(currSession.Monkey));
         end
     end
     [spikes,times,weights,currTrials,sessionConds,channels,~,~,chMap] =...
@@ -129,9 +131,8 @@ parfor  i = 1:numSites
         rawSpikes{i} = alignedSpikes;
         channelMap{i} = chMap;
     end
-     hbar.iterate(1);
+    send(hbar, i);
 end
-hbar.close;hbar.delete;
 %% remove sessions that had no trial information
 emptyInds = cellfun(@isempty, siteLocation);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

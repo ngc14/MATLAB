@@ -1,4 +1,4 @@
-function done = labelSingleUnits(monkey, processDates)
+function done = labelSingleUnits(processDates,monkey)
 subDirName = '\Results_New';
 writeLabels = true;
 plotWaveforms = false;
@@ -6,9 +6,9 @@ if(~exist('monkey','var'))
     monkey='Gilligan';
 end
 if(strcmp(monkey, 'Gilligan'))
-    dateFormat = 'MM_dd_yyyy';
+    dateFormat = 'MM_dd_uuuu';
 else
-    dateFormat = 'yyyy_MM_dd';
+    dateFormat = 'uuuu_MM_dd';
 end
 if(~exist('processDates','var'))
     dateArray = datetime(2019,05,20):datetime(2019,12,12);

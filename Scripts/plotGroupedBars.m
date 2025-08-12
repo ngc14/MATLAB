@@ -5,17 +5,18 @@ saveName = saveDir(end);
 saveDir = strjoin(saveDir(1:end-1),"\")+"\";
 jNames = ["Arm", "Hand"];
 jColor = flipud(cell2mat(arrayfun(@(jN) MotorMapping.repColors.(char(jN)),jNames, 'UniformOutput', false)'));
-condColor = flipud([.7 0 0; .8 .4 0; 0 0 .7;]);
+condColor = flipud([.7 0 0; .8 .4 0; 0 0 .7; .8 .8 .8]);
 %%
 figure('Units','normalized','Position',[0 0 1 1]);
 hold on
 id = [];
 condVals = {};
-phaseGap = 1.75;
+phaseGap = 2;
 groupGap = 5;
+boxW = .5;
 for n = 1:length(condXrepXphase)
     condXrepPlot = cat(2,condXrepXphase{n});
-    subInd = linspace(-.9,.9,length(condXrepPlot)+2);
+    subInd = linspace(-boxW*length(condXrepPlot),boxW*length(condXrepPlot),length(condXrepPlot)+2);
     subInd = (subInd(2:end-1));
     condVals{n} = linspace((phaseGap*(n-1))*size(condXrepPlot{1},2),...
         (phaseGap*n*size(condXrepPlot{1},2))-1,size(condXrepPlot{1},2));
@@ -26,7 +27,7 @@ for n = 1:length(condXrepXphase)
         %         arrayfun(@(a) set(a.data,'Marker', 'none'), tb, 'UniformOutput', false);
         pOffset = condVals{n}+subInd(r);
         %condXphasePlot = cell2mat(cellfun(@(m) mean(m,2,'omitnan'), condXphasePlot, 'UniformOutput',false));
-        for p = 1:size(condXphasePlot,2)-1
+        for p = 1:max(1,size(condXphasePlot,2)-1)
             tb(p) = boxchart(condXphasePlot(:,p),'XData',repmat(pOffset(p),length(condXphasePlot(:,p)),1),...
                 'Notch','on','BoxWidth',.5,'MarkerStyle','none');
         end
@@ -38,15 +39,15 @@ end
 bx = (findall(gca,'Type','BoxChart'));
 mx = findall(gca,'Tag','Median');
 arrayfun(@(m) set(m,'Color',[0 0 0]), mx);
-arrayfun(@(ur) set(bx(id(:,2)==ur),  'BoxEdgeColor',flipud(jColor(ur,:))), unique(id(:,2)));
+arrayfun(@(ur) set(bx(id(:,end)==ur),  'BoxEdgeColor',flipud(jColor(ur,:))), unique(id(:,end)));
 arrayfun(@(uc) set(bx(id(:,1) ==uc),'BoxFaceColor',flipud(condColor(uc,:)), 'BoxFaceAlpha', 1),unique(id(:,1)));
 %xlim([min(cellfun(@min,condVals))-1,max(cellfun(@max,condVals))+1]);
-ylim([0 8])
+ylim([0 15])
 
 ax = get(findall(gca,'Type', 'Axes'),'XAxis');
-ax.Categories = categorical(min(cellfun(@min,condVals)):max(cellfun(@max,condVals)));
+ax.Categories = categorical(floor(min(cellfun(@min,condVals)))-1:ceil(max(cellfun(@max,condVals))));
 ax.TickValues = categorical(arrayfun(@num2str,cellfun(@(n) round(median(n)),condVals)-1, 'Uniformoutput', false));
-xticklabels(["Precision", "Power", "Reach-only"]);
+xticklabels(["Precision", "Power", "Reach-only", "Rest"]);
 %title(jNames(n))
 if(saveOn)
     saveFigures(gcf, saveDir,saveName,[]);

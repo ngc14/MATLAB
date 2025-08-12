@@ -21,9 +21,9 @@ eventChannel = 'SMA 1';
 relevantTrials = [];
 
 if(strcmp(monkey, 'Gilligan'))
-    dateFormat = 'MM_dd_yyyy';
+    dateFormat = 'MM_dd_uuuu';
 else
-    dateFormat = 'yyyy_MM_dd';
+    dateFormat = 'uuuu_MM_dd';
 end
 sessionDate = char(datetime(sessionDate,"InputFormat",dateFormat,"Format",dateFormat));
 %% File info

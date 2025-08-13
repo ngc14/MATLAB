@@ -7,7 +7,7 @@ conditions = [ "Extra Small Sphere","Large Sphere","Photocell"];
 taskAlign = containers.Map(conditions,{{["GoSignal" "StartLift"]},{["GoSignal","StartLift"]},...
     {["GoSignal","StartHold"]}});
 phaseNames = ["Go", "Reach", "Grasp", "Withdraw"];
-savePath = "S:\Lab\ngc14\Working\Both\ChannelCheck\";
+savePath = "S:\Lab\ngc14\Working\Both\";
 close all;
 %%
 m = matfile("S:\Lab\ngc14\Working\Both\Full_Baseline\phaseAnalysis.mat");
@@ -77,13 +77,11 @@ for c = 1:length(conditions)
     condTable.Somatotopy = categorical(allReps);
     condTable.Channel =  [mappedChannels{:}]';
     condTable.X = unitLocation(:,1);
-    condTable.X(~mInds) = condTable.X(~mInds) - min(condTable.X(~mInds));
-    condTable.X(mInds) = condTable.X(mInds) - min(condTable.X(mInds));
     condTable.Y = unitLocation(:,2);
-    condTable.Y(~mInds) = condTable.Y(~mInds) - min(condTable.Y(~mInds));
-    condTable.Y(mInds) = condTable.Y(mInds) - min(condTable.Y(mInds));
-    condTable.X = mapSites2Units(condUnitMapping,siteDateMap.x);
-    condTable.Y = mapSites2Units(condUnitMapping,siteDateMap.y);
+    % condTable.X(~mInds) = condTable.X(~mInds) - min(condTable.X(~mInds));
+    % condTable.X(mInds) = condTable.X(mInds) - min(condTable.X(mInds));
+    % condTable.Y(~mInds) = condTable.Y(~mInds) - min(condTable.Y(~mInds));
+    % condTable.Y(mInds) = condTable.Y(mInds) - min(condTable.Y(mInds));
     condTable.Condition = categorical(cellstr(repmat(conditions{c}(1),length(mLabs),1)));
     condTable.TaskUnits =  logical(tUnits);
     condTable.Go = AUCVals(:,strcmp(phaseNames,"Go"));
@@ -109,25 +107,21 @@ plotNames = arrayfun(@(p) arrayfun(@(c) p+"_"+c{1}(1), conditions, 'UniformOutpu
 plotNames = [plotNames{:}];
 tPhys = unstack(tPhys,varNames(9:end),"Condition");
 tPhys = addvars(tPhys,meanTask{1},meanTask{2},meanTask{3}, 'NewVariableNames',plotNames(end-(length(conditions)-1):end));
+tPhys = addvars(tPhys,mode(table2array(tPhys(:,{'unitType_E','unitType_L','unitType_P'})),2),'NewVariableNames','Type');
 %tPhys = addvars(tPhys, NaN(height(tPhys),1),'After','Y','NewVariableNames',"BIN");
 %tPhys = addvars(tPhys, NaN(height(tPhys),1),'After','XB','NewVariableNames',"YB");
 %quads = locationBins(tPhys,repNames);
+%tPhys= addvars(tPhys,100.*percs,'After','Type','NewVariableNames','Percentage');
+% percs = table2array(rowfun(@(a,s,m) sum(a==tPhys.SiteNum & s==tPhys.Type)/sum(s==tPhys.Type), tPhys,...
+%     'InputVariables',{'SiteNum','Type','Monkey'}, 'OutputVariableNames', "Percentage"));
 % tPhys(~(tPhys.TaskUnits_E | tPhys.TaskUnits_L | tPhys.TaskUnits_P),:) = [];
-tPhys = addvars(tPhys,mode(table2array(tPhys(:,{'unitType_E','unitType_L','unitType_P'})),2),'NewVariableNames','Type');
-percs = table2array(rowfun(@(a,s,m) sum(a==tPhys.SiteNum & s==tPhys.Type)/sum(s==tPhys.Type), tPhys,...
-    'InputVariables',{'SiteNum','Type','Monkey'}, 'OutputVariableNames', "Percentage"));
-tPhys= addvars(tPhys,100.*percs,'After','Type','NewVariableNames','Percentage');
-
-% conds x rep x (phase)
-allChannels = cell2mat(mappedChannels')';
-condXrepXphase = cellfun(@(p,ic) cellfun(@(i) [p(i==1 & allChannels<=16,:);NaN(max(cellfun(@(s)...
-    sum(s,'omitnan'),ic))-sum(i==1),size(p,2))],ic(1:2),'UniformOutput',false),...
-    condXphase,condRepInds,'UniformOutput',false)';
+% writetable(tPhys,savePath+'Task_Units_FR_AVGPSTH.xlsx');
+%% conds x rep x (phase)
+condXrepXphase = cellfun(@(p,ic) cellfun(@(i) [p(i==1 & cell2mat(mappedChannels')'<=16,:);NaN(max(cellfun(@(s)...
+    sum(s,'omitnan'),ic))-sum(i==1),size(p,2))],ic(1:2),'UniformOutput',false),condXphase,condRepInds,'UniformOutput',false)';
 rgPlot = cellfun(@(r) cellfun(@(m) [m(:,strcmp(phaseNames,"Reach"))./...
     sum(m(:,contains(phaseNames,["Reach","Grasp"])),2),m(:,strcmp(phaseNames,"Grasp"))./...
     sum(m(:,contains(phaseNames,["Reach","Grasp"])),2)], r,'UniformOutput',false),condXrepXphase,'UniformOutput',false);
-% writetable(tPhys,savePath+'Task_Units_FR_AVGPSTH.xlsx');
-%%
 plotGroupedBars(condXrepXphase,savePath+"UnmappedSuperficial_Units_Phys_FR_Box",true);
 %%
 trialFRS = cellfun(@(c) cellfun(@(s) cellfun(@(a) cat(3,a{:}), s, ...

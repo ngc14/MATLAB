@@ -10,7 +10,7 @@ pVal = 0.05;
 unitNames = ["Reach", "Grasp", "Both"];
 phaseNames = ["Go", "Reach", "Grasp","Withdraw"];
 phaseWinSz = 0.2;
-taskWindow = repmat({[phaseWinSz, 0]},1,length(conditions));
+taskWindow = repmat({{[phaseWinSz, 0]}},1,length(conditions));
 phaseWindows = repmat({{[0, phaseWinSz],[-phaseWinSz*(3/4),phaseWinSz*(1/4)],...
     [-phaseWinSz, 0],[-phaseWinSz*(3/4),phaseWinSz*(1/4)]}},1,length(conditions));
 taskAlignmentPoints = {{["GoSignal" "StartHold"]},{["GoSignal","StartHold"]},...

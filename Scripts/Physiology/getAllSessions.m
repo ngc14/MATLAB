@@ -44,7 +44,7 @@ parfor  i = 1:numSites
     %delete(fullfile(fullfile(physDir,'*.cache')));
     physDir = strcat(physDir,"Results_New\");
     if(~exist(physDir,'dir'))        
-        if(~ismember(currSession.Date,{'05_02_2019'}))
+        if(~ismember(currSession.Date,{'05_02_2019','11_11_2019'}))
             disp(['Sorting and labeling session: ', currSession.Date]);
             Spike_SortRawData(currSession.Date,char(currSession.Monkey));
             labelSingleUnits(currSession.Date,char(currSession.Monkey));

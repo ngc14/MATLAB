@@ -1,5 +1,6 @@
 function [siteDateMap,siteSegs,siteTrialPSTHS,rawSpikes,siteChannels,siteActiveInd, simpRep,...
-    siteLocation, siteMasks, monkeys,vMask,conditions,channelMap] = getAllSessions(params,singleOrAllUnits,domain)
+    siteLocation, siteMasks, monkeys,vMask,conditions,channelMap,trialInfo] = ...
+    getAllSessions(params,singleOrAllUnits,domain)
 %  assign parameters
 rawSpikes = [];
 drivePath = "S:\Lab\";
@@ -130,6 +131,7 @@ parfor  i = 1:numSites
         siteActiveInd{i} = currActive;
         rawSpikes{i} = alignedSpikes;
         channelMap{i} = chMap;
+        trialInfo{i} = currTrials;
     end
     send(hbar, i);
 end

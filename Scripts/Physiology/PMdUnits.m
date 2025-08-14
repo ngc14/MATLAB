@@ -1,7 +1,7 @@
 conditions = ["Extra Small Sphere", "Large Sphere", "Photocell","Rest"];
 taskAlign = containers.Map(conditions(1:end-1),{{["GoSignal" "StartHold"]},{["GoSignal","StartHold"]},...
     {["GoSignal","StartHold"]}});
-taskWindow = {[-0.3, 0]};
+taskWindow =repmat({{[-0.3, 0]}},1,length(conditions));
 alignLimits = {[-.75, 2.5]};
 pVal=0.05;
 savePath = "S:\Lab\ngc14\Working\PMd\Task_Units\";
@@ -12,7 +12,7 @@ params = PhysRecording(string(conditions),.01,.15,-5,11,containers.Map(condition
 plotUnits = false;
 %%
 [siteDateMap, siteSegs, siteTrialPSTHS, rawSpikes, siteChannels, siteActiveInd,...
-    siteRep,siteLocation,siteMasks,monkeys,vMask,conditions,chMaps] = getAllSessions(params,"Single","PMd");
+    siteRep,siteLocation,siteMasks,monkeys,vMask,conditions,chMaps,trialInfo] = getAllSessions(params,"Single","PMd");
 trialFR = cellfun(@(ct,cs,ta) cellfun(@(a,b) cell2mat(cellfun(@(m,tt) ...
     squeeze(mean(m(:,max(1,tt(1)):max(1,tt(end)),:),2,'omitnan').*(1*~all(isnan(tt)))),...
     squeeze(num2cell(a{1},[1,2])),cellfun(@(e) [cell2mat(e),repmat([NaN,NaN],isempty(cell2mat(e)),1)],num2cell(...

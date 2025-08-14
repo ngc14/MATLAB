@@ -1,13 +1,13 @@
-date = '06_03_2019';
+date = '06_17_2019';
 monkey = 'Gilligan';
 binSize=.01; % bin size in seconds
-alignSegsConds = {["StartReach"],["StartReach"],["StartReach"]};
-alignLimits = {[-.5, 2]};
+alignSegsConds = {["StartReach"],["StartReach"],["StartReach"],["GoSignal"]};
+alignLimits = {[-1, 1]};
 colors = [[224,144,38]./255; 0 1 0; 0 0 1; 1 0 1];
 sigma = 5; % smoothing window in bin sizes
 gapWind = 0.10;
-saveFolder = ['S:\Lab\ngc14\Working\EMG_UNITS\Stim_Triggered'];
-conds = ["Extra Small Sphere", "Large Sphere", "Photocell"];
+saveFolder = ['S:\Lab\ngc14\Working\SingleUnits\'];
+conds = ["Extra Small Sphere", "Large Sphere", "Photocell","Rest"];
 allUnits = cellfun(@(c) cell(1,length(alignLimits)),conds,'UniformOutput',false);
 sessionDir = dir(['S:\Lab\',monkey,'\All Data\',monkey,'_',date,'\Physiology\Results']);
 sessionDir = sessionDir(~[sessionDir.isdir]);
@@ -59,7 +59,7 @@ for f = 1:length(sessionDir)+1
                 averageSegs(cellfun(@length,averageSegs)==8) = [];
             elseif (c==length(conds))
                 alignSegs = {'GoSignal'};
-                alignLims = {[-.5 .5]};
+                alignLims = {[-1 1]};
                 segLabs = {'H','RH', 'SR', 'R'};
             else
                 segLabs = {'Rn','R', 'G', 'H', 'W','RH', 'SR', 'R'};
@@ -70,8 +70,8 @@ for f = 1:length(sessionDir)+1
             if(length(currTrialInds)>10)
                 averageSegs = mean(reshape(cell2mat(averageSegs),numSegs,size(averageSegs,2))',1);
                 if(f<=length(sessionDir))
-                    ax{c} = subplot(length(conds),2, c);
-                    axR{c} = subplot(length(conds),2,length(conds)+c);
+                    ax{c} = subplot(2,length(conds), c);
+                    axR{c} = subplot(2,length(conds),length(conds)+c);
                     set(axR{c},'PositionConstraint','outerposition');
                     set(axR{c},'FontSize',14)
                     hold(axR{c},'on');
@@ -198,6 +198,7 @@ for f = 1:length(sessionDir)+1
         % saveas(gcf,[saveDirDate,saveFigName], 'fig');
         % saveas(gcf,[saveDirDate,saveFigName], 'png');
         % saveas(gcf,[saveDirDate,saveFigName], 'epsc');
+        saveFigures(gcf,saveDirDate,saveFigName,[]);
         close all;
     end
 end

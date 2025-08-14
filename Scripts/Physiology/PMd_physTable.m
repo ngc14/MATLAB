@@ -22,7 +22,6 @@ mappedChannels = cellfun(@(ch,l) ch{2}(l(~isnan(l))), chMaps,siteChannels{1}', '
 typeUnits = vertcat(restUnits{:});
 avgSeg = cellfun(@(ct) cellfun(@(ca) cellfun(@(t) mean(t,1,'omitnan'), ca, 'UniformOutput',false),...
     ct, 'UniformOutput',false),siteSegs, 'UniformOutput',false);
-
 condPhaseAlign = containers.Map(conditions,cellfun(@num2cell,phaseAlignmentPoints,'UniformOutput',false));
 [avgBaseline,avgPhase] =  calculatePhases(params,condPhaseAlign,phaseWindows,avgSeg,normPSTH,false,false);
 avgBase = cellfun(@cell2mat,cellfun(@(c) cellfun(@(a) median(cell2mat(a{1}),2,'omitnan'),...
@@ -36,6 +35,7 @@ taskUnits(:,end+1) = any(taskUnits,2);
 tPhys = [];
 condXphase = cellfun(@(pc) cell2mat(pc),cellfun(@(e) e(repmat(~isempty(e),size(e))),avgPhase,'UniformOutput', false),'UniformOutput',false);
 condXphase = cellfun(@(s) [s,NaN(size(s,1),length(phaseNames)-size(s,2))], condXphase, 'UniformOutput',false);
+%%
 [~,sortCols]= cellfun(@(pa) sort([arrayfun(@(p) find(contains(phaseNames,p)), phaseNames(arrayfun(@(p) contains(char([pa{:}]),p),phaseNames))),...
 setdiff(1:length(phaseNames),arrayfun(@(p) find(contains(phaseNames,p)), phaseNames(arrayfun(@(p) contains(char([pa{:}]),p),phaseNames))))]),phaseAlignmentPoints,'UniformOutput',false);
 condXphase = cellfun(@(s,sc) s(:,sc), condXphase,sortCols,'UniformOutput',false);
@@ -54,12 +54,6 @@ for c = 1:length(conditions)
     condTable.Monkey = categorical(mLabs);
     condTable.Somatotopy = categorical(allReps);
     condTable.Channel =  [mappedChannels{:}]';
-    condTable.X = unitLocation(:,1);
-    condTable.X(~mInds) = condTable.X(~mInds) - min(condTable.X(~mInds));
-    condTable.X(mInds) = condTable.X(mInds) - min(condTable.X(mInds));
-    condTable.Y = unitLocation(:,2);
-    condTable.Y(~mInds) = condTable.Y(~mInds) - min(condTable.Y(~mInds));
-    condTable.Y(mInds) = condTable.Y(mInds) - min(condTable.Y(mInds));
     condTable.X = mapSites2Units(condUnitMapping,siteDateMap.x);
     condTable.Y = mapSites2Units(condUnitMapping,siteDateMap.y);
     condTable.Condition = categorical(repmat({params.condAbbrev(conditions{c})},length(mLabs),1));
@@ -75,7 +69,7 @@ plotNames = arrayfun(@(p) arrayfun(@(c) p+"_"+c{1}(1), conditions, 'UniformOutpu
 plotNames = [plotNames{:}];
 tPhys = unstack(tPhys,condTable.Properties.VariableNames(find(...
     strcmp(condTable.Properties.VariableNames,"Condition"))+1:end),"Condition");
-writetable(tPhys,savePath+'PMdTable.xlsx');
+%writetable(tPhys,savePath+'PMdTable.xlsx');
 %%
 plotGroupedBars(cellfun(@(n) num2cell(n,1),condXphase,'UniformOutput',false),savePath+"Units_Phys_FR_Box",false);
 %%

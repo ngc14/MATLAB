@@ -1,5 +1,5 @@
 function Spike_SortRawData(date, monkeyName)
-sessionDate = '02_03_2021';
+sessionDate = '01_28_2021';
 monkey = 'Gilligan';
 if(exist('date', 'var'))
     sessionDate = date;
@@ -315,9 +315,9 @@ for f = 1:sum(spikeChannels)
             sortedSpikeData.Locations= unique(successfulTrial(:,end));
         end
         if(~exist(['S:\Lab\', monkey, '\All Data\', monkey,'_', sessionDate,...
-                '\Physiology\Results_New\'], 'dir'))
+                '\Physiology\Results_All\'], 'dir'))
             mkdir(['S:\Lab\', monkey, '\All Data\', monkey,'_', sessionDate,...
-                '\Physiology\Results_New\']);
+                '\Physiology\Results_All\']);
         end
         save(['S:\Lab\', monkey, '\All Data\', monkey,'_', sessionDate,...
             '\Physiology\Results_New\',fullName],'sortedSpikeData');

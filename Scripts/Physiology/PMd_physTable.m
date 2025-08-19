@@ -2,6 +2,7 @@ pVal = 0.05;
 varNames = ["Unit" "SiteNum" "Monkey" "Somatotopy" "Channel" "X" "Y" "Condition"...
      "TaskUnits" "DiffRest"];
 repNames = ["Arm", "Hand", "Trunk"];
+rNames = ["RT-r", "RSpeed-r"];
 conditions = params.condNames;
 taskAlign = params.PSTHAlignments;
 phaseNames = ["Go", "Reach", "Hold", "Withdraw","Reward"];
@@ -31,6 +32,18 @@ avgPhase = cellfun(@(c) cellfun(@(a) median(cell2mat(reshape(cellfun(@cell2mat,a
 taskUnits = cell2mat(cellfun(@(a,b) cell2mat(a) & repmat(sum(b,2)>MIN_BLOCKS_FOR_UNIT*size(b,2),1,size(b,2)), ...
     num2cell(cat(2,tUnit{:}),2),goodUnits,'Uniformoutput',false));
 taskUnits(:,end+1) = any(taskUnits,2);
+RTs = cellfun(@(c) cellfun(@(s) s{1}(:,2), c,'UniformOutput', false), siteSegs, 'UniformOutput',false);
+Rspeeds = cellfun(@(c) cellfun(@(s) s{1}(:,3), c,'UniformOutput', false), siteSegs, 'UniformOutput',false);
+RTSpikes = cellfun(@(c,cr) cellfun(@(r,tr) num2cell(cell2mat(cellfun(@(a,t) sum(a<t), r,num2cell(repmat(tr',size(r,1),1)),...
+    'UniformOutput',false)),2), c,cr,'UniformOutput',false), rawSpikes, RTs, 'UniformOutput',false);
+RspeedSpikes = cellfun(@(c,cr,crs) cellfun(@(r,tr,trs) num2cell(cell2mat(cellfun(@(a,t,s) sum(a>t & a<s), r,...
+    num2cell(repmat(tr',size(r,1),1)), num2cell(repmat(trs',size(r,1),1)),...
+    'UniformOutput',false)),2), c,cr,crs,'UniformOutput',false), rawSpikes, RTs,Rspeeds, 'UniformOutput',false);
+RTr = cellfun(@(cS,cT) cellfun(@(ss,t) cellfun(@(s) corr(s',t,'rows', 'complete'), ss,'UniformOutput',false),cS,cT, 'UniformOutput',false),...
+    RTSpikes,RTs,'UniformOutput',false);
+RSpeedr =  cellfun(@(cS,cT,cR) cellfun(@(ss,tE,tS) cellfun(@(s) corr(s',tE-tS,'rows', 'complete'), ss,'UniformOutput',false),cS,cT,cR, 'UniformOutput',false),...
+    RspeedSpikes,RTs,Rspeeds,'UniformOutput',false);
+Rs = {RTr,RSpeedr};
 %%
 tPhys = [];
 condXphase = cellfun(@(pc) cell2mat(pc),cellfun(@(e) e(repmat(~isempty(e),size(e))),avgPhase,'UniformOutput', false),'UniformOutput',false);
@@ -62,7 +75,10 @@ for c = 1:length(conditions)
     for pn = 1:length(phaseNames)
         condTable.(phaseNames(pn)) = AUCVals(:,pn);
     end
-    condTable.Properties.VariableNames = [varNames, phaseNames];
+    for r = 1:length(rNames)
+        condTable.(rNames(r)) = cell2mat(vertcat(Rs{r}{c}{:}));
+    end
+    condTable.Properties.VariableNames = [varNames, phaseNames, rNames];
     tPhys = [tPhys;condTable];
 end
 plotNames = arrayfun(@(p) arrayfun(@(c) p+"_"+c{1}(1), conditions, 'UniformOutput', true), phaseNames, 'UniformOutput', false);

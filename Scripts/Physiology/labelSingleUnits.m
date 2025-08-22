@@ -190,8 +190,6 @@ for d = 1:length(dateArray)
         end
     end
 end
-done = char(dateArray(d));
-disp([done,' Saved'])
 end
 function parSave(fileName, savedStruct, lab)
 label = lab;

@@ -200,13 +200,13 @@ for f = 1:sum(spikeChannels)
                 % find index of event n
                 [closestTimeStart, eventTimeInd] = min(abs(dataUnits-eventTimes_risingEdge(startEventIdx(n)+1)));
                 [closestTimeEnd, eventTimeEndInd] = min(abs(dataUnits-eventTimes_risingEdge(endEventIdx(n)-1)));
-                if(min(closestTimeStart,closestTimeEnd)>eventTimes_risingEdge(endEventIdx(n)-1)-eventTimes_risingEdge(startEventIdx(n)+1))
-                    spikeTimes{u,n} = NaN;
-                    segmentTimes{u,n} = NaN;
-                else
+                %if(min(closestTimeStart,closestTimeEnd)>eventTimes_risingEdge(endEventIdx(n)-1)-eventTimes_risingEdge(startEventIdx(n)+1))
+                %    spikeTimes{u,n} = NaN;
+                %    segmentTimes{u,n} = NaN;
+                %else
                     spikeTimes{u,n} = dataUnits(eventTimeInd:eventTimeEndInd);
                     segmentTimes{u,n} = eventTimes_risingEdge(startEventIdx(n)+1:endEventIdx(n)-1);
-                end
+                %end
             end
         end
         %% EXTRACT INFORMATION FROM ARDUINO OUTPUT FILE
@@ -320,7 +320,7 @@ for f = 1:sum(spikeChannels)
                 '\Physiology\Results_All\']);
         end
         save(['S:\Lab\', monkey, '\All Data\', monkey,'_', sessionDate,...
-            '\Physiology\Results_New\',fullName],'sortedSpikeData');
+            '\Physiology\Results_All\',fullName],'sortedSpikeData');
         clear sortedSpikeData spikeTimes segmentTimes
     end
 end

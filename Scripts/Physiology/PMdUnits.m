@@ -43,8 +43,12 @@ restUnits = cellfun(@(d) any(vertcat(d{:}),1)', num2cell([rUnit{:}],2), 'Uniform
 allMaps = cellfun(@(d) d{end}, chMaps, 'UniformOutput',false);
 taskUnits = cellfun(@(a,b) any(cell2mat(a),2) & sum(b,2)>MIN_BLOCKS_FOR_UNIT*size(b,2), ...
     num2cell(cat(2,tUnit{:}),2),goodUnits,'Uniformoutput',false);
-unitChannels = cellfun(@(sc,am) arrayfun(@(s) find(s==am),sc),siteChannels{1},allMaps','UniformOutput',false);
-unit2SiteMap=cell2mat(arrayfun(@(m,n) ones(1,m)*n,cellfun(@(s)size(s,2),unitChannels)',1:length(unitChannels),'UniformOutput',false));
+unitChannels = cell(length(siteChannels{1}),1);
+NaNchannels = cellfun(@(n) all(isnan(n)),siteChannels{1});
+unitChannels(NaNchannels) = siteChannels{1}(NaNchannels);
+unitChannels(~NaNchannels) = cellfun(@(sc,am) arrayfun(@(s) find(s==am),sc),...
+    siteChannels{1}(~NaNchannels),allMaps(~NaNchannels)','UniformOutput',false);
+unit2SiteMap=cell2mat(arrayfun(@(m,n) ones(1,size(m{1},2))*n,unitChannels',1:length(unitChannels),'UniformOutput',false));
 maxCondsFR = cellfun(@(c) cellfun(@(d) max(mean(d{1},3,'omitnan'),[],2,'omitnan'),...
     c,'UniformOutput',false),siteTrialPSTHS, 'UniformOutput',false);
 %%
@@ -100,9 +104,10 @@ end
 for c =1:length(conditions)
     close all;
     tUnits = cell2mat(taskUnits);
+    tUnits = cell2mat(cellfun(@(l) ~isnan(l), unitChannels', 'UniformOutput', false));
     [~,siteUnitMods] = unique(unit2SiteMap);
     taskSiteInds = find(cellfun(@any,arrayfun(@(a) tUnits(unit2SiteMap==a),...
-        min(unit2SiteMap):max(unit2SiteMap),'UniformOutput', false))');
+        min(unit2SiteMap(unit2SiteMap~=0)):max(unit2SiteMap),'UniformOutput', false))');
     %taskSiteInds = intersect(taskSiteInds,find(cellfun(@(s) s(1), siteLocation)>515 & cellfun(@(s) s(1), siteLocation)<600));
     tUnits = taskUnits(taskSiteInds);
     rUnits = restUnits(taskSiteInds);

@@ -30,7 +30,7 @@ numSites = height(siteDateMap);
     siteTrialPSTHS,siteActiveInd,rawSpikes,channelMap] = deal(cell(1,numSites));
 delete(gcp('nocreate'));parpool('local');
 hbar = parforProgress(numSites);
-parfor  i = 1:numSites
+for  i = 32:numSites
     currSession = siteDateMap(i,:);
     if(strcmpi(currSession.Monkey,"Gilligan"))
         dateFormat = 'MM_dd_uuuu';
@@ -43,7 +43,7 @@ parfor  i = 1:numSites
     physDir = strcat(drivePath,currSession.Monkey,"\All Data\", currSession.Monkey,...
         "_",string(currSession.Date),"\Physiology\");
     %delete(fullfile(fullfile(physDir,'*.cache')));
-    physDir = strcat(physDir,"Results_New\");
+    physDir = strcat(physDir,"Results_All\");
     if(~exist(physDir,'dir'))        
         if(~ismember(currSession.Date,{'05_02_2019','11_11_2019'}))
             disp(['Sorting and labeling session: ', currSession.Date]);
@@ -70,6 +70,13 @@ parfor  i = 1:numSites
             currCond = conditions{c};
             condParamInd = cellfun(@(a) contains(a,conditions{c}),sessionConds);
             condInds = cellfun(@(a) contains(a,conditions{c}),currTrials(:,1))';
+            %
+            if(~all(cellfun(@isempty,currTrials(:,7))))
+                condInds = condInds & cellfun(@(s) contains(s,"Fail"), currTrials(:,7))';
+            else
+                condInds = false(size(condInds));
+            end
+            %
             condWeights = weights(:, condParamInd);
             condEvents = params.condSegMap(currCond);
             condAlign = cellfun(@(a) find(strcmp(condEvents,a)),...

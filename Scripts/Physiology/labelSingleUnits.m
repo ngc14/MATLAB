@@ -1,5 +1,5 @@
 function done = labelSingleUnits(processDates,monkey)
-subDirName = '\Results_New';
+subDirName = '\Results_All';
 writeLabels = true;
 plotWaveforms = false;
 if(~exist('monkey','var'))

@@ -6,8 +6,8 @@ rawSpikes = [];
 drivePath = "S:\Lab\";
 monkeys = ["Gilligan", "Skipper"];
 excludeRep = "Face";
-% PSTH parameters: bin sizes, smoothing kernel, seconds prior to zero 
-% alignment,seconds after zero alignment, alignment point(s) for each 
+% PSTH parameters: bin sizes, smoothing kernel, seconds prior to zero
+% alignment,seconds after zero alignment, alignment point(s) for each
 % condition (default value)
 bins = params.bins;
 conditions = cellstr(params.condNames);
@@ -30,7 +30,7 @@ numSites = height(siteDateMap);
     siteTrialPSTHS,siteActiveInd,rawSpikes,channelMap] = deal(cell(1,numSites));
 delete(gcp('nocreate'));parpool('local');
 hbar = parforProgress(numSites);
-for  i = 32:numSites
+parfor  i = 1:numSites
     currSession = siteDateMap(i,:);
     if(strcmpi(currSession.Monkey,"Gilligan"))
         dateFormat = 'MM_dd_uuuu';
@@ -44,7 +44,7 @@ for  i = 32:numSites
         "_",string(currSession.Date),"\Physiology\");
     %delete(fullfile(fullfile(physDir,'*.cache')));
     physDir = strcat(physDir,"Results_All\");
-    if(~exist(physDir,'dir'))        
+    if(~exist(physDir,'dir'))
         if(~ismember(currSession.Date,{'05_02_2019','11_11_2019'}))
             disp(['Sorting and labeling session: ', currSession.Date]);
             Spike_SortRawData(currSession.Date,char(currSession.Monkey));
@@ -53,11 +53,20 @@ for  i = 32:numSites
             disp(['Bad session: ', currSession.Date]);
         end
     else
-        firstChannelDir = dir(strcat(physDir,"*.mat"));
-        firstChannelDir = load([firstChannelDir(1).folder,'\',firstChannelDir(1).name]);
-        if(~isfield(firstChannelDir, 'label') && ~contains(fieldnames(firstChannelDir, '-full'),'label'))
-            disp(['Labeling session: ', currSession.Date]);
-            labelSingleUnits(currSession.Date,char(currSession.Monkey));
+        allChannelDir = dir(strcat(physDir,"*.mat"));
+        firstChannel = load([allChannelDir(1).folder,'\',allChannelDir(1).name]);
+        if(~isfield(firstChannel, 'label') && ~contains(fieldnames(firstChannel, '-full'),'label'))
+            otherPhysDir = strcat(drivePath,currSession.Monkey,"\All Data\", currSession.Monkey,...
+                "_",string(currSession.Date),"\Physiology\Results_New\");
+            if(exist(otherPhysDir,'dir'))
+                for fc = 1:length(allChannelDir)
+                    label = load(otherPhysDir+allChannelDir(fc).name,'-mat','label');
+                    parSave(allChannels(fc), label)
+                end
+            else
+                disp(['Labeling session: ', currSession.Date]);
+                labelSingleUnits(currSession.Date,char(currSession.Monkey));
+            end
         end
     end
     [spikes,times,weights,currTrials,sessionConds,channels,~,~,chMap] =...
@@ -82,7 +91,7 @@ for  i = 32:numSites
             condAlign = cellfun(@(a) find(strcmp(condEvents,a)),...
                 params.PSTHAlignments(currCond),'UniformOutput', false);
             monkeyImFile = strcat(currSession.Monkey,...
-                    string(values(params.condAbbrev,{currCond})));
+                string(values(params.condAbbrev,{currCond})));
             if(allActivityMaps.isKey(monkeyImFile))
                 condImgMap = values(allActivityMaps,{monkeyImFile});
                 currActive{c} = condImgMap{1}(currSession.y, currSession.x);
@@ -126,7 +135,7 @@ for  i = 32:numSites
                     length(condAlign));
                 alignedSpikes{c} = repmat({NaN(numUnits,1)},1,length(condAlign));
             end
-           
+
         end
         % get current session joint label
         siteRep{i} = currSession.SiteRep{:};
@@ -222,4 +231,8 @@ for sr = 1:length(siteRep)
             remappedReps{sr} = "Axial";
         end
     end
+end
+end
+function parSave(dirInf,label)
+save(dirInf.folder+"\"+dirInf.name,'label','-append');
 end

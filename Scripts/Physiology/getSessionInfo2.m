@@ -90,9 +90,9 @@ else
                         NaN, b(find(strcmp(a, 'StartGrasp')):end)],trialSegs(missGraspInds),...
                         segTimes(missGraspInds),'UniformOutput', false);
                 end
-                segTimes(cellfun(@length,trialSegs)~=cellfun(@length,segTimes)) = ...
-                    cellfun(@(n) NaN(1,length(n)), segTimes(cellfun(@length,trialSegs)...
-                    ~=cellfun(@length,segTimes)),'UniformOutput',false);
+%                segTimes(cellfun(@length,trialSegs)~=cellfun(@length,segTimes)) = ...
+%                    cellfun(@(n) NaN(1,length(n)), segTimes(cellfun(@length,trialSegs)...
+%                    ~=cellfun(@length,segTimes)),'UniformOutput',false);
 
                 allTimes(end+1:end+size(segTimes,1),:) = segTimes;
                 channel(end+1:end+sum(goodUnits)) = f;
@@ -110,7 +110,7 @@ else
     end
     if(~isempty(times))
         condSegTrials = cellfun(@(e) values(events,{e}),trials(:,1)');
-        badSegments = cellfun(@length, times)~=cellfun(@length,condSegTrials);
+        badSegments = [];%cellfun(@length, times)~=cellfun(@length,condSegTrials);
         if(any(badSegments))
             %disp(['NaNd segment times for trial(s): ', num2str(find(badSegments)), ' due to bad segmentation.']);
             times(badSegments) = cellfun(@(a) NaN(1,length(a)), condSegTrials(badSegments), 'UniformOutput', false);

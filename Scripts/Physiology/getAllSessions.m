@@ -23,7 +23,7 @@ for m = 1:length(monkeys)
     vMask(monkeys(m)) = monkeyMask;
 end
 siteDateMap = siteDateMap(~cellfun(@isempty, siteDateMap.Date),:);
-siteDateMap = siteDateMap([1:21,23,24,25,27,28,31,32,38,43,46,47,48,49,51,53,56],:);
+siteDateMap = siteDateMap([2,4:17,19,20,21,23,24,25,27,28,31,32,38,43,46,47,48,49,51,53,56],:);
 % load info from all sites
 numSites = height(siteDateMap);
 [siteLocation, siteRep, siteThresh,siteSegs,siteChannels,...
@@ -44,7 +44,7 @@ parfor  i = 1:numSites
         "_",string(currSession.Date),"\Physiology\");
     %delete(fullfile(fullfile(physDir,'*.cache')));
     physDir = strcat(physDir,"Results_All\");
-    if(~exist(physDir,'dir'))
+    if(isempty(dir(physDir+"*.mat")))
         if(~ismember(currSession.Date,{'05_02_2019','11_11_2019'}))
             disp(['Sorting and labeling session: ', currSession.Date]);
             Spike_SortRawData(currSession.Date,char(currSession.Monkey));
@@ -53,21 +53,23 @@ parfor  i = 1:numSites
             disp(['Bad session: ', currSession.Date]);
         end
     else
-        allChannelDir = dir(strcat(physDir,"*.mat"));
-        firstChannel = load([allChannelDir(1).folder,'\',allChannelDir(1).name]);
-        if(~isfield(firstChannel, 'label') && ~contains(fieldnames(firstChannel, '-full'),'label'))
-            otherPhysDir = strcat(drivePath,currSession.Monkey,"\All Data\", currSession.Monkey,...
-                "_",string(currSession.Date),"\Physiology\Results_New\");
-            if(exist(otherPhysDir,'dir'))
-                for fc = 1:length(allChannelDir)
-                    label = load(otherPhysDir+allChannelDir(fc).name,'-mat','label');
-                    parSave(allChannels(fc), label)
-                end
-            else
-                disp(['Labeling session: ', currSession.Date]);
-                labelSingleUnits(currSession.Date,char(currSession.Monkey));
-            end
-        end
+        dirChannels = dir(physDir+"*.mat");
+        firstChannel = load([strcat(physDir,'\',dirChannels(1).name)]);
+%        Spike_SortRawData(currSession.Date,char(currSession.Monkey));
+%        if(~isfield(firstChannel, 'label') && ~contains(fieldnames(firstChannel, '-full'),'label'))
+%            otherPhysDir = strcat(drivePath,currSession.Monkey,"\All Data\", currSession.Monkey,...
+%                "_",string(currSession.Date),"\Physiology\Results_New\");
+%            if(exist(otherPhysDir,'dir') && any(contains(fieldnames(...
+%                    matfile(otherPhysDir+dirChannels(1).name)),'label')))
+%                for fc = 1:length(dirChannels)
+%                    labs = load(otherPhysDir+dirChannels(fc).name,'-mat','label');
+%                    parSave(dirChannels(fc), string(labs.label))
+%                end
+%            else
+%                disp(['Labeling session: ', currSession.Date]);
+%                labelSingleUnits(currSession.Date,char(currSession.Monkey));
+%            end
+%        end
     end
     [spikes,times,weights,currTrials,sessionConds,channels,~,~,chMap] =...
         getSessionInfo2(physDir,singleOrAllUnits,true);
@@ -104,8 +106,9 @@ parfor  i = 1:numSites
                 alignedSpikes{c} = cellfun(@(ap) cellfun(@(s,t) s-t(ap), ...
                     spikes(:,condInds),repmat(times(condInds),size(spikes,1),1),...
                     'UniformOutput',false),condAlign,'UniformOutput',false);
-                alignedTimes = cellfun(@(ap) cell2mat(cellfun(@(t) t-t(ap),...
-                    times(condInds),'UniformOutput', false)'), condAlign, 'UniformOutput', false);
+                alignedTimes = cellfun(@(ap) cell2mat(cellfun(@(t) ...
+                    [t-t(ap), NaN(1,length(condEvents)-length(t))],times(condInds),...
+                    'UniformOutput', false)'), condAlign, 'UniformOutput', false);
                 trialHists{c} = cellfun(@(ac) cellfun(@(a) histcounts(a,...
                     [bins,bins(end)+params.binSize])./(params.binSize),...
                     ac,'UniformOutput', false),alignedSpikes{c},'UniformOutput', false);
@@ -234,5 +237,6 @@ for sr = 1:length(siteRep)
 end
 end
 function parSave(dirInf,label)
+label = string(label);
 save(dirInf.folder+"\"+dirInf.name,'label','-append');
 end

@@ -37,6 +37,8 @@ if(~isempty(figHandle))
     wrapPlots = numel(unique(pos(:,1)));
     nrows = numel(unique(pos(:,2)));
 else
+    figure();
+    figHandle = gcf;
     wrapPlots = min(length(jointName),3);
     nrows = ceil(length(jointName)/wrapPlots);
 end
@@ -45,7 +47,7 @@ maxPlot = 0;
 for j = 1:length(jointName)
     jointInds = arrayfun(@(s) cellfun(@(a) strcmp(a,jointName{j}),s), allReps,'UniformOutput',true);
     jointPSTH = cellfun(@(t) t(jointInds,:), PSTH, 'UniformOutput', false);
-    jointSegs = cellfun(@(t) t(find(strcmp(allReps,jointName{j}).*siteInds'),:), allSegs,'UniformOutput',false);
+    jointSegs = cellfun(@(t) t(strcmp(allReps,jointName{j}) & siteInds,:), allSegs,'UniformOutput',false);
     %     [~, ~, activeJointInds] = intersect(find(activityInd),jointInds(activityInd));
     %     [~,~,inactiveJoints] = intersect(find(~activityInd),find(jointInds));
     %% plot PSTHS
@@ -79,7 +81,9 @@ for j = 1:length(jointName)
             yP(isnan(yP))=[];
             d = patch(xP,yP,1);
             set(d,'edgecolor','none','facealpha',.5,'facecolor',plotColors.(jointName{j}));
-            maxPlot = max(maxPlot,FRLim(end)*max(1,ceil(max(yP)/FRLim(end))));
+            if(~isempty(yP))
+                maxPlot = max(maxPlot,FRLim(end)*max(1,ceil(max(yP)/FRLim(end))));
+            end
             avgSegs = nanmean(currSegs,1);
             if(a==1)
                 plotted = false(1,size(currSegs,2));

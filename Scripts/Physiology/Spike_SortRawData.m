@@ -1,5 +1,5 @@
 function Spike_SortRawData(date, monkeyName)
-sessionDate = '02_07_2020';
+sessionDate = '03_17_2020';
 monkey = 'Gilligan';
 if(exist('date', 'var'))
     sessionDate = date;
@@ -14,7 +14,7 @@ events = repmat({{'GoSignal','StartReach','StartGrasp','StartLift','StartHold',.
     'StartWithdraw','StartReplaceHold','StartReplaceSuccess','StartReward'}}, 2,1);
 events(end+1) = {{'GoSignal','StartReach','StartGrasp','StartHold',...
     'StartWithdraw','StartReplaceHold','StartReplaceSuccess','StartReward'}};
-events(end+1) = {{'GoSignal','StartReplaceHold', 'StartReplaceSuccess','StartReward'}};
+events(end+1) = {{'GoSignal','StartHold', 'StartReplaceHold','StartReplaceSuccess','StartReward'}};
 events = events';
 conds = {'Extra Small Sphere','Large Sphere','Photocell', 'Rest'};
 eventChannel = 'SMA 1';
@@ -246,8 +246,22 @@ for f = 1:sum(spikeChannels)
         % Remove failed trials.
         if(length(recordedTrial)~=max(size((segmentTimes))))
             disp('Arduino file mistmatch trials, using digital lines');
+            for n = 1:length(startEventIdx)
+                segmentTimes{n} = eventTimes_risingEdge(startEventIdx(n)+1:endEventIdx(n)-1);
+            end
+            trialLength = endEventIdx-startEventIdx;
+            errorKeys = [2 3 4 5 6 7 8];
+            errorVals = {'False Start', 'Failed-to-Reach','Failed-to-Contact','Failed-to-Lift',...
+                'Failed-to-Hold','Failed-to-Replace','Failed-to-ReplaceHold'};
+            [~,mostSegments] = max(cellfun(@length, events));
+            mostSegments = events{mostSegments}(1:end-1);
+            errorCondSegs = cellfun(@(e) find(~contains(mostSegments,e)), events, 'UniformOutput',false);
+            errorDiffs = cellfun(@(a) -1.*ismember(1:length(mostSegments),a),errorCondSegs,'UniformOutput',false);
+            eKeys = cellfun(@(e) cumsum(ones(size(mostSegments)) + e), errorDiffs,'UniformOutput',false);
+            condKeys = containers.Map(conds,cellfun(@(k) unique(k(ismember(k,errorKeys))), eKeys, 'UniformOutput',false));
+            condVals = containers.Map(conds,cellfun(@(f) string(errorVals(~ismember(1:length(errorKeys),find(f~=0)))), errorDiffs,'UniformOutput',false));
+            
             correctTrialIdx = pulseLength(endEventIdx)<0.05;
-            arduinoPseudoTable = cell(sum(correctTrialIdx),length(dataArray)-1);
             [~, hFile] = ns_OpenFile(filePath);
             eventEntityID = find(cellfun(@strcmpi, {hFile.Entity.Reason}, repmat({'SMA 2'}, size({hFile.Entity.Reason}))));
             [~, eventEntityInfo] = ns_GetEntityInfo(hFile, eventEntityID(end));
@@ -276,18 +290,46 @@ for f = 1:sum(spikeChannels)
                 [~, SMA4Times(i), pulseVal(i), ~] = ns_GetEventData(hFile, eventEntityID, i);
             end
             SMA4Times = SMA4Times(pulseVal == 32767);
-
-            trialLength = endEventIdx-startEventIdx;
-            reachTrials = (trialLength>3 & trialLength~=5 | (trialLength==5 & ~correctTrialIdx));
-            SMA2Times = SMA2Times(correctTrialIdx(reachTrials==1));
+            SMA2Times = SMA2Times(correctTrialIdx(trialLength>3 & trialLength~=5 | correctTrialIdx~=1 & trialLength==5));
             [minVal,minInd]=arrayfun(@(a) min([min(abs(a-SMA3Times)),min(abs(a-SMA4Times))]),SMA2Times);
+  
+
             photocellInds = minVal>1;
             essInds = minInd==1 & ~photocellInds;
-            arduinoPseudoTable(trialLength(correctTrialIdx)==5,1) = {'Rest'};
-            moveConds = find(cellfun(@isempty,arduinoPseudoTable(:,1)));
-            arduinoPseudoTable(moveConds(photocellInds),1) = {'Photocell'};
-            arduinoPseudoTable(moveConds(essInds),1) = {'Extra Small Sphere'};
-            arduinoPseudoTable(moveConds(~essInds & ~photocellInds),1) = {'Large Sphere'};
+            succesfulTrials = cumsum(correctTrialIdx);
+            arduinoPseudoTable = cell(length(correctTrialIdx),length(errorKeys)+1);
+            arduinoPseudoTable(correctTrialIdx & trialLength==5,1) = {'Rest'};
+            arduinoPseudoTable(correctTrialIdx & trialLength==5,end) = num2cell(succesfulTrials(correctTrialIdx & trialLength==5));
+            moveConds = find(correctTrialIdx & trialLength~=5);
+            moveCondInds = {essInds,~essInds & ~photocellInds,photocellInds};
+            [~,maxSegConds] = max(cellfun(@length,events));
+            maxSegConds = events{maxSegConds};
+            maxSegConds = maxSegConds(1:end-3);
+            for r = 1:length(conds)-1
+                arduinoPseudoTable(moveConds(moveCondInds{r}),1) = conds(r);
+                segCondTimes = num2cell(diff(cell2mat(cellfun(@(p) [p(1:2), NaN(1,length(events{strcmp(conds,conds(r))})-length(p)),...
+                    p(3:end)], segmentTimes(moveConds(moveCondInds{r})), 'UniformOutput',false)'),1,2));
+                arduinoPseudoTable(moveConds(moveCondInds{r}),[false ismember(maxSegConds,events{r})]) = segCondTimes(:,1:end-2);
+                arduinoPseudoTable(moveConds(moveCondInds{r}),end) = num2cell(succesfulTrials(moveConds(moveCondInds{r})));
+            end
+            failedTrials = ~correctTrialIdx;
+            startErrorRep = find([isempty(arduinoPseudoTable{1,1}) diff(failedTrials)]==1);
+            endErrorRep = find(diff(correctTrialIdx)==1);
+            if(length(startErrorRep)>length(endErrorRep))
+                startErrorRep = startErrorRep(1:end-1);
+                arduniPseudoTable = arduinoPseudoTable(1:size(arduinoPseudoTable,1)-1,:);
+            end
+            for r = 1:length(startErrorRep)
+                trialRange = startErrorRep(r):endErrorRep(r);
+                arduinoPseudoTable(trialRange,1) = arduinoPseudoTable(endErrorRep(r)+1);
+                for t = 1:length(trialRange)
+                    arduinoPseudoTable(trialRange(t),2:length(segmentTimes{trialRange(t)})+1) = ...
+                        num2cell(segmentTimes{trialRange(t)}-eventTimes_risingEdge(startEventIdx(trialRange(t))));
+                    currErrors = cell2mat(condVals.values(arduinoPseudoTable(trialRange(t),1)));
+                    errorInd = cell2mat(condKeys.values(arduinoPseudoTable(trialRange(t),1)))==length(segmentTimes{trialRange(t)})+1;
+                    arduinoPseudoTable(trialRange(t),end) = cellstr(currErrors(errorInd));
+                end
+            end
             sortedSpikeData.ArduinoData= arduinoPseudoTable;
 
             sortedSpikeData.SpikeTimes= spikeTimes(:,correctTrialIdx);

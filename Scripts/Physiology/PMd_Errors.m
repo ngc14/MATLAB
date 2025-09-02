@@ -29,16 +29,17 @@ normBaseline = cellfun(@(p,t)cellfun(@(a,n) [max(1,median(cell2mat(reshape(cellf
 normPSTH = cellfun(@(cp,nb) num2cell(cellfun(@(p,b)permute(permute(p,[1 3 2])./repmat(b,1,1,size(p,2)),[1 3 2]),...
     vertcat(cp{:}),repmat(nb,1,size(vertcat(cp{:}),2)),'UniformOutput',false),2),siteTrialPSTHS,normBaseline,'Uniformoutput', false);
 normPSTH = horzcat(normPSTH{:});
+tUnit = cat(2,tUnit{:});
 %%
 unit2SiteMap=cell2mat(cellfun(@(m,n) ones(1,size(m,2))*n,siteChannels,num2cell(1:length(siteChannels)),'UniformOutput',false));
 [~,siteUnitMods] = unique(unit2SiteMap);
-taskUnits = cell2mat(cellfun(@(a) any(cell2mat(a),2), num2cell(cat(2,tUnit{:}),2),'Uniformoutput',false));
+taskUnits = cell2mat(cellfun(@(a) any(cell2mat(a),2), num2cell(tUnit,2),'Uniformoutput',false));
 taskSiteInds = find(cellfun(@any,arrayfun(@(a) taskUnits(unit2SiteMap==a),...
     min(unit2SiteMap(unit2SiteMap~=0)):max(unit2SiteMap),'UniformOutput', false))');
 siteTrialSegs = cellfun(@(n) NaN(size(n,1),length(maxSegL)), siteTrialSegs(taskSiteInds,:),'UniformOutput',false);
 for i = 1:size(siteTrialSegs,1)
     for j = 1:size(siteTrialSegs,2)
-        siteTrialSegs{i,j}(:,condSegMappedInds{j}) = siteSegs{j}{i}{1}; 
+        siteTrialSegs{i,j}(:,condSegMappedInds{j}) = siteSegs{j}{taskSiteInds(i)}{1}; 
     end
 end
 siteDates = siteDateMap(taskSiteInds,:);
@@ -48,40 +49,49 @@ unitLocation = mapSites2Units(cellfun(@length,unitChannelMaps),siteLocation(task
 unitLocation = unitLocation-min(unitLocation(:,:)).*ImagingParameters.px2mm;
 siteUnitNo = mapSites2Units(cellfun(@length,unitChannelMaps),[siteDateMap{taskSiteInds,'Site'}]);
 siteUnitNo = "SiteNo"+arrayfun(@num2str,siteUnitNo,'UniformOutput',false);
-taskUnitsCond = cellfun(@logical,horzcat(tUnit{:}),'Uniformoutput',false);
+taskUnitsCond = cellfun(@(a) logical(cell2mat(a)),num2cell(tUnit(taskSiteInds,:),2), 'UniformOutput',false);
+trialInfo = cellfun(@(c) cellfun(@(t) t(strcmp(t(:,1),c),:), trialInfo(taskSiteInds), 'UniformOutput', false),conditions,'UniformOutput',false);
+normPSTH  = normPSTH(taskSiteInds,:);
 %%
-allTrialInfo = cellfun(@(c) cellfun(@(t) t(strcmp(t(:,1),c),:), trialInfo, 'UniformOutput', false),conditions,'UniformOutput',false);
-allTrialInfo = cellfun(@(r) vertcat(r{:}),num2cell(vertcat(allTrialInfo{:})',2),'UniformOutput',false);
-allPSTHS =cellfun(@(r) cell2mat(reshape(r,1,1,[])), ...
-    num2cell(cellfun(@cell2mat,normPSTH,'UniformOutput',false),2),'UniformOutput',false);
+taskUnitsAll = cellfun(@(a) any(a,2), taskUnitsCond,'UniformOutput',false);
+allTrialInfo = cellfun(@(r) vertcat(r{:}),num2cell(cat(1,trialInfo{:})',2),'UniformOutput',false);
 allTrials = cellfun(@(r) cell2mat(reshape(r,[],1)),num2cell(siteTrialSegs,2),'UniformOutput',false);
-failTypes = cellfun(@(t) string(unique(t(cellfun(@(n) isnan(str2double(n)) & length(n)>0,...
+allPSTHS =cellfun(@(r) cell2mat(reshape(r,1,1,[])),num2cell(...
+    cellfun(@cell2mat,normPSTH,'UniformOutput',false),2),'UniformOutput',false);
+failTypes = cellfun(@(t) string(unique(t(cellfun(@(n) isnan(str2double(n)) & ~isempty(n),...
     t(:,7)),7))), allTrialInfo,'UniformOutput',false);
-failTypes = unique(vertcat(failTypes{:}));
+failTypes = unique(lower(vertcat(failTypes{:})));
+trialInds = cellfun(@(a) ismember(lower(a(:,end-1)),failTypes),allTrialInfo, 'UniformOutput',false);
+allPSTHS = cellfun(@(m,i,a) (i./i).*m(:,:,a),allPSTHS,taskUnitsAll,trialInds,'UniformOutput',false);
+allTrialInfo = cellfun(@(t,a) t(a,:),allTrialInfo,trialInds,'UniformOutput',false);
+allTrials = cellfun(@(t,a) t(a,:),allTrials,trialInds,'UniformOutput',false);
+siteLabels = siteUnitNo(ismember(cellfun(@(s)string(s(7:end)),...
+    cellstr(siteUnitNo)),string(table2array(siteDateMap(:,'Site')))));
 for c =1:length(failTypes)
-    unitPSTHS = cellfun(@(m,i,t) (i./i).*mean(m(:,:,t),3,'omitnan'),...
-        vertcat(normPSTH{taskSiteInds,:}),reshape(taskUnitsCond,[],1),reshape(condInds,[],1),'UniformOutput',false);
-    trialPSTHS = cellfun(@(n,ti,r) squeeze(num2cell((r./r).*permute(n{1}(ti,:,:),[3 2 1]),[1,2])),...
-        normPSTH(taskSiteInds,:),taskUnitsCond,condInds,'Uniformoutput',false);
-    condInds = cellfun(@(t) strcmp(t(:,end-1),failTypes(c)),allTrialInfo,'UniformOutput',false);
+    condInds = reshape(cellfun(@(t) strcmpi(t(:,end-1),failTypes(c)),allTrialInfo,'UniformOutput',false),[],1);
+    unitPSTHS = cellfun(@(m,i,t) (i./i).*mean(m(:,:,t),3,'omitnan'),allPSTHS,...
+        taskUnitsAll,condInds,'UniformOutput',false);
+    trialPSTHS = cellfun(@(n,ti,r) squeeze(num2cell((r./r).*permute(n(ti,:,:),[3 2 1]),[1,2])),...
+       allPSTHS,taskUnitsAll,condInds,'Uniformoutput',false);
     if(plotUnits)
-        plotPSTHS(params.bins,{vertcat(unitPSTHS{:})},{mean(cell2mat(...
-            permute(siteUnitSegs,[1 3 2])),3,'omitnan')},siteUnitNames',taskUnits,...
-            alignLimits,[0 10],cell2struct(num2cell(distinguishable_colors(size(siteUnitSegs,1)),2),...
-            arrayfun(@(t) "SiteNo"+num2str(siteDateMap{t,'Site'}),taskSiteInds)));
+        plotPSTHS(params.bins,{vertcat(unitPSTHS{:})},{cell2mat(cellfun(@(m,r) repmat(mean(m,1,'omitnan'),...
+            size(r,1),1),allTrials,taskUnitsCond,'UniformOutput',false))},...
+            siteLabels,any(vertcat(taskUnitsCond{:}),2)',alignLimits,[0 10],...
+            cell2struct(num2cell(distinguishable_colors(height(siteDates)),2),...
+            arrayfun(@(t)"SiteNo"+num2str(t),[siteDates{:,'Site'}])));
         saveFigures(gcf,strcat(savePath,"PSTHS\Session_PSTHS\"),strcat("Task_Units_",failTypes(c)),[]);
         close all;
         for s = 1:size(trialPSTHS,1)
-            sPSTHS = cellfun(@any,condInds(s,:));
+            sPSTHS = condInds{s};
             if(any(sPSTHS))
-            ucs = siteChannels{s}(any(cell2mat(taskUnitsCond(s,:)),2));
+            ucs = siteChannels{s}(taskUnitsAll{s});
             unitIndex = histcounts(ucs,[unique(ucs),max(ucs)+1]);
-            utc = arrayfun(@(aa,bb) [string(aa),string(arrayfun(@(bi) string([num2str(aa),'_',num2str(bi)]),2:bb,'UniformOutput',false))],...
-                unique(ucs),unitIndex,'UniformOutput',false);
+            utc = arrayfun(@(aa,bb) [string(aa),string(arrayfun(@(bi) string([num2str(aa),'_',num2str(bi)]),...
+                2:bb,'UniformOutput',false))],unique(ucs),unitIndex,'UniformOutput',false);
             unitLabels = string(arrayfun(@(t) "SiteNo"+num2str(siteDates{s,'Site'})+"_"+t,cell2mat(utc),'UniformOutput',false))';
             plotColors =cell2struct(num2cell(distinguishable_colors(length(ucs)),2),unitLabels);
-            unitTrialLabels = cell2mat(arrayfun(@(n) repmat(n,size(cell2mat(siteTrialSegs(s,sPSTHS)'),1),1),unitLabels,'UniformOutput',false));
-            plotPSTHS(params.bins,{cell2mat(vertcat(trialPSTHS{s,sPSTHS}))},{repmat(vertcat(siteTrialSegs{s,sPSTHS}),length(ucs),1)},...
+            unitTrialLabels = cell2mat(arrayfun(@(n) repmat(n,size(allTrials{s},1),1),unitLabels,'UniformOutput',false));
+            plotPSTHS(params.bins,{cell2mat(trialPSTHS{s})},{repmat(allTrials{s},length(ucs),1)},...
                 unitTrialLabels,true(fliplr(size(unitTrialLabels))),alignLimits,[0 10],plotColors);
             saveFigures(gcf,savePath+"PSTHS\Units\"+string(datetime(siteDates.Date{s},'Format','MMMM_dd_yyyy'))+"\",...
                 strcat("Task_Units_",failTypes(c))+"_PSTH",[]);

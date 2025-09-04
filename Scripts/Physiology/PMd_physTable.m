@@ -2,24 +2,25 @@ pVal = 0.05;
 varNames = ["Unit" "SiteNum" "Monkey" "Somatotopy" "Channel" "X" "Y" "Condition"...
      "TaskUnits" "DiffRest"];
 repNames = ["Arm", "Hand", "Trunk"];
-rNames = ["RT-r", "RSpeed-r"];
+rNames = ["RT_r", "RSpeed_r"];
 conditions = params.condNames;
 taskAlign = params.PSTHAlignments;
 phaseNames = ["Go", "Reach", "Hold", "Withdraw","Reward"];
 phaseAlignmentPoints = {["GoSignal","StartReach","StartHold","StartWithdraw","StartReward"],...
     ["GoSignal","StartReach","StartHold","StartWithdraw","StartReward"],...
     ["GoSignal","StartReach","StartHold","StartWithdraw","StartReward"],...
-    ["GoSignal","StartReward"]};
+    ["GoSignal","StartReplaceHold","StartReward"]};
 phaseWinSz = .2;
 phaseWindows = repmat({{[-phaseWinSz*(3/4),phaseWinSz*(1/4)],[-phaseWinSz*(1/2),phaseWinSz*(1/2)],...
     [-phaseWinSz, 0],[-phaseWinSz*(3/4),phaseWinSz*(1/4)],[-phaseWinSz*(1/2),phaseWinSz*(1/2)]}},...
     1,length(conditions)-1);
-phaseWindows(end+1) = {{[-phaseWinSz*(3/4),phaseWinSz*(1/4)],[-phaseWinSz*(1/4),phaseWinSz*(3/4)]}};
+phaseWindows(end+1) = {{[-phaseWinSz*(3/4),phaseWinSz*(1/4)],[-phaseWinSz*(1/4),phaseWinSz*(3/4)],...
+    [-phaseWinSz*(1/4),phaseWinSz*(3/4)]}};
 savePath = "S:\Lab\ngc14\Working\PMd\Task_Units\";
 close all;
 %%
-condRepInds = condInds(allTaskInds)';
-mappedChannels = cellfun(@(ch,l) ch{2}(l(~isnan(l))), chMaps,siteChannels{1}', 'Uniformoutput', false);
+allTaskInds = any(cell2mat(horzcat(tUnit{:})),2);
+mappedChannels = cellfun(@(ch,l) ch{2}(l(~isnan(l))), chMaps,siteChannels, 'Uniformoutput', false)';
 typeUnits = vertcat(restUnits{:});
 avgSeg = cellfun(@(ct) cellfun(@(ca) cellfun(@(t) mean(t,1,'omitnan'), ca, 'UniformOutput',false),...
     ct, 'UniformOutput',false),siteSegs, 'UniformOutput',false);
@@ -34,7 +35,7 @@ taskUnits = cell2mat(cellfun(@(a,b) cell2mat(a) & repmat(sum(b,2)>MIN_BLOCKS_FOR
 taskUnits(:,end+1) = any(taskUnits,2);
 rawSp = cellfun(@(c) cellfun(@(a) a{1}, c,'UniformOutput', false),rawSpikes,'UniformOutput',false);
 RTs = cellfun(@(c) cellfun(@(s) s{1}(:,2), c,'UniformOutput', false), siteSegs, 'UniformOutput',false);
-Rspeeds = cellfun(@(c) cellfun(@(s) s{1}(:,3), c,'UniformOutput', false), siteSegs, 'UniformOutput',false);
+Rspeeds = cellfun(@(c) cellfun(@(s) 1./(s{1}(:,3)), c,'UniformOutput', false), siteSegs, 'UniformOutput',false);
 RTSpikes = cellfun(@(c,cr) cellfun(@(r,tr) num2cell(cell2mat(cellfun(@(a,t) sum(a<t), r,num2cell(repmat(tr',size(r,1),1)),...
     'UniformOutput',false)),2), c,cr,'UniformOutput',false), rawSp, RTs, 'UniformOutput',false);
 RspeedSpikes = cellfun(@(c,cr,crs) cellfun(@(r,tr,trs) num2cell(cell2mat(cellfun(@(a,t,s) sum(a>t & a<s), r,...
@@ -58,7 +59,7 @@ for c = 1:length(conditions)
     AUCVals = condXphase{c};
     tUnits = taskUnits(:,c);
     tUnits(isnan(tUnits)) = 0;
-    condUnitMapping = cellfun(@(si) size(si,2),siteChannels{c});    
+    condUnitMapping = cellfun(@(si) size(si,2),siteChannels)';    
     allReps =  mapSites2Units(condUnitMapping,siteRep');
     mLabs = mapSites2Units(condUnitMapping,siteDateMap.Monkey);
     mInds= contains(mLabs,"Skipper");
@@ -89,6 +90,33 @@ tPhys = unstack(tPhys,condTable.Properties.VariableNames(find(...
 %writetable(tPhys,savePath+'PMdTable.xlsx');
 %%
 plotGroupedBars(cellfun(@(n) num2cell(n,1),condXphase,'UniformOutput',false),savePath+"Units_Phys_FR_Box",false);
+%%
+cl = validatecolor(["#A2142F","#0072BD","#EDB120","#77AC30"],'multiple');
+lm = {};
+for r = 1:length(rNames)
+    figure(); hold on;
+    title(rNames(r));
+    for c = 1:length(conditions)-1
+        xVals = (tPhys.X-min(tPhys.X)).*ImagingParameters.px2mm;
+        yVals = tPhys.(strcat(rNames(r),"_",params.condAbbrev(conditions(c))));
+        scatter(xVals,yVals,'MarkerFaceColor','flat','CData',cl(c,:),'Marker','o');
+        lm{c} = fitlm(xVals,yVals);
+        plot(0:1:max(xVals)+1,arrayfun(@(x) table2array(lm{c}.Coefficients(1,1)) + ...
+            x*table2array(lm{c}.Coefficients(2,1)),0:1:max(xVals)+1),'Color',cl(c,:),'LineWidth',2);
+        cc = coefCI(lm{c});
+        plot(0:1:max(xVals)+1,arrayfun(@(x) cc(1,1) + x*cc(2,1),0:1:max(xVals)+1), 'Color',cl(c,:),'LineWidth',2,'LineStyle','--');
+        plot(0:1:max(xVals)+1,arrayfun(@(x) cc(1,2) + x*cc(2,2),0:1:max(xVals)+1), 'Color',cl(c,:),'LineWidth',2,'LineStyle','--');
+    end
+    ylabel("r-value");
+    xlabel("caudal to rostral (mm)");
+    g = gca;
+    g = g.Children;
+    g = g(arrayfun(@(l) strcmp(l.Type,'line'),g));
+    legend(g(arrayfun(@(l) strcmp(l.LineStyle,'-'),g)), cellfun(@(c,m) ...
+        string(params.condAbbrev(c)+": R^2="+num2str(m.Rsquared.Ordinary,'%.4f')+", p="+ num2str(coefTest(m),'%.2f')), ...
+        cellstr(conditions(1:end-1)),lm));
+    saveFigures(gcf,savePath+"r-Plots\",rNames(r),[]);
+end
 %%
 factorInd = find(contains(tPhys.Properties.VariableNames,phaseNames) & ~contains(tPhys.Properties.VariableNames,"_R"));
 rModel = fitrm(tPhys(:,[find(strcmp(tPhys.Properties.VariableNames,"Somatotopy")),factorInd]),...

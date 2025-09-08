@@ -1,10 +1,7 @@
-pVal = 0.05;
 varNames = ["Unit" "SiteNum" "Monkey" "Somatotopy" "Channel" "X" "Y" "Condition"...
      "TaskUnits" "DiffRest"];
-repNames = ["Arm", "Hand", "Trunk"];
 rNames = ["RT_r", "RSpeed_r"];
 conditions = params.condNames;
-taskAlign = params.PSTHAlignments;
 phaseNames = ["Go", "Reach", "Hold", "Withdraw","Reward"];
 phaseAlignmentPoints = {["GoSignal","StartReach","StartHold","StartWithdraw","StartReward"],...
     ["GoSignal","StartReach","StartHold","StartWithdraw","StartReward"],...
@@ -19,15 +16,12 @@ phaseWindows(end+1) = {{[-phaseWinSz*(3/4),phaseWinSz*(1/4)],[-phaseWinSz*(1/4),
 savePath = "S:\Lab\ngc14\Working\PMd\Task_Units\";
 close all;
 %%
-allTaskInds = any(cell2mat(horzcat(tUnit{:})),2);
 mappedChannels = cellfun(@(ch,l) ch{2}(l(~isnan(l))), chMaps,siteChannels, 'Uniformoutput', false)';
 typeUnits = vertcat(restUnits{:});
 avgSeg = cellfun(@(ct) cellfun(@(ca) cellfun(@(t) mean(t,1,'omitnan'), ca, 'UniformOutput',false),...
     ct, 'UniformOutput',false),siteSegs, 'UniformOutput',false);
 condPhaseAlign = containers.Map(conditions,cellfun(@num2cell,phaseAlignmentPoints,'UniformOutput',false));
 [avgBaseline,avgPhase] =  calculatePhases(params,condPhaseAlign,phaseWindows,avgSeg,normPSTH,false,false);
-avgBase = cellfun(@cell2mat,cellfun(@(c) cellfun(@(a) median(cell2mat(a{1}),2,'omitnan'),...
-    c, 'UniformOutput', false), avgBaseline, 'UniformOutput',false),'UniformOutput',false);
 avgPhase = cellfun(@(c) cellfun(@(a) median(cell2mat(reshape(cellfun(@cell2mat,a(1),'UniformOutput',false),1,1,[])),3,'omitnan'),...
     c, 'UniformOutput', false), avgPhase, 'UniformOutput',false);
 taskUnits = cell2mat(cellfun(@(a,b) cell2mat(a) & repmat(sum(b,2)>MIN_BLOCKS_FOR_UNIT*size(b,2),1,size(b,2)), ...
@@ -91,7 +85,7 @@ tPhys = unstack(tPhys,condTable.Properties.VariableNames(find(...
 %%
 plotGroupedBars(cellfun(@(n) num2cell(n,1),condXphase,'UniformOutput',false),savePath+"Units_Phys_FR_Box",false);
 %%
-cl = validatecolor(["#A2142F","#0072BD","#EDB120","#77AC30"],'multiple');
+cl = flipud(validatecolor(["#A2142F","#EDB120","#0072BD"],'multiple'));
 lm = {};
 for r = 1:length(rNames)
     figure(); hold on;
@@ -115,7 +109,24 @@ for r = 1:length(rNames)
     legend(g(arrayfun(@(l) strcmp(l.LineStyle,'-'),g)), cellfun(@(c,m) ...
         string(params.condAbbrev(c)+": R^2="+num2str(m.Rsquared.Ordinary,'%.4f')+", p="+ num2str(coefTest(m),'%.2f')), ...
         cellstr(conditions(1:end-1)),lm));
+         ylim([-1 1]);
     saveFigures(gcf,savePath+"r-Plots\",rNames(r),[]);
+    f = gca(figure());
+    boxchart(repmat(round(xVals),length(conditions)-1,1),cell2mat(arrayfun(@(c) ...
+        tPhys.(strcat(rNames(r),"_",params.condAbbrev(c))),conditions(1:end-1),'Uniformoutput',false)'),...
+        'GroupByColor',[ones(length(xVals),1);2*ones(length(xVals),1);3*ones(length(xVals),1)],...
+        'Notch','on');
+    hold on;
+    plot([-1:1:max(round(xVals))+1], zeros(1,length(-1:1:max(round(xVals))+1)),'Color','k','LineStyle','--');
+    f.ColorOrder = flipud(cl);
+    legend(arrayfun(@(c) string(params.condAbbrev(c)), conditions(1:end-1)));
+     ylabel("r-value");
+     ylim([-1 1]);
+    xlabel("caudal to rostral (mm)");
+    xticks(0:1:max(round(xVals)));
+    title(rNames(r));
+    saveFigures(gcf,savePath+"r-Plots\",rNames(r)+"_Box",[]);
+    close all;
 end
 %%
 factorInd = find(contains(tPhys.Properties.VariableNames,phaseNames) & ~contains(tPhys.Properties.VariableNames,"_R"));

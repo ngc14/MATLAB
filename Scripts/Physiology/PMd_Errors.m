@@ -90,7 +90,7 @@ plotPSTHS(params.bins,infoTable.PSTHS,infoTable.SegTimes,plotOutcomes,alignLimit
 lastAx = gca;
 xPos = get(lastAx.Children,'XData');
 xPos = unique(cell2mat(xPos(cellfun(@length,xPos)==2)));
-newAx = axes('Position',get(lastAx,'Position'),'XAxisLocation','top','Color','none');
+newAx = axes('Position',get(lastAx,'Position'),'XAxisLocation','top','Color','none','FontWeight','bold');
 newAx.XTick = xPos./(max(lastAx.XLim)-min(lastAx.XLim));
 newAx.XTickLabel = arrayfun(@(s) string(erase(s,'Start')), maxSegL);
 newAx.XTickLabelRotation = 25;

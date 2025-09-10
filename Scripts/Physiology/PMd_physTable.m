@@ -27,10 +27,9 @@ avgPhase = cellfun(@(c) cellfun(@(a) median(cell2mat(reshape(cellfun(@cell2mat,a
 taskUnits = cellfun(@(a,b) cell2mat(a) & repmat(sum(b,2)>MIN_BLOCKS_FOR_UNIT*size(b,2),1,size(b,2)), ...
     num2cell(cat(2,tUnit{:}),2),goodUnits,'Uniformoutput',false);
 condPSTHS = cellfun(@(a) cellfun(@cell2mat,a,'UniformOutput',false), normPSTH,'UniformOutput',false);
-allPSTHS = cellfun(@(c) cellfun(@(r,i) any(i,2).*r,...
-    c,taskUnits,'UniformOutput',false),condPSTHS,'UniformOutput',false);
+allPSTHS = cellfun(@(c) cellfun(@(r,i) any(i,2).*r,c,taskUnits,'UniformOutput',false),condPSTHS,'UniformOutput',false);
 rawSp = cellfun(@(c) cellfun(@(a) a{1}, c,'UniformOutput', false),rawSpikes,'UniformOutput',false);
-sumSegs = cellfun(@(c) cellfun(@(s) cumsum(s{1},2,'omitnan'), c, 'UniformOutput',false), siteSegs, 'UniformOutput',false);
+sumSegs = cellfun(@(c) cellfun(@(s) s{1}, c, 'UniformOutput',false), siteSegs, 'UniformOutput',false);
 RTs = cellfun(@(c) cellfun(@(s) arrayfun(@(g) g>params.bins,s(:,2),'UniformOutput',false), c,'UniformOutput', false), sumSegs, 'UniformOutput',false);
 Rspeeds = cellfun(@(c) cellfun(@(s) arrayfun(@(g) g<params.bins,s(:,3),'UniformOutput', false),c,'UniformOutput',false), sumSegs, 'UniformOutput',false);
 RTSpikes = cellfun(@(c,cr) cellfun(@(r,tr) num2cell(cell2mat(cellfun(@(a,t) max(a(t),[],'omitnan'), permute(num2cell(r,2),[1 3 2]),...

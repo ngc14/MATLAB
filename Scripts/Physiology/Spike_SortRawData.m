@@ -298,20 +298,20 @@ for f = 1:sum(spikeChannels)
             essInds = minInd==1 & ~photocellInds;
             succesfulTrials = cumsum(correctTrialIdx);
             arduinoPseudoTable = cell(length(correctTrialIdx),length(errorKeys)+1);
-            arduinoPseudoTable(correctTrialIdx & trialLength==5,1) = {'Rest'};
-            arduinoPseudoTable(correctTrialIdx & trialLength==5,end) = num2cell(succesfulTrials(correctTrialIdx & trialLength==5));
+            restInds = find(correctTrialIdx & trialLength==5);
             moveConds = find(correctTrialIdx & trialLength~=5);
-            moveCondInds = {essInds,~essInds & ~photocellInds,photocellInds};
+            condInds = {moveConds(essInds),moveConds(~essInds & ~photocellInds),moveConds(photocellInds),restInds};
             [~,maxSegConds] = max(cellfun(@length,events));
             maxSegConds = events{maxSegConds};
-            maxSegConds = maxSegConds(1:end-3);
-            for r = 1:length(conds)-1
-                arduinoPseudoTable(moveConds(moveCondInds{r}),1) = conds(r);
-                segCondTimes = cellfun(@num2str,num2cell(1000*diff(cell2mat(cellfun(@(p) [p(1:2),...
-                    NaN(1,length(events{strcmp(conds,conds(r))})-length(p)),...
-                    p(3:end)], segmentTimes(moveConds(moveCondInds{r})), 'UniformOutput',false)'),1,2)),'UniformOutput',false);
-                arduinoPseudoTable(moveConds(moveCondInds{r}),[false ismember(maxSegConds,events{r})]) = segCondTimes(:,1:end-2);
-                arduinoPseudoTable(moveConds(moveCondInds{r}),end) = num2cell(succesfulTrials(moveConds(moveCondInds{r})));
+            for r = 1:length(conds)
+                arduinoPseudoTable(condInds{r},1) = conds(r);
+                segCondTimes = zeros(length(condInds{r}),length(maxSegConds));
+                matchedTrials = cellfun(@(t) [t(1:2), NaN(length(events{r})-length(t),1),t(3:end)], ...
+                    segmentTimes(condInds{r}),'UniformOutput',false);
+                segCondTimes(:,ismember(maxSegConds,events{r})) = 1000*...
+                    [zeros(length(condInds{r}),1),diff(cell2mat(matchedTrials'),1,2)];
+                arduinoPseudoTable(condInds{r},2:end-1) = num2cell(segCondTimes(:,2:end-2));
+                arduinoPseudoTable(condInds{r},end) = num2cell(succesfulTrials(condInds{r}));
             end
             failedTrials = ~correctTrialIdx;
             startErrorRep = find([isempty(arduinoPseudoTable{1,1}) diff(failedTrials)]==1);
@@ -366,7 +366,7 @@ for f = 1:sum(spikeChannels)
                 '\Physiology\Results_All\']);
         end
         save(['S:\Lab\', monkey, '\All Data\', monkey,'_', sessionDate,...
-            '\Physiology\Results_All\',fullName],'sortedSpikeData');
+            '\Physiology\Results_All\',fullName,'.mat'],'sortedSpikeData','-mat','-append');
         clear sortedSpikeData spikeTimes segmentTimes
     end
 end

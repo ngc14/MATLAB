@@ -307,8 +307,9 @@ for f = 1:sum(spikeChannels)
             maxSegConds = maxSegConds(1:end-3);
             for r = 1:length(conds)-1
                 arduinoPseudoTable(moveConds(moveCondInds{r}),1) = conds(r);
-                segCondTimes = num2cell(diff(cell2mat(cellfun(@(p) [p(1:2), NaN(1,length(events{strcmp(conds,conds(r))})-length(p)),...
-                    p(3:end)], segmentTimes(moveConds(moveCondInds{r})), 'UniformOutput',false)'),1,2));
+                segCondTimes = cellfun(@num2str,num2cell(1000*diff(cell2mat(cellfun(@(p) [p(1:2),...
+                    NaN(1,length(events{strcmp(conds,conds(r))})-length(p)),...
+                    p(3:end)], segmentTimes(moveConds(moveCondInds{r})), 'UniformOutput',false)'),1,2)),'UniformOutput',false);
                 arduinoPseudoTable(moveConds(moveCondInds{r}),[false ismember(maxSegConds,events{r})]) = segCondTimes(:,1:end-2);
                 arduinoPseudoTable(moveConds(moveCondInds{r}),end) = num2cell(succesfulTrials(moveConds(moveCondInds{r})));
             end
@@ -321,27 +322,29 @@ for f = 1:sum(spikeChannels)
             end
             for r = 1:length(startErrorRep)
                 trialRange = startErrorRep(r):endErrorRep(r);
-                arduinoPseudoTable(trialRange,1) = arduinoPseudoTable(endErrorRep(r)+1);
+                arduinoPseudoTable(trialRange,1) = arduinoPseudoTable(endErrorRep(r)+1,1);
                 for t = 1:length(trialRange)
                     arduinoPseudoTable(trialRange(t),2:length(segmentTimes{trialRange(t)})+1) = ...
                         num2cell(segmentTimes{trialRange(t)}-eventTimes_risingEdge(startEventIdx(trialRange(t))));
                     currErrors = cell2mat(condVals.values(arduinoPseudoTable(trialRange(t),1)));
                     errorInd = cell2mat(condKeys.values(arduinoPseudoTable(trialRange(t),1)))==length(segmentTimes{trialRange(t)})+1;
-                    arduinoPseudoTable(trialRange(t),end) = cellstr(currErrors(errorInd));
+                    arduinoPseudoTable(trialRange(t),end-1) = cellstr(currErrors(errorInd));
                 end
             end
-            sortedSpikeData.ArduinoData= arduinoPseudoTable;
-
+            falseTrialIdx=cellfun(@(s) strcmp(s,"False Start") | strcmp(s,"Failed-to-Reach") | isempty(s),...
+                arduinoPseudoTable(:,8),'UniformOutput',false);
+            correctTrialIdx = find(~cell2mat(falseTrialIdx));
             sortedSpikeData.SpikeTimes= spikeTimes(:,correctTrialIdx);
             sortedSpikeData.SegTimes= segmentTimes(:,correctTrialIdx);
             sortedSpikeData.Date= sessionDate;
             sortedSpikeData.DataChannel= f;
             sortedSpikeData.EventChannel= eventChannel;
+            sortedSpikeData.ArduinoData = arduinoPseudoTable(correctTrialIdx,:);
             sortedSpikeData.Conditions= conds;
             sortedSpikeData.ConditionSegments= events;
             sortedSpikeData.Locations= "ARDUINO_OUTPUT_ERROR";
         else
-            falseTrialIdx=cellfun(@(s) strcmp(s,"False Start") | strcmp(s,"Failed-to-Reach"),recordedTrial(:,8),'UniformOutput',false);
+            falseTrialIdx=cellfun(@(s) strcmp(s,"False Start") | strcmp(s,"Failed-to-Reach") | isempty(s),recordedTrial(:,8),'UniformOutput',false);
             correctTrialIdx = find(~cell2mat(falseTrialIdx));
             % falseTrialIdx=cellfun(@num2str,recordedTrial(:,8),'UniformOutput',false);
             % correctTrialIdx=find(~cellfun(@isempty,falseTrialIdx));

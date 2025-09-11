@@ -38,7 +38,7 @@ for j = 1:size(siteTrialSegs,2)
     end
 end
 siteTrialSegs=cellfun(@(v) vertcat(v{:}),num2cell(cat(2,siteTrialSegs{:}),2),'UniformOutput',false);
-failedTrials = cellfun(@(t) cellfun(@(n) isnan(str2double(n)) & ~isempty(n), t(:,end-1)), trialInfo, 'UniformOutput',false);
+failedTrials = cellfun(@(t) cellfun(@(n) isnan(str2double(n)) & ~isempty(n), cellstr(t(:,end-1))), trialInfo, 'UniformOutput',false);
 for s = 1:length(failedTrials)
     tInds = failedTrials{s};
     failedTrials{s} = strings(length(tInds),1);
@@ -166,7 +166,7 @@ for j = 1:length(groupName)
     for s = 1:max(c)
         if(avgSegs(s)>=PSTHDisplayLimits(1) && ...
                 avgSegs(s)<=PSTHDisplayLimits(end))
-            if(avgSegs(s)==0)
+            if(avgSegs(s)==0 || s>=mode(c))
                 plotColor = segColors(1);
             else
                 plotColor = segColors(end);
@@ -178,9 +178,9 @@ for j = 1:length(groupName)
         end
     end
     lowCI= find(isalmost(PSTHDisplayLimits(1):binSize:PSTHDisplayLimits(end),...
-        prctile(groupSegs(lastInd),5),binSize/1.99),1);
+        avgSegs(mode(c))-(1.65*std(groupSegs(lastInd))),binSize/1.99),1);
     highCI= find(isalmost(PSTHDisplayLimits(1):binSize:PSTHDisplayLimits(end),...
-        min(PSTHDisplayLimits(end),prctile(groupSegs(lastInd),95)),binSize/1.99),1);
+        min(PSTHDisplayLimits(end),avgSegs(mode(c))+(1.65*std(groupSegs(lastInd)))),binSize/1.99),1);
     patch([lowCI, highCI, highCI, lowCI],[0 0 maxPlot maxPlot],plotColors.(groupName{j}),'FaceAlpha',0.25,'LineStyle','none');
     allXTicks = PSTHDisplayLimits(1):binSize:PSTHDisplayLimits(end);
     xticks([0,find(isalmost(mod(allXTicks,1),1,binSize)),xAlignTicks(end)]);
@@ -188,6 +188,8 @@ for j = 1:length(groupName)
         round(allXTicks(isalmost(mod(allXTicks,1),1,binSize))),'UniformOutput',false),...
         num2str(PSTHDisplayLimits(end),'%.2f')];
     xticklabels(allLabels);
+    set(gca,'XMinorTick','on');
+    set(get(gca,'XAxis'),'MinorTickValues',find(isalmost(mod(allXTicks,1),.5,binSize/1.99)));
 end
 figHandle = figHandle.Children;
 set(figHandle(strcmp(get(figHandle,'Type'),'axes')),'YLim',[FRLim(1),maxPlot]);

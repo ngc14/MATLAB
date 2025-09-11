@@ -137,12 +137,12 @@ nPacket = length(startPacket:endPacket);
 nChannel = length(fileInfo.ElectrodeList);
 bytesSkip = bytesPerPoint * nChannel;
 if useScale
-  Data = zeros(length(EntityIDs), IndexCount);
+  Data = zeros(IndexCount, length(EntityIDs));
 else
   if bytesPerPoint == 4
-    Data = zeros(length(EntityIDs), IndexCount, 'single');
+    Data = zeros(IndexCount, length(EntityIDs), 'single');
   else
-    Data = zeros(length(EntityIDs), IndexCount, 'int16');
+    Data = zeros(IndexCount, length(EntityIDs), 'int16');
   end
 end
 % More or less randomly put read only 10e8 points at once (each point is
@@ -202,11 +202,11 @@ for k = 1:nPacket
     % Copy wanted data return value.  If scaling will be used, convert to
     % double.
     if useScale
-      Data(:, currentPoint + 1:currentPoint + currentRead) = ...
-        double(readData(wantedChannels, :));
+      Data(currentPoint + 1:currentPoint + currentRead,:) = ...
+        double(transpose(readData(wantedChannels,:)));
     else
-      Data(:,currentPoint + 1:currentPoint + currentRead) = ...
-        readData(wantedChannels, :);
+      Data(currentPoint + 1:currentPoint + currentRead,:) = ...
+        transpose(readData(wantedChannels,:));
     end
     % advance the read marker for overall file
     currentPoint = currentPoint + currentRead;
@@ -219,9 +219,8 @@ end
 % needs to be considered in the scaling.  Also, it would be good if Data
 % was in columnar format not row as it currently is.
 if useScale
-  Data = bsxfun(@times,Data,[hFile.Entity(EntityIDs).Scale]');
+  Data = bsxfun(@times,Data,[hFile.Entity(EntityIDs).Scale]);
 end
-Data = Data';
 
 
 

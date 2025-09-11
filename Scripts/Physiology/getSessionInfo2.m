@@ -84,7 +84,7 @@ else
                 trialSegs = cellfun(@(t) t{:}, trialSegs, 'UniformOutput', false);
                 cSpikes = cSpikes(goodUnits,:);
 
-                missGraspInds = cellfun(@(a,b) length(a)+1==length(b), segTimes,trialSegs);
+                missGraspInds = cellfun(@(a,b) length(a)>5 & length(a)+1==length(b), segTimes,trialSegs);
                 if(any(missGraspInds(:)))
                     segTimes(missGraspInds) = cellfun(@(a,b) [b(1:find(strcmp(a,'StartGrasp'))-1),...
                         NaN, b(find(strcmp(a, 'StartGrasp')):end)],trialSegs(missGraspInds),...

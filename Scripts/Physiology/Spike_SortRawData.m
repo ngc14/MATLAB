@@ -1,5 +1,5 @@
 function Spike_SortRawData(date, monkeyName)
-sessionDate = '03_20_2020';
+sessionDate = '04_17_2020';
 monkey = 'Gilligan';
 if(exist('date', 'var'))
     sessionDate = date;
@@ -348,10 +348,8 @@ for f = 1:sum(spikeChannels)
             sortedSpikeData.ConditionSegments= events;
             sortedSpikeData.Locations= "ARDUINO_OUTPUT_ERROR";
         else
-            falseTrialIdx=cellfun(@(s) strcmp(s,"False Start") | strcmp(s,"Failed-to-Reach") | isempty(s),recordedTrial(:,8),'UniformOutput',false);
-            correctTrialIdx = find(~cell2mat(falseTrialIdx));
-            % falseTrialIdx=cellfun(@num2str,recordedTrial(:,8),'UniformOutput',false);
-            % correctTrialIdx=find(~cellfun(@isempty,falseTrialIdx));
+            falseTrialIdx=false(size(recordedTrial,1),1);
+            correctTrialIdx = find(~falseTrialIdx);
             %[row,~]=find(cellfun(@(x) removeShortSegs(x), recordedTrial(:,2:6)));
             successfulTrial=recordedTrial(correctTrialIdx,[1:7,9]);
             sortedSpikeData.SpikeTimes= spikeTimes(:,correctTrialIdx);

@@ -43,7 +43,8 @@ for s = 1:length(failedTrials)
     tInds = failedTrials{s};
     failedTrials{s} = strings(length(tInds),1);
     failedTrials{s}(tInds) = replace(lower(string(trialInfo{s}(tInds,end-1))),'-','_');
-    failedTrials{s}(~tInds) = "success";
+    failedTrials{s}(~tInds & isnan(siteTrialSegs{s}(:,end))) = 'failed_to_replace';
+    failedTrials{s}(failedTrials{s}=="" & ~strcmp(trialInfo{s}(:,1),"Rest")) = "success";
     failedTrials{s}(contains(failedTrials{s},"hold") & (strcmp(trialInfo{s}(:,1),"Photocell") ...
         | strcmp(trialInfo{s}(:,1),"Rest"))) = "";
 end
@@ -57,7 +58,7 @@ infoTable.PSTHS = cellfun(@(r,i)(i./i).*cell2mat(reshape(r,1,1,[])),num2cell(...
     cellfun(@cell2mat,normPSTH,'UniformOutput',false),2),infoTable.TaskModulated,'UniformOutput',false);
 failTypes = unique(cell2mat(infoTable.Outcomes));
 failTypes = failTypes(failTypes~="");
-failTypes = failTypes(arrayfun(@(a) find(contains(failTypes,a)),["contact","lift","hold","success"]));
+failTypes = failTypes(arrayfun(@(a) find(contains(failTypes,a)),["contact","lift","hold","replace","success"]));
 %%
 for f = 1:length(failTypes)
     failTrials = cellfun(@(s) strcmp(s,failTypes(f)), infoTable.Outcomes,'UniformOutput',false);
@@ -127,7 +128,7 @@ else
     figHandle = gcf;
     wrapPlots = min(length(groupName),3);
     nrows = ceil(length(groupName)/wrapPlots);
-   wrapPlots=1;nrows=4;
+   wrapPlots=1;nrows=length(groupName);
 end
 maxPlot = 0;
 for j = 1:length(groupName)
@@ -178,7 +179,7 @@ for j = 1:length(groupName)
         end
     end
     lowCI= find(isalmost(PSTHDisplayLimits(1):binSize:PSTHDisplayLimits(end),...
-        avgSegs(mode(c))-(1.65*std(groupSegs(lastInd))),binSize/1.99),1);
+        avgSegs(mode(c))-(1.65*std(groupSegs(lastInd),1,'all','omitnan')),binSize/1.99),1);
     highCI= find(isalmost(PSTHDisplayLimits(1):binSize:PSTHDisplayLimits(end),...
         min(PSTHDisplayLimits(end),avgSegs(mode(c))+(1.65*std(groupSegs(lastInd)))),binSize/1.99),1);
     patch([lowCI, highCI, highCI, lowCI],[0 0 maxPlot maxPlot],plotColors.(groupName{j}),'FaceAlpha',0.25,'LineStyle','none');

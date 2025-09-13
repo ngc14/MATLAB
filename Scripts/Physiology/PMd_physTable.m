@@ -21,27 +21,34 @@ typeUnits = vertcat(restUnits{:});
 avgSeg = cellfun(@(ct) cellfun(@(ca) cellfun(@(t) mean(t,1,'omitnan'), ca, 'UniformOutput',false),...
     ct, 'UniformOutput',false),siteSegs, 'UniformOutput',false);
 condPhaseAlign = containers.Map(conditions,cellfun(@num2cell,phaseAlignmentPoints,'UniformOutput',false));
-[avgBaseline,avgPhase] =  calculatePhases(params,condPhaseAlign,phaseWindows,avgSeg,normPSTH,false,false);
+allSegs = params.condSegMap.values;
+[~,maxSegL]= max(cellfun(@length,allSegs));
+maxSegL = allSegs{maxSegL};
+condSegMappedInds = cellfun(@(f) find(contains(maxSegL,f)), allSegs, 'UniformOutput', false);
+sumSegs = cellfun(@(c) cellfun(@(n) NaN(size(n{1},1),length(maxSegL)), c, 'UniformOutput',false), siteSegs,'UniformOutput',false);
+for j = 1:size(sumSegs,2)
+    for i = 1:length(mappedChannels)
+        sumSegs{j}{i}(:,condSegMappedInds{j}) = siteSegs{j}{i}{1};
+    end
+end
+[~,avgPhase] =  calculatePhases(params,condPhaseAlign,phaseWindows,avgSeg,normPSTH,false,false);
 avgPhase = cellfun(@(c) cellfun(@(a) median(cell2mat(reshape(cellfun(@cell2mat,a(1),'UniformOutput',false),1,1,[])),3,'omitnan'),...
     c, 'UniformOutput', false), avgPhase, 'UniformOutput',false);
 taskUnits = cellfun(@(a,b) cell2mat(a) & repmat(sum(b,2)>MIN_BLOCKS_FOR_UNIT*size(b,2),1,size(b,2)), ...
     num2cell(cat(2,tUnit{:}),2),goodUnits,'Uniformoutput',false);
-condPSTHS = cellfun(@(a) cellfun(@cell2mat,a,'UniformOutput',false), normPSTH,'UniformOutput',false);
-allPSTHS = cellfun(@(c) cellfun(@(r,i) any(i,2).*r,c,taskUnits,'UniformOutput',false),condPSTHS,'UniformOutput',false);
-rawSp = cellfun(@(c) cellfun(@(a) a{1}, c,'UniformOutput', false),rawSpikes,'UniformOutput',false);
-sumSegs = cellfun(@(c) cellfun(@(s) s{1}, c, 'UniformOutput',false), siteSegs, 'UniformOutput',false);
-RTs = cellfun(@(c) cellfun(@(s) arrayfun(@(g) g>params.bins,s(:,2),'UniformOutput',false), c,'UniformOutput', false), sumSegs, 'UniformOutput',false);
-Rspeeds = cellfun(@(c) cellfun(@(s) arrayfun(@(g) g<params.bins,s(:,3),'UniformOutput', false),c,'UniformOutput',false), sumSegs, 'UniformOutput',false);
-RTSpikes = cellfun(@(c,cr) cellfun(@(r,tr) num2cell(cell2mat(cellfun(@(a,t) max(a(t),[],'omitnan'), permute(num2cell(r,2),[1 3 2]),...
-    repmat(tr',size(r,1),1),'UniformOutput',false)),2), c,cr,'UniformOutput',false), allPSTHS, RTs, 'UniformOutput',false);
-RspeedSpikes = cellfun(@(c,cr,crs) cellfun(@(r,tr,trs) num2cell(cell2mat(cellfun(@(a,t,s) max(a(~t&s),[],'omitnan'),...
-     permute(num2cell(r,2),[1 3 2]),repmat(tr',size(r,1),1), repmat(trs',size(r,1),1),...
-    'UniformOutput',false)),2), c,cr,crs,'UniformOutput',false), allPSTHS, RTs,Rspeeds, 'UniformOutput',false);
-RTr = cellfun(@(cS,cT) cellfun(@(ss,t) cellfun(@(s) corr(s',cellfun(@sum,t)./1000,'rows', 'complete'), ss,'UniformOutput',false),cS,cT, 'UniformOutput',false),...
-    RTSpikes,RTs,'UniformOutput',false);
-RSpeedr =  cellfun(@(cS,cT,cR) cellfun(@(ss,tE,tS) cellfun(@(s) corr(s',...
-    cellfun(@(t,e) sum(e & ~t),tE,tS)./1000,'rows', 'complete'), ss,'UniformOutput',false),cS,cT,cR, 'UniformOutput',false),...
-    RspeedSpikes,RTs,Rspeeds,'UniformOutput',false);
+%%
+condPSTHS = cellfun(@(c) cellfun(@(cp) cell2mat(cp),c,'UniformOutput',false),normPSTH,'UniformOutput',false);
+allPSTHS = cellfun(@(c) cellfun(@(r,i) (any(i,2)./any(i,2)).*r,c,taskUnits,'UniformOutput',false),condPSTHS,'UniformOutput',false);
+tBounds = cellfun(@(c) cellfun(@(s) s(:,1:3),c,'UniformOutput',false), sumSegs, 'UniformOutput',false);
+
+RTMean = cellfun(@(c,cr) cellfun(@(r,tr) cellfun(@(s,p) mean(p(:,params.bins>s(:,1) & params.bins<s(:,2)),2,'omitnan'),...
+    num2cell(tr,2),squeeze(num2cell(r,[1,2])),'UniformOutput',false),c,cr,'UniformOutput',false), allPSTHS, tBounds, 'UniformOutput',false);
+RSpeedMean = cellfun(@(c,cr) cellfun(@(r,tr)cellfun(@(s,p) mean(p(:,params.bins>s(:,2) & params.bins<s(:,3)),2,'omitnan'),...
+    num2cell(tr,2),squeeze(num2cell(r,[1,2])),'UniformOutput',false),c,cr,'UniformOutput',false), allPSTHS,tBounds,'UniformOutput',false);
+RTr = cellfun(@(cS,cT) cellfun(@(ss,tE) cellfun(@(s) corr(s',diff(tE(:,1:end-1),1,2)./1000,'rows', 'complete'),...
+    num2cell(cell2mat(ss'),2),'UniformOutput',false),cS,cT, 'UniformOutput',false),RTMean,tBounds,'UniformOutput',false);
+RSpeedr =  cellfun(@(cS,cT) cellfun(@(ss,tE) cellfun(@(s) corr(s',diff(tE(:,2:end),1,2)./1000,'rows', 'complete'),...
+    num2cell(cell2mat(ss'),2),'UniformOutput',false),cS,cT,'UniformOutput',false),RSpeedMean,tBounds,'UniformOutput',false);
 Rs = {RTr,RSpeedr};
 %%
 tPhys = [];
@@ -130,6 +137,30 @@ for r = 1:length(rNames)
     title(rNames(r));
     saveFigures(gcf,savePath+"r-Plots\Max\",rNames(r)+"_Box",[]);
     close all;
+end
+%%
+close all;
+allBounds = cellfun(@(cR) vertcat(cR{:}), num2cell(horzcat(tBounds{3}),2), 'UniformOutput', false);
+rtTimes = cellfun(@(b)diff(b(:,1:end-1),1,2),allBounds, 'UniformOutput',false);
+reachTimes =  cellfun(@(b) diff(b(:,2:end),1,2),allBounds, 'UniformOutput',false);
+rtFRs = cellfun(@(v) cell2mat(cellfun(@transpose,vertcat(v{:}),'UniformOutput',false))',num2cell(horzcat(RTMean{3}),2),'UniformOutput',false);
+reachFRs = cellfun(@(v) cell2mat(cellfun(@transpose,vertcat(v{:}),'UniformOutput',false))',num2cell(horzcat(RSpeedMean{3}),2),'UniformOutput',false);
+
+for r = 1:2
+figure();hold on;
+if(r==1)
+    rPlotY = rtFRs;
+    rPlotX = rtTimes;
+else
+    rPlotY = reachFRs;
+    rPlotX = reachTimes;
+end
+s=cellfun(@(rx,ry) scatter(reshape(repmat(rx(rx~=0),1,size(ry,1))'.*(ry(:,rx~=0)~=0./ry(:,rx~=0)~=0),1,[]), ...
+    reshape(ry(:,rx~=0).*(ry(:,rx~=0)~=0./ry(:,rx~=0)~=0),1,[])), rPlotX, rPlotY);
+     ylabel("mean FR");
+    xlabel("Duration (s)");
+    title(rNames(r));
+    ylim([0 100]);
 end
 %%
 factorInd = find(contains(tPhys.Properties.VariableNames,phaseNames) & ~contains(tPhys.Properties.VariableNames,"_R"));

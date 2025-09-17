@@ -86,7 +86,7 @@ for p = 1:length(plotOutcomes)
      plotOutcomes{p}(strcmp(plotOutcomes{p},"success")) = "";
      plotOutcomes{p}(randsample(find(f),sampleNum(p))) = "success";
 end
-plotPSTHS(params.bins,infoTable.PSTHS,infoTable.SegTimes,plotOutcomes,alignLimits,[0 15],failColors);
+plotPSTHS(params.bins,infoTable.PSTHS,infoTable.SegTimes,plotOutcomes,alignLimits,[0 12],failColors);
 lastAx = gca;
 xPos = get(lastAx.Children,'XData');
 xPos = unique(cell2mat(xPos(cellfun(@length,xPos)==2)));
@@ -95,7 +95,7 @@ newAx.XTick = xPos./(max(lastAx.XLim)-min(lastAx.XLim));
 newAx.XTickLabel = arrayfun(@(s) string(erase(s,'Start')), maxSegL);
 newAx.XTickLabelRotation = 25;
 newAx.YTick = [];
-saveFigures(gcf,savePath,"Averages",[]);
+saveFigures(gcf,savePath+"Errors\","Averages",[]);
 
 
 function figHandle = plotPSTHS(bins,PSTHIn,allSegsIn,groupInds,...

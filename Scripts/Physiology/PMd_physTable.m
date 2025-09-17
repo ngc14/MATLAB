@@ -38,7 +38,9 @@ taskUnits = cellfun(@(a,b) cell2mat(a) & repmat(sum(b,2)>MIN_BLOCKS_FOR_UNIT*siz
     num2cell(cat(2,tUnit{:}),2),goodUnits,'Uniformoutput',false);
 %%
 condPSTHS = cellfun(@(c) cellfun(@(cp) cell2mat(cp),c,'UniformOutput',false),normPSTH,'UniformOutput',false);
-allPSTHS = cellfun(@(c) cellfun(@(r,i) (any(i,2)./any(i,2)).*r,c,taskUnits,'UniformOutput',false),condPSTHS,'UniformOutput',false);
+trialCondInfo = arrayfun(@(c) cellfun(@(s) s(strcmp(s(:,1),c),:), trialInfo, 'UniformOutput',false),conditions,'UniformOutput',false);
+allPSTHS = cellfun(@(c,t) cellfun(@(r,n,i) permute(permute((any(i,2)./any(i,2)).*r,...
+    [3 2 1]).*~isnan(cellfun(@str2double,n(:,end-1))),[3 2 1]),c,t,taskUnits,'UniformOutput',false),condPSTHS,trialCondInfo,'UniformOutput',false);
 tBounds = cellfun(@(c) cellfun(@(s) s(:,1:3),c,'UniformOutput',false), sumSegs, 'UniformOutput',false);
 
 RTMean = cellfun(@(c,cr) cellfun(@(r,tr) cellfun(@(s,p) mean(p(:,params.bins>s(:,1) & params.bins<s(:,2)),2,'omitnan'),...
@@ -155,12 +157,22 @@ else
     rPlotY = reachFRs;
     rPlotX = reachTimes;
 end
-s=cellfun(@(rx,ry) scatter(reshape(repmat(rx(rx~=0),1,size(ry,1))'.*(ry(:,rx~=0)~=0./ry(:,rx~=0)~=0),1,[]), ...
-    reshape(ry(:,rx~=0).*(ry(:,rx~=0)~=0./ry(:,rx~=0)~=0),1,[])), rPlotX, rPlotY);
+s=cellfun(@(rx,ry) scatter(reshape(repmat(rx(rx~=0),1,size(ry,1))'.*1./~isinf(1./logical(ry~=0)),1,[]), ...
+    reshape(ry.*1./~isinf(1./logical(ry~=0)),1,[])), rPlotX, rPlotY);
      ylabel("mean FR");
     xlabel("Duration (s)");
     title(rNames(r));
     ylim([0 100]);
+    allX = cell2mat(arrayfun(@(ss) ss.XData, s, 'UniformOutput',false)');
+    allY = cell2mat(arrayfun(@(ss) ss.YData, s, 'UniformOutput',false)');
+     lm = fitlm(allX,allY);
+     gc = gca();
+        plot(gc.XTick,arrayfun(@(x) table2array(lm.Coefficients(1,1)) + ...
+            x*table2array(lm.Coefficients(2,1)),gc.XTick),'LineWidth',2);
+        cc = coefCI(lm);
+        plot(gc.XTick,arrayfun(@(x) cc(1,1) + x*cc(2,1),gc.XTick),'LineWidth',2,'LineStyle','--');
+        plot(gc.XTick,arrayfun(@(x) cc(1,2) + x*cc(2,2),gc.XTick),'LineWidth',2,'LineStyle','--');
+    saveFigures(gcf,savePath+"r-Plots\","Mean_"+rNames(r),[]);
 end
 %%
 factorInd = find(contains(tPhys.Properties.VariableNames,phaseNames) & ~contains(tPhys.Properties.VariableNames,"_R"));

@@ -1,18 +1,16 @@
 conditions = ["Extra Small Sphere", "Large Sphere", "Photocell","Rest"];
 taskAlign = containers.Map(conditions,{{["GoSignal" "StartHold"]},{["GoSignal","StartHold"]},...
-    {["GoSignal","StartHold"]}, {["GoSignal","StartReplaceHold"]}});
+    {["GoSignal","StartHold"]},{["GoSignal","StartReplaceHold"]}});
 taskWindow =repmat({{[-0.3, 0]}},1,length(conditions));
 pVal=0.05;
-alignLimits = [-.75, 10.5];
-monkey = "Gilligan";
-params = PhysRecording(string(conditions),.01,.15,-5,11,containers.Map(conditions,...
+alignLimits = [-3, 10.5];
+params = PhysRecording(string(conditions),.01,.15,-5,15,containers.Map(conditions,...
     {"GoSignal","GoSignal","GoSignal","GoSignal"}));
 allSegs = params.condSegMap.values;
 [~,maxSegL]= max(cellfun(@length,allSegs));
 maxSegL = allSegs{maxSegL};
 condSegMappedInds = cellfun(@(f) find(contains(maxSegL,f)), allSegs, 'UniformOutput', false);
-savePath = "S:\Lab\ngc14\Working\PMd\Errors\";
-plotUnits = false;
+savePath = "S:\Lab\ngc14\Working\PMd\Task_Units\Errors\";
 %%
 [siteDateMap, siteSegs, siteTrialPSTHS, rawSpikes, siteChannels, siteActiveInd,...
     siteRep,siteLocation,siteMasks,monkeys,vMask,conditions,chMaps,siteTrialInfo] = getAllSessions(params,"Single","PMd");
@@ -38,6 +36,7 @@ for j = 1:size(siteTrialSegs,2)
     end
 end
 siteTrialSegs=cellfun(@(v) vertcat(v{:}),num2cell(cat(2,siteTrialSegs{:}),2),'UniformOutput',false);
+failedTrials = cell(height(siteDateMap),1);
 for s = 1:length(trialInfo)
     numNans = cumsum(isnan(siteTrialSegs{s}),2);
     cInds = contains(trialInfo{s}(:,1),'Sphere');
@@ -49,7 +48,6 @@ for s = 1:length(trialInfo)
     failedTrials{s}(cInds & failedTrials{s}=='' & numNans(:,end)<=1) = "success";
 end
 failTypes = unique(cell2mat(failedTrials));
-failTypes = failTypes(failTypes~="");
 failTypes = failTypes(arrayfun(@(a) find(contains(failTypes,a)),["start","reach","contact","lift","hold","replace","success"]));
 infoTable = table();
 infoTable.SiteNo = "SiteNo" + table2array(siteDateMap(:,'Site'));
@@ -67,18 +65,18 @@ for f = 1:length(failTypes)
         failTrials = cellfun(@(f) f.*ismember(find(f),sample(find(f),o)), failTrials,otherTrials,'UniformOutput',false);
     end
     sessionPSTHS = cellfun(@(p,f) p(:,:,f), infoTable.PSTHS,failTrials,'UniformOutput',false);
-    sessionSegs = cellfun(@(s,f) repmat(mean(s(~f,:),1,'includenan'),sum(f),1),infoTable.SegTimes,failTrials, 'UniformOutput',false);
+    sessionSegs = cellfun(@(s,f) s(f,:), infoTable.SegTimes,failTrials, 'UniformOutput',false);
     sessionNo = cellfun(@(s,f) string(repmat(s,sum(f),1)), infoTable.SiteNo, failTrials, 'UniformOutput',false);
-    plotPSTHS(params.bins,sessionPSTHS,sessionSegs,sessionNo,alignLimits,[0 10],...
-        cell2struct(num2cell(distinguishable_colors(height(infoTable)),2),infoTable.SiteNo));
-    saveFigures(gcf,savePath+"Session_PSTHS\",failTypes(f),[]);
     close all;
+    plotPSTHS(params.bins,sessionPSTHS,sessionSegs,sessionNo,[-3,1.5],[0 4],...
+        cell2struct(num2cell(distinguishable_colors(height(infoTable)),2),infoTable.SiteNo));
+    saveFigures(gcf,savePath+"Session_PSTHS\","Traces_"+failTypes(f),[]);
 end
 %%
 close all;
 failColors = cell2struct(num2cell(distinguishable_colors(length(failTypes)),2),string(failTypes));
 totals = cellfun(@(h) histcounts(categorical(h)), infoTable.Outcomes, 'UniformOutput', false);
-sampleNum = cellfun(@(m) ceil(mean(m(1:end-1))), totals);
+%sampleNum = cellfun(@(m) ceil(mean(m(1:end-1))), totals);
 sampleNum(isnan(sampleNum)) = 0;
 plotOutcomes = infoTable.Outcomes;
 for p = 1:length(plotOutcomes)
@@ -86,8 +84,11 @@ for p = 1:length(plotOutcomes)
      plotOutcomes{p}(strcmp(plotOutcomes{p},"success")) = "";
      plotOutcomes{p}(randsample(find(f),sampleNum(p))) = "success";
 end
-plotPSTHS(params.bins,infoTable.PSTHS,infoTable.SegTimes,plotOutcomes,alignLimits,[0 12],failColors);
+plotPSTHS(params.bins,infoTable.PSTHS,infoTable.SegTimes,plotOutcomes,alignLimits,[0 10],failColors);
 lastAx = gca;
+lastAx = gcf;
+lastAx = lastAx.Children;
+lastAx = lastAx(end);
 xPos = get(lastAx.Children,'XData');
 xPos = unique(cell2mat(xPos(cellfun(@length,xPos)==2)));
 newAx = axes('Position',get(lastAx,'Position'),'XAxisLocation','top','Color','none','FontWeight','bold');
@@ -127,17 +128,19 @@ else
     figHandle = gcf;
     wrapPlots = min(length(groupName),3);
     nrows = ceil(length(groupName)/wrapPlots);
-   wrapPlots=1;nrows=length(groupName);
+    wrapPlots = nrows; nrows = 3;
+   %wrapPlots=1;nrows=length(groupName);
 end
 maxPlot = 0;
 for j = 1:length(groupName)
     condInds = cellfun(@(a) strcmp(a,groupName{j}), allGroups,'UniformOutput',false);
     groupPSTH = cellfun(@(t,g) mean(t(:,:,g),3,'omitnan'), PSTH,condInds, 'UniformOutput', false);
-    tUnits = ~all(isnan(cell2mat(groupPSTH)),[2 3]);
+    tUnits = cellfun(@(g) ~all(isnan(g),[2 3]), groupPSTH, 'UniformOutput',false);
     subplot(nrows,wrapPlots,j);hold on;
-    title(replace(strcat(groupName{j},": ",num2str(length(allGroups)), ...
-        " sites, ",num2str(sum(tUnits)), " units, ",...
-        num2str(sum(cell2mat(condInds))), "trials"),"_", " "));
+    title(replace(strcat(groupName{j},": ", num2str(sum(cell2mat(tUnits))), " units, ",... %num2str(length(allGroups))," sites, "
+        num2str(sum(cell2mat(condInds))), " trials, ",num2str(sum(cellfun(@sum,condInds).*cellfun(@sum,tUnits))),...
+        " instances"),"_", " "));
+    tUnits = cell2mat(tUnits);
     if(any(cellfun(@any,condInds)))
         xAlignTicks = 0+(1:length(plotBins));
         plot(xAlignTicks,nanmean(cell2mat(groupPSTH),1), 'LineWidth',2,'Color', plotColors.(groupName{j}));
@@ -149,10 +152,11 @@ for j = 1:length(groupName)
         xP=[xAlignTicks,fliplr(xAlignTicks)];
         xP(isnan(yP))=[];
         yP(isnan(yP))=[];
-        d = patch(xP,yP,1);
-        set(d,'edgecolor','none','facealpha',.5,'facecolor',plotColors.(groupName{j}));
+        %d = patch(xP,yP,1);
+        %set(d,'edgecolor','none','facealpha',.5,'facecolor',plotColors.(groupName{j}));
+        plot(xAlignTicks,cell2mat(groupPSTH),'LineWidth',1)%,'Color', plotColors.(groupName{j}));
         if(~isempty(yP))
-            maxPlot = max(maxPlot,FRLim(end)*max(1,ceil(prctile(yP,95)/FRLim(end))));
+            maxPlot = max(maxPlot,FRLim(end)*max(1,ceil(mean(prctile(cell2mat(groupPSTH),95,2),'omitnan')/FRLim(end))));
         end
     end
 end
@@ -182,7 +186,9 @@ for j = 1:length(groupName)
         max(PSTHDisplayLimits(1),prctile(groupSegs(lastInd),5)),binSize/1.99),1);
     highCI= find(isalmost(PSTHDisplayLimits(1):binSize:PSTHDisplayLimits(end),...
         min(PSTHDisplayLimits(end),prctile(groupSegs(lastInd),95)),binSize/1.99),1);
+    if(~isempty(lowCI) && ~isempty(highCI))
     patch([lowCI, highCI, highCI, lowCI],[0 0 maxPlot maxPlot],plotColors.(groupName{j}),'FaceAlpha',0.25,'LineStyle','none');
+    end
     allXTicks = PSTHDisplayLimits(1):binSize:PSTHDisplayLimits(end);
     xticks([0,find(isalmost(mod(allXTicks,1),1,binSize)),xAlignTicks(end)]);
     allLabels = [num2str(PSTHDisplayLimits(1),'%.2f'), arrayfun(@num2str,...

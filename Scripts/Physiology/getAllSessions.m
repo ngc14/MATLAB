@@ -23,7 +23,7 @@ for m = 1:length(monkeys)
     vMask(monkeys(m)) = monkeyMask;
 end
 siteDateMap = siteDateMap(~cellfun(@isempty, siteDateMap.Date),:);
-siteDateMap = siteDateMap([2,4:17,19,20,21,23,24,25,27,28,31,32,38,43,46,47,48,49,51,53,56],:);
+ siteDateMap = siteDateMap([2,4:17,19,20,21,23,24,25,27,28,31,32,38,43,46,47,48,49,51,53,56],:);
 % load info from all sites
 numSites = height(siteDateMap);
 [siteLocation, siteRep, siteThresh,siteSegs,siteChannels,...

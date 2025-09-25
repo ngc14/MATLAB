@@ -1,5 +1,5 @@
 function Spike_SortRawData(date, monkeyName)
-sessionDate = '04_17_2020';
+sessionDate = '08_09_2019';
 monkey = 'Gilligan';
 if(exist('date', 'var'))
     sessionDate = date;
@@ -10,11 +10,11 @@ end
 delimiter = '\t';
 formatSpec = '%*s%*s%*s%s%s%s%s%s%s%s%s%s%*s%*s%*s%*s%*s%*s%*s%*s%*s%*s%*s%*s%*s%*s%*s%*s%*s%*s%[^\n\r]';
 
-events = repmat({{'GoSignal','StartReach','StartGrasp','StartLift','StartHold',...
-    'StartWithdraw','StartReplaceHold','StartReplaceSuccess','StartReward'}}, 2,1);
-events(end+1) = {{'GoSignal','StartReach','StartGrasp','StartHold',...
-    'StartWithdraw','StartReplaceHold','StartReplaceSuccess','StartReward'}};
-events(end+1) = {{'GoSignal','StartHold', 'StartReplaceHold','StartReplaceSuccess','StartReward'}};
+events = repmat({{'StartTrial','GoSignal','StartReach','StartGrasp','StartLift','StartHold',...
+    'StartWithdraw','StartReplaceHold','StartReplaceSuccess','StartReward','EndTrial'}}, 2,1);
+events(end+1) = {{'StartTrial','GoSignal','StartReach','StartGrasp','StartHold',...
+    'StartWithdraw','StartReplaceHold','StartReplaceSuccess','StartReward','EndTrial'}};
+events(end+1) = {{'StartTrial','GoSignal','StartHold', 'StartReplaceHold','StartReplaceSuccess','StartReward','EndTrial'}};
 events = events';
 conds = {'Extra Small Sphere','Large Sphere','Photocell', 'Rest'};
 eventChannel = 'SMA 1';
@@ -201,14 +201,14 @@ for f = 1:sum(spikeChannels)
             dataUnits = dataTime(ids==sortedIDs(u));
             for n = 1:length(startEventIdx) % step through each event time
                 % find index of event n
-                [closestTimeStart, eventTimeInd] = min(abs(dataUnits-eventTimes_risingEdge(startEventIdx(n)+1)));
-                [closestTimeEnd, eventTimeEndInd] = min(abs(dataUnits-eventTimes_risingEdge(endEventIdx(n)-1)));
+                [closestTimeStart, eventTimeInd] = min(abs(dataUnits-eventTimes_risingEdge(startEventIdx(n))));
+                [closestTimeEnd, eventTimeEndInd] = min(abs(dataUnits-eventTimes_risingEdge(endEventIdx(n))));
                 %if(min(closestTimeStart,closestTimeEnd)>eventTimes_risingEdge(endEventIdx(n)-1)-eventTimes_risingEdge(startEventIdx(n)+1))
                 %    spikeTimes{u,n} = NaN;
                 %    segmentTimes{u,n} = NaN;
                 %else
                     spikeTimes{u,n} = dataUnits(eventTimeInd:eventTimeEndInd);
-                    segmentTimes{u,n} = eventTimes_risingEdge(startEventIdx(n)+1:endEventIdx(n)-1);
+                    segmentTimes{u,n} = eventTimes_risingEdge(startEventIdx(n):endEventIdx(n));
                 %end
             end
         end
@@ -249,11 +249,11 @@ for f = 1:sum(spikeChannels)
         if(length(recordedTrial)~=max(size((segmentTimes))))
             disp('Arduino file mistmatch trials, using digital lines');
             for n = 1:length(startEventIdx)
-                segmentTimes{n} = eventTimes_risingEdge(startEventIdx(n)+1:endEventIdx(n)-1);
+                segmentTimes{n} = eventTimes_risingEdge(startEventIdx(n):endEventIdx(n));
             end
             trialLength = endEventIdx-startEventIdx;
-            errorKeys = [2 3 4 5 6 7 8];
-            errorVals = {'False Start', 'Failed-to-Reach','Failed-to-Contact','Failed-to-Lift',...
+            errorKeys = [2 3 4 5 6 7 8 9];
+            errorVals = {'False Start', 'Failed-to-Reach','Failed-to-Contact','Failed-to-Lift','Failed-to-Lift'...
                 'Failed-to-Hold','Failed-to-Replace','Failed-to-ReplaceHold'};
             [~,mostSegments] = max(cellfun(@length, events));
             mostSegments = events{mostSegments}(1:end-1);
@@ -312,7 +312,7 @@ for f = 1:sum(spikeChannels)
                     segmentTimes(condInds{r}),'UniformOutput',false);
                 segCondTimes(:,ismember(maxSegConds,events{r})) = round(1000*...
                     [zeros(length(condInds{r}),1),diff(cell2mat(matchedTrials'),1,2)],0);
-                arduinoPseudoTable(condInds{r},2:end-1) = num2cell(segCondTimes(:,2:end-2));
+                arduinoPseudoTable(condInds{r},2:end-1) = num2cell(segCondTimes(:,2:size(arduinoPseudoTable,2)-1));
                 arduinoPseudoTable(condInds{r},end) = num2cell(succesfulTrials(condInds{r}));
             end
             failedTrials = ~correctTrialIdx;

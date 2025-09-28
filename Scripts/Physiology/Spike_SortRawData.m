@@ -1,5 +1,5 @@
 function Spike_SortRawData(date, monkeyName)
-sessionDate = '03_17_2020';
+sessionDate = '02_07_2020';
 monkey = 'Gilligan';
 if(exist('date', 'var'))
     sessionDate = date;
@@ -201,8 +201,8 @@ for f = 1:sum(spikeChannels)
             dataUnits = dataTime(ids==sortedIDs(u));
             for n = 1:length(startEventIdx) % step through each event time
                 % find index of event n
-                [closestTimeStart, eventTimeInd] = min(abs(dataUnits-eventTimes_risingEdge(startEventIdx(n))));
-                [closestTimeEnd, eventTimeEndInd] = min(abs(dataUnits-eventTimes_risingEdge(endEventIdx(n))));
+                eventTimeInd = findBins(eventTimes_risingEdge(startEventIdx(n)),dataUnits)+1;
+                eventTimeEndInd = findBins(eventTimes_risingEdge(endEventIdx(n)),dataUnits)-1;
                 %if(min(closestTimeStart,closestTimeEnd)>eventTimes_risingEdge(endEventIdx(n)-1)-eventTimes_risingEdge(startEventIdx(n)+1))
                 %    spikeTimes{u,n} = NaN;
                 %    segmentTimes{u,n} = NaN;

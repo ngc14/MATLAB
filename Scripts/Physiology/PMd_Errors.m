@@ -3,7 +3,7 @@ taskAlign = containers.Map(conditions,{{["GoSignal" "StartHold"]},{["GoSignal","
     {["GoSignal","StartHold"]},{["GoSignal","StartReplaceHold"]}});
 taskWindow =repmat({{[-0.3, 0]}},1,length(conditions));
 pVal=0.05;
-alignLimits = [-1, 15];
+alignLimits = [-5, 14];
 params = PhysRecording(string(conditions),.01,.15,-5,15,containers.Map(conditions,...
     {"GoSignal","GoSignal","GoSignal","GoSignal"}));
 allSegs = params.condSegMap.values;
@@ -18,10 +18,10 @@ savePath = "S:\Lab\ngc14\Working\PMd\Task_Units\Errors\";
 [taskBaseline,taskFR] = calculatePhases(params,taskAlign,taskWindow,siteSegs,siteTrialPSTHS,false,true);
 [~,tUnit] = cellfun(@(tb,tc) cellfun(@(b,cn) ttestTrials(b,cn,1,true,pVal),...
     tb,tc,'UniformOutput',false),taskBaseline,taskFR,'UniformOutput', false);
-allCondSegs = cellfun(@(c) cellfun(@(a) cellfun(@(t) findBins(mean(t(:,2),'omitnan'),params.bins),a),...
+allCondSegs = cellfun(@(c) cellfun(@(a) cellfun(@(t) findBins(mean(t(:,1),'omitnan'),params.bins),a),...
     c,'UniformOutput',false),siteSegs,'UniformOutput',false);
-normBaseline = cellfun(@(p,t)cellfun(@(a,n) [max(1,median(cell2mat(reshape(cellfun(@(c,s) ...
-    permute(mean(c(:,s:s+(1/params.binSize),:),[2],'omitnan'),[1 3 2]),a(~isnan(n)),...
+normBaseline = cellfun(@(p,t)cellfun(@(a,n) [max(1,mean(cell2mat(reshape(cellfun(@(c,s) ...
+    permute(mean(c(:,1:1+(1/params.binSize),:),[2],'omitnan'),[1 3 2]),a(~isnan(n)),...
     num2cell(n(~isnan(n))),'UniformOutput',false),[1,1,sum(~isnan(n))])),3,'omitnan'));NaN(all(isnan(n)).*size(a{1},1),1)],p,t,...
     'UniformOutput',false),siteTrialPSTHS,allCondSegs,"UniformOutput",false);
 normPSTH = cellfun(@(cp,nb) num2cell(cellfun(@(p,b)permute(permute(p,[1 3 2])./repmat(b,1,1,size(p,2)),[1 3 2]),...
@@ -76,7 +76,7 @@ for f = 1:length(failTypes)
 end
 %%
 close all;
-failColors = cell2struct(num2cell(distinguishable_colors(length(failTypes)),2),string(failTypes));
+failColors = cell2struct(num2cell(distinguishable_colors(length(failTypes),[0 0 0; 1 1 1]),2),string(failTypes));
 totals = cellfun(@(h) histcounts(categorical(h)), infoTable.Outcomes, 'UniformOutput', false);
 sampleNum = cellfun(@(m) ceil(mean(m(1:end-1))), totals);
 sampleNum(isnan(sampleNum)) = 0;
@@ -94,9 +94,10 @@ lastAx = lastAx(end);
 xPos = get(lastAx.Children,'XData');
 xPos = unique(cell2mat(xPos(cellfun(@length,xPos)==2)));
 newAx = axes('Position',get(lastAx,'Position'),'XAxisLocation','top','Color','none','FontWeight','bold');
-newAx.XTick = xPos./(max(lastAx.XLim)-min(lastAx.XLim));
+newAx.Position(2) = newAx.Position(2)-.002;
+newAx.XTick = (xPos-min(lastAx.XLim))./(max(lastAx.XLim)-min(lastAx.XLim));
 newAx.XTickLabel = arrayfun(@(s) string(erase(s,'Start')), maxSegL);
-newAx.XTickLabelRotation = 25;
+newAx.XTickLabelRotation = 45;
 newAx.YTick = [];
 saveFigures(gcf,savePath+"Errors\","Averages",[]);
 
@@ -110,12 +111,13 @@ else
 end
 PSTH = PSTHIn;
 [~,zeroCol] = find(allSegsIn{1}(1,:)==0);
-allSegs =  allSegsIn;%cellfun(@(s) [fliplr(-cumsum(abs(s(:,1:zeroCol-1)),2,'includenan')), cumsum(s(:,zeroCol:end),2,'includenan')],allSegsIn,'UniformOutput',false);
+allSegs = allSegsIn;%cellfun(@(s) [fliplr(-cumsum(abs(s(:,1:zeroCol-1)),2,'includenan')), cumsum(s(:,zeroCol:end),2,'includenan')],allSegsIn,'UniformOutput',false);
 allGroups = groupInds;
 plotNames = fieldnames(plotColors);
 groupName = plotNames(cellfun(@(c) contains(string(c),cell2mat(allGroups)),plotNames));
 binSize = mode(diff(bins));
 plotBins = findBins(PSTHDisplayLimits(1),bins):1:findBins(PSTHDisplayLimits(end),bins);
+bins=bins(plotBins);
 PSTH =  cellfun(@(t) t(:,plotBins,:),PSTH,'UniformOutput',false);
 gr = groot;
 figHandle = gr.CurrentFigure;
@@ -141,7 +143,7 @@ for j = 1:length(groupName)
         " instances"),"_", " "));
     groupPSTH = cellfun(@(g) reshape(g,[],size(g,2)),groupPSTH(cell2mat(tUnits)~=0),'UniformOutput',false);
     if(any(cellfun(@any,condInds)))
-        xAlignTicks = 0+(1:length(plotBins));
+        xAlignTicks = bins;
         avgPSTH = mean(cell2mat(groupPSTH),1,'omitnan');
         sessionSTD = cell2mat(cellfun(@(g,s)nanstd(g,0,1)./s,groupPSTH,tUnits(cell2mat(tUnits)~=0),'UniformOutput',false));
         uE=avgPSTH+mean(sessionSTD,1,'omitnan');
@@ -163,15 +165,16 @@ for j = 1:length(groupName)
     groupSegs = cell2mat(cellfun(@(t,g) t(g,:), allSegs,cellfun(@(a) ...
         strcmp(a,groupName{j}), allGroups,'UniformOutput',false),'UniformOutput',false));
     subplot(nrows,wrapPlots,j);hold on;
-    c = sum(~isnan(groupSegs),2)-1;
-    groupSegs(c~=mode(c),mode(c)) = groupSegs(sub2ind(size(groupSegs),find(c~=mode(c)),c(c~=mode(c))));
+    c = sum(~isnan(groupSegs) & groupSegs~=0,2);
+    c = c-(c<=2);
+    %groupSegs(c~=mode(c),mode(c)) = groupSegs(sub2ind(size(groupSegs),find(c~=mode(c)),c(c~=mode(c))));
     avgSegs = nanmean(groupSegs,1);
     lastInd = sub2ind(size(groupSegs),1:size(groupSegs,1),c');
     for s = 1:mode(c)
         lineWidth = 1;
         lineStyle = '--';
         plotColor = 'k';
-        if(avgSegs(s)>=PSTHDisplayLimits(1) && ...
+        if(avgSegs(s)>=(PSTHDisplayLimits(1) - .1) && ...
                 avgSegs(s)<=PSTHDisplayLimits(end))
             if(avgSegs(s)==0)
                 lineWidth = 2;
@@ -184,28 +187,26 @@ for j = 1:length(groupName)
                 lineWidth = 3;
                 lineStyle=':';
             end
-            pSeg = find(isalmost(PSTHDisplayLimits(1):binSize:...
-                PSTHDisplayLimits(end),avgSegs(s),binSize/1.99),1);
-            plot([xAlignTicks(pSeg) xAlignTicks(pSeg)],[0 maxPlot],...
+            plot([avgSegs(s) avgSegs(s)],[0 maxPlot],...
                 'Color',plotColor,'LineStyle',lineStyle,'LineWidth',lineWidth);
         end
     end
-    lowCI= find(isalmost(PSTHDisplayLimits(1):binSize:PSTHDisplayLimits(end),...
-        max(PSTHDisplayLimits(1),prctile(groupSegs(lastInd),5)),binSize/1.99),1);
-    highCI= find(isalmost(PSTHDisplayLimits(1):binSize:PSTHDisplayLimits(end),...
-        min(PSTHDisplayLimits(end),prctile(groupSegs(lastInd),95)),binSize/1.99),1);
+    lowCI= max(PSTHDisplayLimits(1),prctile(groupSegs(lastInd),5));
+    highCI= min(PSTHDisplayLimits(end),prctile(groupSegs(lastInd),95));
     if(~isempty(lowCI) && ~isempty(highCI))
-    patch([lowCI, highCI, highCI, lowCI],[0 0 maxPlot maxPlot],plotColors.(groupName{j}),'FaceAlpha',0.15,'LineStyle','none');
+        patch([lowCI, highCI, highCI, lowCI],[0 0 maxPlot maxPlot],...
+            plotColors.(groupName{j}),'FaceAlpha',0.15,'LineStyle','none');
     end
-    allXTicks = PSTHDisplayLimits(1):binSize:PSTHDisplayLimits(end);
-    xticks([0,find(isalmost(mod(allXTicks,1),1,binSize)),xAlignTicks(end)]);
-    allLabels = [num2str(PSTHDisplayLimits(1),'%.2f'), arrayfun(@num2str,...
+    allXTicks = bins;
+    xticks([bins(1),bins(isalmost(mod(allXTicks,1),1,binSize))]);
+    allLabels = [num2str(bins(1),'%.2f'), arrayfun(@num2str,...
         round(allXTicks(isalmost(mod(allXTicks,1),1,binSize))),'UniformOutput',false),...
         num2str(PSTHDisplayLimits(end),'%.2f')];
     xticklabels(allLabels);
     set(gca,'XMinorTick','on');
-    set(get(gca,'XAxis'),'MinorTickValues',find(isalmost(mod(allXTicks,1),.5,binSize/1.99)));
+    set(get(gca,'XAxis'),'MinorTickValues',bins(isalmost(mod(allXTicks,1),.5,binSize/1.99)));
 end
 figHandle = figHandle.Children;
 set(figHandle(strcmp(get(figHandle,'Type'),'axes')),'YLim',[FRLim(1),maxPlot]);
+set(figHandle(strcmp(get(figHandle,'Type'),'axes')),'XLim',[bins(1)-binSize,bins(end)+binSize]);
 end

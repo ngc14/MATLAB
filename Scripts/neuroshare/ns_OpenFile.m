@@ -120,12 +120,12 @@ else
 end
 
 if flag
-    %ext = extT;
+    ext = extT;
 end
 
 % returning a list of all the chosen files. 
 files = dir(fullfile(pathname, [name ext]));
-if(nargin==2 && strcmpi(varargin{2}, 'single') && ~strcmpi(extT,'.nf3'))
+if(nargin==2 && strcmpi(varargin{2}, 'single') && ~strcmpi(extT,'.ns5'))
     files = files(cellfun(@(f)~contains(f,'.ns5'),{files.name}));
 end
 nFiles = length(files);

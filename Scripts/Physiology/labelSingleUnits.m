@@ -30,7 +30,7 @@ for d = 1:length(dateArray)
             ns5FilesInd = ns5FilesInd(mostRecent);
             ns5FilesInd = ns5FilesInd(end);
             rawFile = [currDir(ns5FilesInd).folder, '\', currDir(ns5FilesInd).name];
-            [~, hFileRaw] = ns_OpenFile(rawFile);
+            [~, hFileRaw] = ns_OpenFile(rawFile,'single');
             rawSigInds = find([hFileRaw.Entity.FileType] == find(strcmp({hFileRaw.FileInfo.Type},'ns5')) & ...
                 cellfun(@(s) strcmp(deblank(s),'uV'), {hFileRaw.Entity.Units}));
             rawSigInds = rawSigInds(sort(cellfun(@(r) str2double(extract(...

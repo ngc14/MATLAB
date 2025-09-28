@@ -18,6 +18,7 @@ if(length(dataChannelID)>1)
 else
     [~, ~, tempData] = ns_GetAnalogData(hFile, dataChannelID,TimeStamps(1,1), TimeStamps(size(TimeStamps,1),size(TimeStamps,2)));
     analogInputData(:,end+1:end+length(tempData)) = tempData';
+    clear tempData;
 end
 
 %% filter out noise spikes (abnormally large data values)
@@ -30,5 +31,5 @@ end
 %% calculate avg trace value
 analogInputData = downsample(analogInputData,ds);
 meanBG = nanmean(highpass(analogInputData,300,ds),1);
-clear analogInputData;
+%clear analogInputData;
 end

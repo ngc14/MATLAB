@@ -30,7 +30,7 @@ numSites = height(siteDateMap);
     siteTrialPSTHS,siteActiveInd,rawSpikes,channelMap] = deal(cell(1,numSites));
 delete(gcp('nocreate'));parpool('local');
 hbar = parforProgress(numSites);
-parfor  i = 1:numSites
+for  i = 1:numSites
     currSession = siteDateMap(i,:);
     if(strcmpi(currSession.Monkey,"Gilligan"))
         dateFormat = 'MM_dd_uuuu';

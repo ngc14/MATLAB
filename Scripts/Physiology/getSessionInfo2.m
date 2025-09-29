@@ -20,7 +20,7 @@ else
     chMap{1} = {};
     chMap{2} = {};
     if(loadChannelMap)
-        [res,hFile] = ns_OpenFile([hFilePath.folder,'\',hFilePath.name],'single');
+        [res,hFile] = ns_OpenFile([hFilePath.folder,'\',hFilePath.name]);
         if(strcmp(res, 'ns_OK'))
             chMapR = [hFile.Entity.Label];
             chs = cellfun(@(r) cell2mat(regexp(r,'(\d+)(?!.*\d)','match')),chMapR,'Uniformoutput',false);

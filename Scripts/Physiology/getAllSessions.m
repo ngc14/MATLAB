@@ -30,7 +30,7 @@ numSites = height(siteDateMap);
     siteTrialPSTHS,siteActiveInd,rawSpikes,channelMap] = deal(cell(1,numSites));
 delete(gcp('nocreate'));parpool('local');
 hbar = parforProgress(numSites);
-for  i = 1:numSites
+parfor  i = 1:numSites
     currSession = siteDateMap(i,:);
     if(strcmpi(currSession.Monkey,"Gilligan"))
         dateFormat = 'MM_dd_uuuu';
@@ -53,23 +53,11 @@ for  i = 1:numSites
         else
             disp(['Bad session: ', currSession.Date]);
         end
-    else
-        firstChannel = load([strcat(physDir,'\',dirChannels(1).name)]);
-%        Spike_SortRawData(currSession.Date,char(currSession.Monkey));
-%        if(~isfield(firstChannel, 'label') && ~contains(fieldnames(firstChannel, '-full'),'label'))
-%            otherPhysDir = strcat(drivePath,currSession.Monkey,"\All Data\", currSession.Monkey,...
-%                "_",string(currSession.Date),"\Physiology\Results_New\");
-%            if(exist(otherPhysDir,'dir') && any(contains(fieldnames(...
-%                    matfile(otherPhysDir+dirChannels(1).name)),'label')))
-%                for fc = 1:length(dirChannels)
-%                    labs = load(otherPhysDir+dirChannels(fc).name,'-mat','label');
-%                    parSave(dirChannels(fc), string(labs.label))
-%                end
-%            else
-%                disp(['Labeling session: ', currSession.Date]);
-%                labelSingleUnits(currSession.Date,char(currSession.Monkey));
-%            end
-%        end
+    end
+    firstChannel = load([strcat(physDir,'\',dirChannels(1).name)]);
+    if(~isfield(firstChannel,'label') && ~contains(fieldnames(firstChannel,'-full'),'label'))
+        disp(['Labeling session: ', currSession.Date]);
+        labelSingleUnits(currSession.Date,char(currSession.Monkey));
     end
     [spikes,times,weights,currTrials,sessionConds,channels,~,~,chMap] =...
         getSessionInfo2(physDir,singleOrAllUnits,true);

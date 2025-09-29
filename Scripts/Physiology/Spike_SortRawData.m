@@ -201,14 +201,16 @@ for f = 1:sum(spikeChannels)
             dataUnits = dataTime(ids==sortedIDs(u));
             for n = 1:length(startEventIdx) % step through each event time
                 % find index of event n
-                eventTimeInd = findBins(eventTimes_risingEdge(startEventIdx(n)),dataUnits)+1;
-                eventTimeEndInd = findBins(eventTimes_risingEdge(endEventIdx(n)),dataUnits)-1;
-                %if(min(closestTimeStart,closestTimeEnd)>eventTimes_risingEdge(endEventIdx(n)-1)-eventTimes_risingEdge(startEventIdx(n)+1))
-                %    spikeTimes{u,n} = NaN;
-                %    segmentTimes{u,n} = NaN;
-                %else
-                    spikeTimes{u,n} = dataUnits(eventTimeInd:eventTimeEndInd);
+                %[~, eventTimeInd] = min(abs(dataUnits-eventTimes_risingEdge(startEventIdx(n))));
+                %[~, eventTimeEndInd] = min(abs(dataUnits-eventTimes_risingEdge(endEventIdx(n))));
+                %if(dataUnits(eventTimeInd)<eventTimes_risingEdge(endEventIdx(n)) && ...
+                %        dataUnits(eventTimeEndInd)>eventTimes_risingEdge(startEventIdx(n)))
+                    %spikeTimes{u,n} = dataUnits(eventTimeInd:eventTimeEndInd);
+                    spikeTimes{u,n} = dataUnits;
                     segmentTimes{u,n} = eventTimes_risingEdge(startEventIdx(n):endEventIdx(n));
+                %else
+                    %spikeTimes{u,n} = NaN;
+                    %segmentTimes{u,n} = NaN(1,length(startEventIdx(n):endEventIdx(n)));
                 %end
             end
         end
@@ -362,9 +364,9 @@ for f = 1:sum(spikeChannels)
             sortedSpikeData.Locations= unique(successfulTrial(:,end));
         end
         if(~exist(['S:\Lab\', monkey, '\All Data\', monkey,'_', sessionDate,...
-                '\Physiology\Results_All\'], 'dir'))
+                '\Physiology\Results_AllSpikes\'], 'dir'))
             mkdir(['S:\Lab\', monkey, '\All Data\', monkey,'_', sessionDate,...
-                '\Physiology\Results_All\']);
+                '\Physiology\Results_AllSpikes\']);
         end
         save(['S:\Lab\', monkey, '\All Data\', monkey,'_', sessionDate,...
             '\Physiology\Results_All\',fullName,'.mat'],'sortedSpikeData','-mat','-append');

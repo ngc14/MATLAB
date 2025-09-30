@@ -27,7 +27,7 @@ normBaseline = cellfun(@(p,t) mean(cell2mat(cellfun(@(a,n) max(1,mean(...
 normPSTH = cellfun(@(cp,nb) cellfun(@(p)p./repmat(nb,1,1,size(p,3)),...
     cp,'UniformOutput',false),num2cell([siteTrialPSTHS{:}],2),normBaseline,'Uniformoutput', false);
 normPSTH = vertcat(normPSTH{:});
-% normPSTH = horzcat(siteTrialPSTHS{:});
+%normPSTH = horzcat(siteTrialPSTHS{:});
 %%
 trialInfo = cellfun(@(c) cellfun(@(t) t(strcmp(t(:,1),c),:),siteTrialInfo','UniformOutput',false),conditions,'UniformOutput',false);
 siteTrialSegs = cellfun(@(c) cellfun(@(n) NaN(size(n,1),length(maxSegL)), c, 'UniformOutput',false), trialInfo,'UniformOutput',false);
@@ -171,7 +171,7 @@ for j = 1:length(groupName)
         strcmp(a,groupName{j}), allGroups,'UniformOutput',false),'UniformOutput',false));
     subplot(nrows,wrapPlots,j);hold on;
     c = sum(~isnan(groupSegs) & groupSegs~=0,2);
-    c = c-(c<=2);
+    c = c-(mean(groupSegs(:,c),'omitnan')<0)';
     %groupSegs(c~=mode(c),mode(c)) = groupSegs(sub2ind(size(groupSegs),find(c~=mode(c)),c(c~=mode(c))));
     avgSegs = nanmean(groupSegs,1);
     lastInd = sub2ind(size(groupSegs),1:size(groupSegs,1),c');

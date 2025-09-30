@@ -39,8 +39,8 @@ if(~isempty(figHandle))
 else
     figure();
     figHandle = gcf;
-    wrapPlots = min(length(jointName),3);
-    nrows = ceil(length(jointName)/wrapPlots);
+    nrows = min(length(jointName),3);
+    wrapPlots = ceil(length(jointName)/nrows);
 end
 xAlignTicks = {};
 maxPlot = 0;
@@ -94,6 +94,8 @@ for j = 1:length(jointName)
                         (~plotted(s) ||avgSegs(s)==plotStart))
                     if(avgSegs(s)==0)
                         plotColor = segColors(1);
+                    elseif(sum(isnan(avgSegs))==5)
+                        plotColor = [.6 .6 .6];
                     else
                         plotColor = segColors(end);
                     end

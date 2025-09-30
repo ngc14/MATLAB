@@ -108,22 +108,8 @@ else
     for segs=1:size(segInfoFirst,2)
         times{segs} = allTimes{segInfoFirst(1,segs),segs};
     end
-    if(~isempty(times))
-        condSegTrials = cellfun(@(e) values(events,{e}),trials(:,1)');
-        badSegments = [];%cellfun(@length, times)~=cellfun(@length,condSegTrials);
-        if(any(badSegments))
-            %disp(['NaNd segment times for trial(s): ', num2str(find(badSegments)), ' due to bad segmentation.']);
-            times(badSegments) = cellfun(@(a) NaN(1,length(a)), condSegTrials(badSegments), 'UniformOutput', false);
-            %         times(badSegments) = [];
-            %         spikes(:,badSegments) = [];
-            %         trials(badSegments,:) = [];
-            %         % correct allTimes for weights correction
-            %         allTimes(:,badSegments) = [];
-        end
-    end
     %% getting corresponding PSTH bins for grasp, reach, and task windows
     weights = zeros(size(allTimes,1),length(conds));
-
     for uN = 1:size(spikes,1)
         for c = 1:length(conds)
             condInds = strcmp(trials(:,1)', conds{c});

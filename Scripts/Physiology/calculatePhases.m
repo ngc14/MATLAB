@@ -49,9 +49,8 @@ if(AUCCalc)
         sum(~isnan(p),2))',ps,'UniformOutput',false),udh,ud,'UniformOutput',false),psthPhaseMask,psths,'UniformOutput', false);
 else
     condPhases = cellfun(@(udh,ud) cellfun(@(ps,u) cellfun(@(p)...
-        permute(mean(u.*~isnan(permute(repmat(p,[1,1,size(u,1)]),[3 2 1]))./...
-        ~isnan(permute(repmat(p,[1,1,size(u,1)]),[3 2 1])),2,'omitnan'),[1 3 2]),...
-        ps,'UniformOutput',false),udh,{ud},'UniformOutput',false),psthPhaseMask,psths,'UniformOutput', false);
+        permute(mean(u.*~isnan(permute(repmat(p,[1,1,size(u,1)]),[3 2 1])),...
+        2,'omitnan'),[1 3 2]),ps,'UniformOutput',false),udh,{ud},'UniformOutput',false),psthPhaseMask,psths,'UniformOutput', false);
 end
 condBaseline = cellfun(@(p,ps,w) AUCBaselineBootstrap(p,{ps},w,binSize,AUCCalc,keepTrials) ,...
     psthBaselineMask,psths,psthPhaseEnds,'UniformOutput',false);
@@ -64,15 +63,17 @@ nanMask = cellfun(@(pa) cellfun(@(s) NaN(size(s,1),binLength),...
 for np = 1:length(ap)
     for p=1:length(ap{np})
         for n = 1:size(ap{np}{p},1)
+            if(~any(isnan(ap{np}{p}(n,:))))
             nanMask{np}{p}(n,max(1,ap{np}{p}(n,1)) : ...
                 min(binLength,ap{np}{p}(n,2))) = 1;
+            end
         end
     end
 end
 end
 
 function AUCPSTH = AUCBaselineBootstrap(ap,psths,winds,bSz,AUCCalc,trialMean)
-NUMSBASELINESAMPLES = 1;
+NUMSBASELINESAMPLES = 10;
 phaseL = cellfun(@(inWin) cell2mat(cellfun(@(w) w(:,2)-w(:,1), inWin,...
     'UniformOutput', false)), winds, 'UniformOutput', false)';
 phaseL = num2cell(max(cat(3,phaseL{:}),[],3),1);

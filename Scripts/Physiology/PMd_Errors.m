@@ -3,9 +3,9 @@ taskAlign = containers.Map(conditions,{{["GoSignal" "StartHold"]},{["GoSignal","
     {["GoSignal","StartHold"]},{["GoSignal","StartReplaceHold"]}});
 taskWindow =repmat({{[-0.3, 0]}},1,length(conditions));
 pVal=0.05;
-alignLimits = [-6, 14];
-params = PhysRecording(string(conditions),.01,.15,-6,15,containers.Map(conditions,...
-    {"GoSignal","GoSignal","GoSignal","GoSignal"}));
+alignLimits = [-1, 14];
+params = PhysRecording(string(conditions),.01,.15,-1,15,containers.Map(conditions,...
+    {"StartTrial","StartTrial","StartTrial","StartTrial"}));
 allSegs = params.condSegMap.values;
 [~,maxSegL]= max(cellfun(@length,allSegs));
 maxSegL = allSegs{maxSegL};
@@ -21,13 +21,13 @@ clear rawSpikes
     tb,tc,'UniformOutput',false),taskBaseline,taskFR,'UniformOutput', false);
 allCondSegs = cellfun(@(c) cellfun(@(a) cellfun(@(t) findBins(mean(t(:,1)+2,'omitnan'),params.bins),a),...
     c,'UniformOutput',false),siteSegs,'UniformOutput',false);
-normBaseline = cellfun(@(p,t)cellfun(@(a,n) [max(1,mean(cell2mat(reshape(cellfun(@(c,s) ...
-    permute(mean(c(:,s:s+(1/params.binSize),:),[2],'omitnan'),[1 3 2]),a(~isnan(n)),...
-    num2cell(n(~isnan(n))),'UniformOutput',false),[1,1,sum(~isnan(n))])),3,'omitnan'));NaN(all(isnan(n)).*size(a{1},1),1)],p,t,...
-    'UniformOutput',false),siteTrialPSTHS,allCondSegs,"UniformOutput",false);
-normPSTH = cellfun(@(cp,nb) num2cell(cellfun(@(p,b)permute(permute(p,[1 3 2])./repmat(b,1,1,size(p,2)),[1 3 2]),...
-    vertcat(cp{:}),repmat(nb,1,size(vertcat(cp{:}),2)),'UniformOutput',false),2),siteTrialPSTHS,normBaseline,'Uniformoutput', false);
-normPSTH = horzcat(siteTrialPSTHS{:});
+normBaseline = cellfun(@(p,t) mean(cell2mat(cellfun(@(a,n) max(1,mean(...
+    a(:,n(~isnan(n)):n(~isnan(n))+(1/params.binSize),:),[2,3],'omitnan')),...
+    p,t,'UniformOutput',false)),2,'omitnan'),num2cell([siteTrialPSTHS{:}],2),num2cell([allCondSegs{:}],2),"UniformOutput",false);
+normPSTH = cellfun(@(cp,nb) cellfun(@(p)p./repmat(nb,1,1,size(p,3)),...
+    cp,'UniformOutput',false),num2cell([siteTrialPSTHS{:}],2),normBaseline,'Uniformoutput', false);
+normPSTH = vertcat(normPSTH{:});
+% normPSTH = horzcat(siteTrialPSTHS{:});
 %%
 trialInfo = cellfun(@(c) cellfun(@(t) t(strcmp(t(:,1),c),:),siteTrialInfo','UniformOutput',false),conditions,'UniformOutput',false);
 siteTrialSegs = cellfun(@(c) cellfun(@(n) NaN(size(n,1),length(maxSegL)), c, 'UniformOutput',false), trialInfo,'UniformOutput',false);
@@ -39,7 +39,7 @@ for j = 1:size(siteTrialSegs,2)
 end
 siteTrialSegs=cellfun(@(v) vertcat(v{:}),num2cell(cat(2,siteTrialSegs{:}),2),'UniformOutput',false);
 failedTrials = cell(height(siteDateMap),1);
-allPSTHS = cellfun(@(r) cell2mat(reshape(r,1,1,[])),num2cell(cellfun(@cell2mat,normPSTH,'UniformOutput',false),2),'UniformOutput',false);
+allPSTHS = cellfun(@(r) cell2mat(reshape(r,1,1,[])),num2cell(normPSTH,2),'UniformOutput',false);
 for s = 1:length(trialInfo)
     badTrials = all(isnan(siteTrialSegs{s}),2);
     bs(s)=sum(badTrials);
@@ -81,7 +81,7 @@ for f = 1:length(failTypes)
     saveFigures(gcf,savePath+"Session_PSTHS\","Averages_"+failTypes(f),[]);
 end
 %%
-figure
+close all;
 failColors = cell2struct(num2cell(distinguishable_colors(length(failTypes),[0 0 0; 1 1 1]),2),string(failTypes));
 totals = cellfun(@(h) histcounts(categorical(h)), infoTable.Outcomes, 'UniformOutput', false);
 sampleNum = cellfun(@(m) ceil(mean(m(1:end-1))), totals);

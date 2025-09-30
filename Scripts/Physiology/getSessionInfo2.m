@@ -8,7 +8,7 @@ if(isempty(sessionDir))
     [spikes,times,unitTrials,trials,conds,channel,eventNames,labels,chMap] = deal([]);
 else
     pathInds = regexp(folderName,'\');
-    hFilePath = dir([folderName(1:pathInds(end-1)),'*.nev']);
+    hFilePath = dir([folderName(1:pathInds(end)),'*.nev']);
     dirPath = dir(hFilePath(1).folder);
     hFilePath = hFilePath(cellfun(@(s) ~contains(s,"withdraw",'IgnoreCase',true) & ...
         ~contains(s,'stim','IgnoreCase',true) & ~contains(s,'sort','IgnoreCase',true) & ...
@@ -20,7 +20,7 @@ else
     chMap{1} = {};
     chMap{2} = {};
     if(loadChannelMap)
-        [res,hFile] = ns_OpenFile([hFilePath.folder,'\',hFilePath.name]);
+        [res,hFile] = ns_OpenFile([hFilePath.folder,'\',hFilePath.name],'single');
         if(strcmp(res, 'ns_OK'))
             chMapR = [hFile.Entity.Label];
             chs = cellfun(@(r) cell2mat(regexp(r,'(\d+)(?!.*\d)','match')),chMapR,'Uniformoutput',false);
@@ -66,8 +66,9 @@ else
                 if(size(cSpikes,1)<length(labs))
                     labs = labs((length(labs)-size(cSpikes,1)+1):end);
                 end
-                allGoodTrials = ~(cellfun(@(a,b) length(a) <=(b(end)-b(1)) ...
-                    | length(a)>200*(b(end)-b(1)) | any(isnan(a)), cSpikes, segTimes));
+                allGoodTrials = cell2mat(cellfun(@(u) cellfun(@(s) ...
+                    sum(u>s(1) & u<s(end)) > 2*(s(end)-s(1)) && ...
+                    sum(u>s(1) & u<s(end)) < 200*(s(end)-s(1)) , segTimes), cSpikes,'UniformOutput',false));
                 % %             cSpikes(~allGoodTrials) = {NaN};
                 blockInds = cumsum(mod(1:length(trials),length(conds))==1);
                 unitTrials{f} = num2cell(allGoodTrials.*blockInds,2);
@@ -77,12 +78,11 @@ else
                 else
                     goodUnits = goodUnitsOnChannel;
                 end
-                trialSegs = cellfun(@(e) values(events,{e}),repmat(trials(:,1)',sum(goodUnits),1), 'UniformOutput', false);
+                trialSegs = cellfun(@(e) values(events,{e}),trials(:,1)', 'UniformOutput', false);
                 labs = labs(goodUnits);
 
-                segTimes = segTimes(goodUnits,:);
                 trialSegs = cellfun(@(t) t{:}, trialSegs, 'UniformOutput', false);
-                cSpikes = cSpikes(goodUnits,:);
+                cSpikes = cSpikes(goodUnits);
 
                 missGraspInds = cellfun(@(a,b) length(a)>5 & length(a)+1==length(b), segTimes,trialSegs);
                 if(0)%any(missGraspInds(:)))
@@ -97,7 +97,7 @@ else
                 allTimes(end+1:end+size(segTimes,1),:) = segTimes;
                 channel(end+1:end+sum(goodUnits)) = f;
                 labels(end+1:end+length(labs)) = labs;
-                spikes(end+1:end+size(cSpikes,1),:) = cSpikes;
+                spikes(end+1:end+length(cSpikes)) = cSpikes;
             end
         end
     end
@@ -127,7 +127,7 @@ else
     for uN = 1:size(spikes,1)
         for c = 1:length(conds)
             condInds = strcmp(trials(:,1)', conds{c});
-            weights(uN,c) = sum(cellfun(@(a) any(~isnan(a)), spikes(uN,condInds)));
+            weights(uN,c) = sum(cellfun(@(a) any(~isnan(a)), spikes(uN)));
         end
     end
     % ensure total number of trials per condition is calculated

@@ -195,24 +195,24 @@ for f = 1:sum(spikeChannels)
     if(~isempty(dataTime))
         sortedIDs = unique(ids);
         sortedIDs = sortedIDs(sortedIDs>0 & sortedIDs<255);
-        spikeTimes = cell(length(sortedIDs),length(startEventIdx));
-        segmentTimes = cell(length(sortedIDs),length(startEventIdx));
+        spikeTimes = cell(length(sortedIDs),1);
+        segmentTimes = cell(1,length(startEventIdx));
         for u = 1:length(sortedIDs)
             dataUnits = dataTime(ids==sortedIDs(u));
-            for n = 1:length(startEventIdx) % step through each event time
+            spikeTimes{u} = dataUnits;
+        end
+        for n = 1:length(startEventIdx) % step through each event time
                 % find index of event n
                 %[~, eventTimeInd] = min(abs(dataUnits-eventTimes_risingEdge(startEventIdx(n))));
                 %[~, eventTimeEndInd] = min(abs(dataUnits-eventTimes_risingEdge(endEventIdx(n))));
                 %if(dataUnits(eventTimeInd)<eventTimes_risingEdge(endEventIdx(n)) && ...
                 %        dataUnits(eventTimeEndInd)>eventTimes_risingEdge(startEventIdx(n)))
                     %spikeTimes{u,n} = dataUnits(eventTimeInd:eventTimeEndInd);
-                    spikeTimes{u,n} = dataUnits;
-                    segmentTimes{u,n} = eventTimes_risingEdge(startEventIdx(n):endEventIdx(n));
+                    segmentTimes{n} = eventTimes_risingEdge(startEventIdx(n):endEventIdx(n));
                 %else
                     %spikeTimes{u,n} = NaN;
                     %segmentTimes{u,n} = NaN(1,length(startEventIdx(n):endEventIdx(n)));
                 %end
-            end
         end
         %% EXTRACT INFORMATION FROM ARDUINO OUTPUT FILE
         if(~exist(['S:\Lab\', monkey, '\All Data\', monkey,'_', ...
@@ -339,7 +339,7 @@ for f = 1:sum(spikeChannels)
             arduinoPseudoTable = cellfun(@char, cellfun(@string, arduinoPseudoTable,'UniformOutput',false), 'UniformOutput', false);
             falseTrialIdx=false(size(arduinoPseudoTable,1),1); %%cellfun(@(s) strcmp(s,"False Start") | strcmp(s,"Failed-to-Reach") | isempty(s),arduinoPseudoTable(:,8),'UniformOutput',false);
             correctTrialIdx = find(~falseTrialIdx);
-            sortedSpikeData.SpikeTimes= spikeTimes(:,correctTrialIdx);
+            sortedSpikeData.SpikeTimes= spikeTimes;
             sortedSpikeData.SegTimes= segmentTimes(:,correctTrialIdx);
             sortedSpikeData.Date= sessionDate;
             sortedSpikeData.DataChannel= f;
@@ -353,7 +353,7 @@ for f = 1:sum(spikeChannels)
             correctTrialIdx = find(~falseTrialIdx);
             %[row,~]=find(cellfun(@(x) removeShortSegs(x), recordedTrial(:,2:6)));
             successfulTrial=recordedTrial(correctTrialIdx,[1:7,9]);
-            sortedSpikeData.SpikeTimes= spikeTimes(:,correctTrialIdx);
+            sortedSpikeData.SpikeTimes= spikeTimes;
             sortedSpikeData.SegTimes= segmentTimes(:,correctTrialIdx);
             sortedSpikeData.Date= sessionDate;
             sortedSpikeData.DataChannel= f;
@@ -364,12 +364,18 @@ for f = 1:sum(spikeChannels)
             sortedSpikeData.Locations= unique(successfulTrial(:,end));
         end
         if(~exist(['S:\Lab\', monkey, '\All Data\', monkey,'_', sessionDate,...
-                '\Physiology\Results_AllSpikes\'], 'dir'))
+                '\Physiology\Results_All\'], 'dir'))
             mkdir(['S:\Lab\', monkey, '\All Data\', monkey,'_', sessionDate,...
-                '\Physiology\Results_AllSpikes\']);
+                '\Physiology\Results_All\']);
         end
-        save(['S:\Lab\', monkey, '\All Data\', monkey,'_', sessionDate,...
-            '\Physiology\Results_All\',fullName,'.mat'],'sortedSpikeData','-mat','-append');
+        fName = ['S:\Lab\', monkey, '\All Data\', monkey,'_', sessionDate,...
+            '\Physiology\Results_All\',fullName,'.mat'];
+        if(exist(fName,'file'))
+            m = matfile(fName,"Writable",true);
+            save(fName,'sortedSpikeData','-mat','-append');%m.sortedSpikeData = sortedSpikeData;
+        else
+            save(fName,'sortedSpikeData','-mat','-append');
+        end
         clear sortedSpikeData spikeTimes segmentTimes
     end
 end

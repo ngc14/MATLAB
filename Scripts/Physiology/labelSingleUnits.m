@@ -83,7 +83,7 @@ for d = 1:length(dateArray)
                     end
                     %%
                     for e = 1:dirTotal
-                        sChInd = channelMap(e);
+                        sChInd = e;%channelMap(e);
                         savedStruct = matfile([currName, subDirName,'\', channelMats{e}], 'Writable', true);
                         savedFields = fieldnames(savedStruct);
                         if(~any(contains(savedFields, 'label')) | writeLabels | plotWaveforms)
@@ -146,11 +146,10 @@ for d = 1:length(dateArray)
                             end
                             numUnitsTrials = size(getfield(savedStruct.sortedSpikeData, 'SpikeTimes'));
                             if(length(label)<numUnitsTrials(1))
-                                oldUnits = ~ismember(1:numUnitsTrials(1), sortedIDs);
+                                oldUnits = ~ismember(1:numUnitsTrials(1), sortedIDs)';
                                 savedStruct = load(savedStruct.Properties.Source);
                                 sortedSpikeData = savedStruct.sortedSpikeData;
-                                sortedSpikeData.SegTimes(oldUnits,:) = [];
-                                sortedSpikeData.SpikeTimes(oldUnits,:) = [];
+                                sortedSpikeData.SpikeTimes(oldUnits) = [];
                                 savedStruct.sortedSpikeData = sortedSpikeData;
                             end
                             if(writeLabels)

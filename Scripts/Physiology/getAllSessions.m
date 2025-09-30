@@ -43,8 +43,8 @@ parfor  i = 1:numSites
     physDir = strcat(drivePath,currSession.Monkey,"\All Data\", currSession.Monkey,...
         "_",string(currSession.Date),"\Physiology\");
     %delete(fullfile(fullfile(physDir,'*.cache')));
-    physDir = strcat(physDir,"Results_All\");
-    dirChannels = dir(physDir+"*.mat");
+    physDir = strcat(physDir,"Results_All");
+    dirChannels = dir(physDir+"\*.mat");
     if(isempty(dirChannels))
         if(~ismember(currSession.Date,{'05_02_2019','11_11_2019'}))
             disp(['Sorting and labeling session: ', currSession.Date]);
@@ -66,7 +66,6 @@ parfor  i = 1:numSites
             1,length(conditions)));
         numUnits = size(spikes,1);
         for c = 1:length(conditions)
-            %%
             currCond = conditions{c};
             condParamInd = cellfun(@(a) contains(a,conditions{c}),sessionConds);
             condInds = cellfun(@(a) contains(a,conditions{c}),currTrials(:,1))';
@@ -85,8 +84,8 @@ parfor  i = 1:numSites
             % generate and smooth PSTHS  from current session
             if(any(condInds) && ~isempty(spikes))
                 % {alignedPSTHS}{units,trials}
-                alignedSpikes{c} = cellfun(@(ap) cellfun(@(s,t) s-t(ap), ...
-                    spikes(:,condInds),repmat(times(condInds),size(spikes,1),1),...
+                alignedSpikes(c) = cellfun(@(ap) cellfun(@(s) cellfun(@(t) s-t(ap), ...
+                    times(condInds & cellfun(@(n) ~all(isnan(n)),times)),'UniformOutput',false),spikes,...
                     'UniformOutput',false),condAlign,'UniformOutput',false);
                 alignedTimes = cellfun(@(ap) cell2mat(cellfun(@(t) ...
                     [t(1:end-1)-t(ap), NaN(1,length(condEvents)-length(t)),t(end)-t(ap)],times(condInds),...
@@ -108,7 +107,7 @@ parfor  i = 1:numSites
                 % aligned trial times for the session for each (1) PSTH
                 currSeg{c} = alignedTimes;
                 % PSTH(units X bins X trials) for each alignment
-                currTrialPSTHS{c} = unitTrialPSTH;
+                currTrialPSTHS{c} = cat(1,unitTrialPSTH{:});
             else
                 % pad stored info with empty arrays and NaN pad indicies for missing conditions
                 currSeg{c} = repmat({NaN(size(params.condSegMap(currCond)))},...

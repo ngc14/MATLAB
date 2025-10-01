@@ -2,15 +2,15 @@ conditions = ["Extra Small Sphere", "Large Sphere", "Photocell","Rest"];
 taskAlign = containers.Map(conditions,{{["GoSignal" "StartHold"]},{["GoSignal","StartHold"]},...
     {["GoSignal","StartHold"]},{["GoSignal","StartReplaceHold"]}});
 taskWindow =repmat({{[-0.3, 0]}},1,length(conditions));
+alignLimits = [-5.5, 14];
 pVal=0.05;
-alignLimits = [-1, 14];
-params = PhysRecording(string(conditions),.01,.15,-1,15,containers.Map(conditions,...
-    {"StartTrial","StartTrial","StartTrial","StartTrial"}));
+savePath = "S:\Lab\ngc14\Working\PMd\Task_Units\Errors\";
+params = PhysRecording(string(conditions),.01,.15,-6,15,containers.Map(conditions,...
+    {"GoSignal","GoSignal","GoSignal","GoSignal"}));
 allSegs = params.condSegMap.values;
 [~,maxSegL]= max(cellfun(@length,allSegs));
 maxSegL = allSegs{maxSegL};
 condSegMappedInds = cellfun(@(f) find(contains(maxSegL,f)), allSegs, 'UniformOutput', false);
-savePath = "S:\Lab\ngc14\Working\PMd\Task_Units\Errors\";
 %%
 [siteDateMap, siteSegs, siteTrialPSTHS, rawSpikes, siteChannels, siteActiveInd,...
     siteRep,siteLocation,siteMasks,monkeys,vMask,conditions,chMaps,siteTrialInfo] = getAllSessions(params,"Single","PMd");

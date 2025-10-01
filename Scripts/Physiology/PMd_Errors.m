@@ -172,6 +172,7 @@ for j = 1:length(groupName)
     avgSegs = mean(groupSegs,1,'omitnan');
     subplot(nrows,wrapPlots,j);hold on;
     c = sum(~isnan(groupSegs),2)-1;
+    groupSegs(c<mode(c)-1,:) = NaN;
     c = c-(avgSegs(mode(c))==0);
     % mapC = find(~all(isnan(groupSegs),1)); groupSegs(c~=mode(c),mode(c)) = groupSegs(sub2ind(size(groupSegs),find(c~=mode(c)),c(c~=mode(c))));
     lastInd = sub2ind(size(groupSegs),1:size(groupSegs,1),c');

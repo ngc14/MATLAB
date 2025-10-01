@@ -1,5 +1,5 @@
 function Spike_SortRawData(date, monkeyName)
-sessionDate = '02_07_2020';
+sessionDate = '03_17_2020';
 monkey = 'Gilligan';
 if(exist('date', 'var'))
     sessionDate = date;
@@ -328,7 +328,7 @@ for f = 1:sum(spikeChannels)
                 trialRange = startErrorRep(r):endErrorRep(r);
                 arduinoPseudoTable(trialRange,1) = arduinoPseudoTable(endErrorRep(r)+1,1);
                 for t = 1:length(trialRange)
-                    arduinoPseudoTable(trialRange(t),3:length(segmentTimes{trialRange(t)})) = ...
+                    arduinoPseudoTable(trialRange(t),2:length(segmentTimes{trialRange(t)})-1) = ...
                         num2cell(1000*diff(segmentTimes{trialRange(t)}(2:end)-eventTimes_risingEdge(startEventIdx(trialRange(t)))));
                     currErrors = cell2mat(condVals.values(arduinoPseudoTable(trialRange(t),1)));
                     errorInd = cell2mat(condKeys.values(arduinoPseudoTable(trialRange(t),1)))==length(segmentTimes{trialRange(t)})+1;

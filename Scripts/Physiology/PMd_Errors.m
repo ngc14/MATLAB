@@ -21,15 +21,15 @@ clear rawSpikes
     tb,tc,'UniformOutput',false),taskBaseline,taskFR,'UniformOutput', false);
 allCondSegs = cellfun(@(c) cellfun(@(a) cellfun(@(t) findBins(mean(t(:,1)+2,'omitnan'),params.bins),a),...
     c,'UniformOutput',false),siteSegs,'UniformOutput',false);
-normBaseline = cellfun(@(p,t) mean(cell2mat(cellfun(@(a,n) max(1,mean(...
+normBaseline = cellfun(@(p,t) mean(cell2mat(cellfun(@(a,n) max(1,median(...
     a(:,n(~isnan(n)):n(~isnan(n))+(1/params.binSize),:),[2,3],'omitnan')),...
     p,t,'UniformOutput',false)),2,'omitnan'),num2cell([siteTrialPSTHS{:}],2),num2cell([allCondSegs{:}],2),"UniformOutput",false);
 normPSTH = cellfun(@(cp,nb) cellfun(@(p)p./repmat(nb,1,1,size(p,3)),...
     cp,'UniformOutput',false),num2cell([siteTrialPSTHS{:}],2),normBaseline,'Uniformoutput', false);
 normPSTH = vertcat(normPSTH{:});
-%normPSTH = horzcat(siteTrialPSTHS{:});
+normPSTH = horzcat(siteTrialPSTHS{:});
 %%
-trialInfo = cellfun(@(c) cellfun(@(t) t(strcmp(t(:,1),c),:),siteTrialInfo','UniformOutput',false),conditions,'UniformOutput',false);
+trialInfo = cellfun(@(c) cellfun(@(t) t(strcmp(t(:,1),c),:),siteTrialInfo,'UniformOutput',false)',conditions,'UniformOutput',false);
 siteTrialSegs = cellfun(@(c) cellfun(@(n) NaN(size(n,1),length(maxSegL)), c, 'UniformOutput',false), trialInfo,'UniformOutput',false);
 trialInfo = cellfun(@(c) vertcat(c{:}),num2cell(horzcat(trialInfo{:}),2),'UniformOutput',false);
 for j = 1:size(siteTrialSegs,2)
@@ -42,18 +42,17 @@ failedTrials = cell(height(siteDateMap),1);
 allPSTHS = cellfun(@(r) cell2mat(reshape(r,1,1,[])),num2cell(normPSTH,2),'UniformOutput',false);
 for s = 1:length(trialInfo)
     badTrials = all(isnan(siteTrialSegs{s}),2);
-    bs(s)=sum(badTrials);
     siteTrialSegs{s} = siteTrialSegs{s}(~badTrials,:);
     trialInfo{s} = trialInfo{s}(~badTrials,:);
     allPSTHS{s} = allPSTHS{s}(:,:,~badTrials);
     numNans = cumsum(isnan(siteTrialSegs{s}),2);
-    cInds = contains(trialInfo{s}(:,1),'Sphere');
-    tInds = isnan(str2double(trialInfo{s}(:,end-1))) & ~isempty(trialInfo{s}(:,end-1));
+    tInds = isnan(str2double(trialInfo{s}(:,end-1))) & ~cellfun(@isempty,trialInfo{s}(:,end-1));
     failedTrials{s} = strings(length(tInds),1);
-    failedTrials{s}(cInds & tInds) = replace(lower(string(trialInfo{s}(cInds & tInds,end-1))),{' ', '-'},'_');
-    failedTrials{s}(cInds & ~tInds & (numNans(:,find(contains(maxSegL,'Replace'),1))<=1 & ...
+    failedTrials{s}(tInds) = replace(lower(string(trialInfo{s}(tInds,end-1))),{' ', '-'},'_');
+    failedTrials{s}(~tInds & (numNans(:,find(contains(maxSegL,'Replace'),1))<=1 & ...
         numNans(:,end)>1)) = 'failed_to_replace';
-    failedTrials{s}(cInds & failedTrials{s}=='' & numNans(:,end)<=1) = "success";
+    failedTrials{s}(failedTrials{s}=='' & (numNans(:,end)<=1 |...
+        cellfun(@(t) strcmp(t,"Rest"),trialInfo{s}(:,1)) & numNans(:,end)==5)) = "success";
 end
 failTypes = unique(cell2mat(failedTrials));
 failTypes = failTypes(arrayfun(@(a) find(endsWith(failTypes,a),1),["success",...
@@ -82,17 +81,18 @@ for f = 1:length(failTypes)
 end
 %%
 close all;
-failColors = cell2struct(num2cell(distinguishable_colors(length(failTypes),[0 0 0; 1 1 1]),2),string(failTypes));
+failColors = cell2struct(num2cell(distinguishable_colors(length(failTypes),[0 0 0; 1 1 1]),2),string(failTypes)); 
+% cell2struct(num2cell(distinguishable_colors(length(conditions),[1 0 0; 0 0 0]),2),replace(conditions," ","_"))
 totals = cellfun(@(h) histcounts(categorical(h)), infoTable.Outcomes, 'UniformOutput', false);
 sampleNum = cellfun(@(m) ceil(mean(m(1:end-1))), totals);
 sampleNum(isnan(sampleNum)) = 0;
 plotOutcomes = infoTable.Outcomes;
 for p = 1:length(plotOutcomes)
-     f = contains(infoTable.Condition{p},"Sphere") & strcmp(plotOutcomes{p},"success") & ~all(isnan(infoTable.SegTimes{p}),2);
-     plotOutcomes{p}(strcmp(plotOutcomes{p},"success")) = "";
+     f = contains(infoTable.Condition{p},"Large Sphere") & strcmp(plotOutcomes{p},"success") & ~all(isnan(infoTable.SegTimes{p}),2);
+     plotOutcomes{p}(strcmp(plotOutcomes{p},"success")) = "";%replace(infoTable{p,'Condition'}{1}(strcmp(plotOutcomes{p},'success'))," ","_");
      plotOutcomes{p}(randsample(find(f),sampleNum(p))) = "success";
 end
-plotPSTHS(params.bins,infoTable.PSTHS,infoTable.SegTimes,plotOutcomes,alignLimits,[0 5],failColors);
+plotPSTHS(params.bins,infoTable.PSTHS,infoTable.SegTimes,plotOutcomes,alignLimits,[4 12],failColors);
 lastAx = gca;
 lastAx = gcf;
 lastAx = lastAx.Children;
@@ -140,19 +140,19 @@ end
 maxPlot = 0;
 for j = 1:length(groupName)
     condInds = cellfun(@(a) strcmp(a,groupName{j}), allGroups,'UniformOutput',false);
-    tUnits = cellfun(@(t) sum(~all(isnan(t),[2,3])), PSTH, 'UniformOutput',false);
     groupPSTH = cellfun(@(t,g) mean(t(~all(isnan(t),[2 3]),:,g),3,'omitnan'),PSTH,condInds, 'UniformOutput', false);
+    tUnits = cell2mat(cellfun(@(t) sum(~all(isnan(t),[2,3]).*size(t,3)>=1), groupPSTH, 'UniformOutput',false));
     subplot(nrows,wrapPlots,j);hold on;
-    title(replace(strcat(groupName{j},": ", num2str(sum(cell2mat(tUnits))), " units, ",... %num2str(length(allGroups))," sites, "
-        num2str(sum(cellfun(@sum,condInds))), " trials, ",num2str(sum(cellfun(@(s) size(s,1), groupPSTH))), ...
+    title(replace(strcat(groupName{j},": ", num2str(sum(tUnits)), " units, ",... %num2str(length(allGroups))," sites, "
+        num2str(sum(cellfun(@sum,condInds))), " trials, ",num2str(sum(cellfun(@sum,condInds).*tUnits)), ...
         " instances"),"_", " "));
-    groupPSTH = cellfun(@(g) reshape(g,[],size(g,2)),groupPSTH(cell2mat(tUnits)~=0),'UniformOutput',false);
+    groupPSTH = cellfun(@(g) reshape(g,[],size(g,2)),groupPSTH(tUnits~=0),'UniformOutput',false);
     if(any(cellfun(@any,condInds)))
         xAlignTicks = bins;
         avgPSTH = mean(cell2mat(groupPSTH),1,'omitnan');
-        sessionSTD = cell2mat(cellfun(@(g,s)nanstd(g,0,1)./s,groupPSTH,tUnits(cell2mat(tUnits)~=0),'UniformOutput',false));
-        uE=avgPSTH+mean(sessionSTD,1,'omitnan');
-        lE=avgPSTH-mean(sessionSTD,1,'omitnan');
+        sessionSTD = cell2mat(cellfun(@(g,s)nanstd(g,0,1)./s,groupPSTH,num2cell(tUnits(tUnits~=0)),'UniformOutput',false));
+        uE=avgPSTH+median(sessionSTD,1,'omitnan');
+        lE=avgPSTH-median(sessionSTD,1,'omitnan');
         yP=[lE,fliplr(uE)];
         xP=[xAlignTicks,fliplr(xAlignTicks)];
         xP(isnan(yP))=[];
@@ -169,11 +169,11 @@ end
 for j = 1:length(groupName)
     groupSegs = cell2mat(cellfun(@(t,g) t(g,:), allSegs,cellfun(@(a) ...
         strcmp(a,groupName{j}), allGroups,'UniformOutput',false),'UniformOutput',false));
+    avgSegs = mean(groupSegs,1,'omitnan');
     subplot(nrows,wrapPlots,j);hold on;
-    c = sum(~isnan(groupSegs) & groupSegs~=0,2);
-    c = c-(mean(groupSegs(:,c),'omitnan')<0)';
-    %groupSegs(c~=mode(c),mode(c)) = groupSegs(sub2ind(size(groupSegs),find(c~=mode(c)),c(c~=mode(c))));
-    avgSegs = nanmean(groupSegs,1);
+    c = sum(~isnan(groupSegs),2)-1;
+    c = c-(avgSegs(mode(c))==0);
+    % mapC = find(~all(isnan(groupSegs),1)); groupSegs(c~=mode(c),mode(c)) = groupSegs(sub2ind(size(groupSegs),find(c~=mode(c)),c(c~=mode(c))));
     lastInd = sub2ind(size(groupSegs),1:size(groupSegs,1),c');
     for s = 1:mode(c)
         lineWidth = 1;

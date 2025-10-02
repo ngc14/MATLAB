@@ -88,7 +88,7 @@ for j = 1:length(jointName)
             if(a==1)
                 plotted = false(1,size(currSegs,2));
             end
-            if(length(avgSegs)==5)
+            if(sum(~isnan(avgSegs))==6)
                 plotted = true(1,size(currSegs,2));
             end
             for s = 1:length(avgSegs)

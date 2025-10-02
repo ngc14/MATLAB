@@ -329,7 +329,7 @@ for f = 1:sum(spikeChannels)
                 arduinoPseudoTable(trialRange,1) = arduinoPseudoTable(endErrorRep(r)+1,1);
                 for t = 1:length(trialRange)
                     arduinoPseudoTable(trialRange(t),2:length(segmentTimes{trialRange(t)})-1) = ...
-                        num2cell(1000*diff(segmentTimes{trialRange(t)}(2:end)-eventTimes_risingEdge(startEventIdx(trialRange(t)))));
+                        num2cell(1000*diff(segmentTimes{trialRange(t)}(1:end-1)-eventTimes_risingEdge(startEventIdx(trialRange(t)))));
                     currErrors = cell2mat(condVals.values(arduinoPseudoTable(trialRange(t),1)));
                     errorInd = cell2mat(condKeys.values(arduinoPseudoTable(trialRange(t),1)))==length(segmentTimes{trialRange(t)})+1;
                     arduinoPseudoTable(trialRange(t),find(errorInd,1)+1:end) = cellstr(currErrors(errorInd));

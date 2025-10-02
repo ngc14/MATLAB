@@ -14,7 +14,7 @@ else
         ~contains(s,'stim','IgnoreCase',true) & ~contains(s,'sort','IgnoreCase',true) & ...
         contains(s,folderName(pathInds(2)+1:pathInds(3)-1)), {hFilePath.name}));
     noteFiles = dirPath(find(cellfun(@(f) contains(f,extract(hFilePath.name,wildcardPattern+lookAheadBoundary(characterListPattern("_")+...
-        digitsPattern+characterListPattern(".")))+"_Note"),{dirPath(~[dirPath.isdir]).name}),1)).name;
+        digitsPattern+characterListPattern(".")))+"_Note"),{dirPath.name}),1)).name;
     notesLines = readlines(hFilePath.folder+"\"+noteFiles);
     infoLines = notesLines(contains(notesLines,"Channel"));
     chMap{1} = {};
@@ -69,7 +69,6 @@ else
                 allGoodTrials = cell2mat(cellfun(@(u) cellfun(@(s) ...
                     sum(u>s(1) & u<s(end)) > 2*(s(end)-s(1)) && ...
                     sum(u>s(1) & u<s(end)) < 200*(s(end)-s(1)) , segTimes), cSpikes,'UniformOutput',false));
-                % %             cSpikes(~allGoodTrials) = {NaN};
                 blockInds = cumsum(mod(1:length(trials),length(conds))==1);
                 unitTrials{f} = num2cell(allGoodTrials.*blockInds,2);
                 goodUnitsOnChannel = (cellfun(@(tc) length(unique(tc))-1, unitTrials{f})>MIN_BLOCKS_FOR_UNIT)';
@@ -80,11 +79,9 @@ else
                 end
                 trialSegs = cellfun(@(e) values(events,{e}),trials(:,1)', 'UniformOutput', false);
                 labs = labs(goodUnits);
-
                 trialSegs = cellfun(@(t) t{:}, trialSegs, 'UniformOutput', false);
                 cSpikes = cSpikes(goodUnits);
-
-                missGraspInds = cellfun(@(a,b) length(a)>5 & length(a)+1==length(b), segTimes,trialSegs);
+%                missGraspInds = cellfun(@(a,b) length(a)>5 & length(a)+1==length(b), segTimes,trialSegs);
                 if(0)%any(missGraspInds(:)))
                     segTimes(missGraspInds) = cellfun(@(a,b) [b(1:find(strcmp(a,'StartGrasp'))-1),...
                         NaN, b(find(strcmp(a, 'StartGrasp')):end)],trialSegs(missGraspInds),...
@@ -93,7 +90,6 @@ else
 %                segTimes(cellfun(@length,trialSegs)~=cellfun(@length,segTimes)) = ...
 %                    cellfun(@(n) NaN(1,length(n)), segTimes(cellfun(@length,trialSegs)...
 %                    ~=cellfun(@length,segTimes)),'UniformOutput',false);
-
                 allTimes(end+1:end+size(segTimes,1),:) = segTimes;
                 channel(end+1:end+sum(goodUnits)) = f;
                 labels(end+1:end+length(labs)) = labs;

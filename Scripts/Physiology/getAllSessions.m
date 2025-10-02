@@ -11,7 +11,6 @@ excludeRep = "Face";
 % condition (default value)
 bins = params.bins;
 conditions = cellstr(params.condNames);
-
 siteDateMap = table();
 allActivityMaps = containers.Map();
 vMask = containers.Map();
@@ -64,8 +63,7 @@ parfor  i = 1:numSites
     [spikes,times,weights,currTrials,sessionConds,channels,~,~,chMap] =...
         getSessionInfo2(physDir,singleOrAllUnits,true);
     if(~isempty(spikes))
-        [currSeg,currTrialPSTHS,currActive,trialHists,alignedSpikes] = deal(repmat({[]},...
-            1,length(conditions)));
+        [currSeg,currTrialPSTHS,currActive,trialHists,alignedSpikes] = deal(repmat({[]},1,length(conditions)));
         numUnits = size(spikes,1);
         for c = 1:length(conditions)
             currCond = conditions{c};
@@ -87,19 +85,18 @@ parfor  i = 1:numSites
             if(any(condInds) && ~isempty(spikes))
                 % {alignedPSTHS}{units,trials}
                 alignedSpikes(c) = cellfun(@(ap) cellfun(@(s) cellfun(@(t) s-t(ap), ...
-                    times(condInds & ~cellfun(@(n) any(isnan(n)),times)),'UniformOutput',false),spikes,...
-                    'UniformOutput',false),condAlign,'UniformOutput',false);
+                    times(condInds & ~cellfun(@(n) any(isnan(n)),times)),'UniformOutput',false),...
+                    spikes,'UniformOutput',false),condAlign,'UniformOutput',false);
                 alignedTimes = cellfun(@(ap) cell2mat(cellfun(@(t)[t(1:end-1)-t(ap), ...
                     NaN(1,length(condEvents)-length(t)),t(end)-t(ap)], times(condInds),...
                     'UniformOutput', false)'), condAlign, 'UniformOutput', false);
                 trialHists{c} = cellfun(@(ac) cellfun(@(a) histcounts(a,...
                     [bins(1)-(params.sigmaSize/2):params.binSize:bins(end)+...
-                    (params.sigmaSize/2)]),ac,'UniformOutput', false),...
-                    alignedSpikes{c},'UniformOutput', false);
+                    (params.sigmaSize/2)]),ac,'UniformOutput',false),alignedSpikes{c},'UniformOutput', false);
                 %{alignedPSTHS}{units,trials}{bins}
-                smoothHists = cellfun(@(ac)  cellfun(@(a) conv(a,...
-                    gausswin(params.sigma)/sum(gausswin(params.sigma)),'valid')./params.binSize,...
-                    ac,'UniformOutput', false),trialHists{c},'UniformOutput',false);
+                smoothHists = cellfun(@(ac)  cellfun(@(a) conv(a,gausswin(params.sigma)/...
+                    sum(gausswin(params.sigma)),'valid')./params.binSize,ac,'UniformOutput', false),...
+                    trialHists{c},'UniformOutput',false);
                 %{alignedPSTHS}{units,bins,trials}
                 unitTrialPSTH = cellfun(@(s) ... %condWeights.*
                     cat(3,s{:}),smoothHists,'UniformOutput', false);
@@ -109,11 +106,8 @@ parfor  i = 1:numSites
                 currTrialPSTHS{c} = cat(1,unitTrialPSTH{:});
             else
                 % pad stored info with empty arrays and NaN pad indicies for missing conditions
-                currSeg{c} = repmat({NaN(size(params.condSegMap(currCond)))},...
-                    1,length(condAlign));
-                currTrialPSTHS{c} = repmat({NaN(numUnits,...
-                    length(bins),1)},1, ...
-                    length(condAlign));
+                currSeg{c} = repmat({NaN(size(params.condSegMap(currCond)))},1,length(condAlign));
+                currTrialPSTHS{c} = repmat({NaN(numUnits,length(bins),1)},1,length(condAlign));
                 alignedSpikes{c} = repmat({NaN(numUnits,1)},1,length(condAlign));
             end
 
@@ -135,8 +129,8 @@ end
 %% remove sessions that had no trial information
 emptyInds = cellfun(@isempty, siteLocation);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-excludeRepInd = find(cellfun(@(f) length(f)==1 & sum(strcmp(f,...
-    excludeRep))==length(f),siteRep(~emptyInds)));
+excludeRepInd = find(cellfun(@(f) length(f)==1 & sum(strcmp(f, excludeRep))==...
+    length(f),siteRep(~emptyInds)));
 emptyInds(arrayfun(@(f) find(cumsum(~emptyInds)==f,1),excludeRepInd)) = 1;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 siteDateMap = siteDateMap(~emptyInds,:);
@@ -166,9 +160,8 @@ simpRep = simpRep(~emptyInds);
 channelMap = channelMap(~emptyInds);
 siteChannels = siteChannels(~emptyInds');
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% voronoi tiles for each monkey
+%% voronoi tiles for each monkey
 siteMasks = repmat({},1,height(siteDateMap));
-%%
 for m = 1:length(monkeys)
     if(strcmp(monkeys(m),"Skipper"))
         mm = MotorMapping(50);
@@ -184,14 +177,11 @@ for m = 1:length(monkeys)
         for i = 1:length(mMap)
             currSite = siteLocation{mMap(i)};
             tempCircle = zeros(size(mRefMask)+2*mm.tileBuffer);
-            tempCircle((currSite(2)-mm.siteRadius+mm.tileBuffer):...
-                (currSite(2)+mm.siteRadius+mm.tileBuffer),...
-                (currSite(1)-mm.siteRadius+mm.tileBuffer):...
-                (currSite(1)+mm.siteRadius+mm.tileBuffer)) = ...
-                mm.poolCircle;
-            tempCircle = tempCircle(mm.tileBuffer:end-(...
-                mm.tileBuffer+1),mm.tileBuffer:end-(...
-                mm.tileBuffer+1));
+            tempCircle((currSite(2)-mm.siteRadius+mm.tileBuffer):(currSite(2)+...
+                mm.siteRadius+mm.tileBuffer),(currSite(1)-mm.siteRadius+mm.tileBuffer):...
+                (currSite(1)+mm.siteRadius+mm.tileBuffer))= mm.poolCircle;
+            tempCircle = tempCircle(mm.tileBuffer:end-(mm.tileBuffer+1),...
+                mm.tileBuffer:end-(mm.tileBuffer+1));
             siteMasks{mMap(i)} = tempCircle & poly2mask(verticies(vCells{i},2),...
                 verticies(vCells{i},1),size(tempCircle,1),size(tempCircle,2));
         end
@@ -214,8 +204,4 @@ for sr = 1:length(siteRep)
         end
     end
 end
-end
-function parSave(dirInf,label)
-label = string(label);
-save(dirInf.folder+"\"+dirInf.name,'label','-append');
 end

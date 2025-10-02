@@ -88,14 +88,15 @@ for j = 1:length(jointName)
             if(a==1)
                 plotted = false(1,size(currSegs,2));
             end
+            if(length(avgSegs)==5)
+                plotted = true(1,size(currSegs,2));
+            end
             for s = 1:length(avgSegs)
                 if(avgSegs(s)>=PSTHDisplayLimits{a}(1) && ...
                         avgSegs(s)<=PSTHDisplayLimits{a}(end) && ...
                         (~plotted(s) ||avgSegs(s)==plotStart))
                     if(avgSegs(s)==0)
                         plotColor = segColors(1);
-                    elseif(sum(isnan(avgSegs))==5)
-                        plotColor = [.6 .6 .6];
                     else
                         plotColor = segColors(end);
                     end

@@ -16,7 +16,7 @@ phaseWindows(end+1) = {{[-phaseWinSz*(3/4),phaseWinSz*(1/4)],[-phaseWinSz*(1/4),
 savePath = "S:\Lab\ngc14\Working\PMd\Task_Units\";
 close all;
 %%
-mappedChannels = cellfun(@(ch,l) ch{2}(l(~isnan(l))), chMaps,siteChannels, 'Uniformoutput', false)';
+mappedChannels = cellfun(@(ch,l) ch(l(~isnan(l))), chMaps,siteChannels, 'Uniformoutput', false)';
 avgSeg = cellfun(@(ct) cellfun(@(ca) cellfun(@(t) mean(t,1,'omitnan'), ca, 'UniformOutput',false),...
     ct, 'UniformOutput',false),siteSegs, 'UniformOutput',false);
 condPhaseAlign = containers.Map(conditions,cellfun(@num2cell,phaseAlignmentPoints,'UniformOutput',false));

@@ -31,8 +31,14 @@ end
 numSites = height(siteDateMap);
 [siteLocation, siteRep, siteThresh,siteSegs,siteChannels,...
     siteTrialPSTHS,siteActiveInd,rawSpikes,channelMap] = deal(cell(1,numSites));
-%delete(gcp('nocreate'));parpool('local');
-hbar = parforProgress(numSites);
+delete(gcp('nocreate'));
+%parpool('local'); 
+parRun = size(gcp('nocreate'),1);
+if(~parRun)
+    hbar = waitbar(0, 'Processing...', 'Name',['Iterating ',num2str(numSites),' instances....']);
+else
+    hbar = parforProgress(numSites);
+end
 for  i = 1:numSites
     currSession = siteDateMap(i,:);
     if(strcmpi(currSession.Monkey,"Gilligan"))
@@ -129,7 +135,11 @@ for  i = 1:numSites
         channelMap{i} = chMap;
         trialInfo{i} = currTrials;
     end
-    send(hbar, i);
+    if(parRun)
+        send(hbar, i);
+    else
+        waitbar(i/numSites,hbar,['Processed ' num2str(i),' of ', num2str(numSites), ' instances.']);
+    end
 end
 %% remove sessions that had no trial information
 emptyInds = cellfun(@isempty, siteLocation);

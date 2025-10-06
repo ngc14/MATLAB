@@ -4,26 +4,6 @@
 
 *.MATLABDriveTag
 
-/Scripts/NPMK/@KTUEAMapFile/
-
-/Scripts/NPMK/@KTUEAImpedanceFile/
-
-/Scripts/NPMK/LoadingEngines/
-
-/Scripts/NPMK/Dependent Functions/
-
-/Scripts/NPMK/@KTFigureAxis/
-
-/Scripts/NPMK/@KTFigure/
-
-/Scripts/NPMK/@KTNEVComments/
-
-/Scripts/NPMK/@KTNSPOnline/
-
-/Scripts/NPMK/Other tools/
-
-/Scripts/NPMK/NTrode Utilities/
-
 /Scripts/npy-matlab-master/
 
 /Scripts/models/
@@ -74,63 +54,6 @@
 
 /.MATLABDriveAppData/snapshots/right.db
 
-/Scripts/Physiology/plotPSTH.asv
-
 /.MATLABDriveAppData/
 
 /Examples/
-
-
-/Scripts/Matlab Offline Files SDK/Change Log.txt
-
-/Scripts/Matlab Offline Files SDK/Samples/readall.m
-
-/Scripts/Matlab Offline Files SDK/Samples/test.m
-
-/Scripts/Matlab Offline Files SDK/internalPL2Ad.p
-
-/Scripts/Matlab Offline Files SDK/internalPL2AdSpan.p
-
-/Scripts/Matlab Offline Files SDK/internalPL2AdTimeSpan.p
-
-/Scripts/Matlab Offline Files SDK/internalPL2EventTs.p
-
-/Scripts/Matlab Offline Files SDK/internalPL2GetChannel.p
-
-/Scripts/Matlab Offline Files SDK/internalPL2MergeFragments.p
-
-/Scripts/Matlab Offline Files SDK/internalPL2ReadFileIndex.p
-
-/Scripts/Matlab Offline Files SDK/internalPL2ReadFirstDataBlock.p
-
-/Scripts/Matlab Offline Files SDK/internalPL2ReadNextDataBlock.p
-
-/Scripts/Matlab Offline Files SDK/internalPL2ReadPdp.p
-
-/Scripts/Matlab Offline Files SDK/internalPL2ResolveChannel.p
-
-/Scripts/Matlab Offline Files SDK/internalPL2ResolveChannelBySource.p
-
-/Scripts/Matlab Offline Files SDK/internalPL2ResolveFilename.p
-
-/Scripts/Matlab Offline Files SDK/internalPL2ResolveFilenamePlx.p
-
-/Scripts/Matlab Offline Files SDK/internalPL2StartStopTs.p
-
-/Scripts/Matlab Offline Files SDK/internalPL2TrimNames.p
-
-/Scripts/Matlab Offline Files SDK/internalPL2Ts.p
-
-/Scripts/Matlab Offline Files SDK/internalPL2VerifyRecord.p
-
-/Scripts/Matlab Offline Files SDK/internalPL2Waves.p
-
-/Scripts/Matlab Offline Files SDK/mexPlex.mexglx
-
-/Scripts/Matlab Offline Files SDK/mexPlex.mexw32
-
-/Scripts/Matlab Offline Files SDK/mexPlex.mexw64
-
-/Scripts/Matlab Offline Files SDK/readall.m
-
-/Scripts/Matlab Offline Files SDK/mexPlex/

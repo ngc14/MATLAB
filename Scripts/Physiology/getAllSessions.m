@@ -25,7 +25,7 @@ siteDateMap = siteDateMap(~cellfun(@isempty, siteDateMap.Date),:);
 if(strcmp(domain,"PMd"))
     siteDateMap = siteDateMap([2,4:17,19,20,21,23,24,25,27,28,31,32,38,43,46,47,48,49,51,53,56],:);
 else
-    siteDateMap = siteDateMap([50,51,82,5,9,10,11,13,22,23,29,32,33,37,39,45,49,53,60,61,67,69,71,72,73,77,84,85,87,93,97,19,47,59],:)
+    siteDateMap = siteDateMap([50,51,82,5,9,10,11,13,22,29,32],:);%,,33,37,39,45,49,53,60,61,67,69,71,72,73,77,84,85,87,93,97,19,47,59],:)
 end
 % load info from all sites
 numSites = height(siteDateMap);
@@ -72,7 +72,8 @@ for  i = 1:numSites
         for c = 1:length(conditions)
             currCond = conditions{c};
             condParamInd = cellfun(@(a) contains(a,conditions{c}),sessionConds);
-            condInds = cellfun(@(a) contains(a,conditions{c}),currTrials(:,1))';
+            condInds = cellfun(@(a,b) contains(a,conditions{c}) & (~isnan(str2double(b)) | ...
+                isempty(b)),currTrials(:,1),currTrials(:,end-1))';
             condWeights = weights(:, condParamInd);
             condEvents = params.condSegMap(currCond);
             condAlign = cellfun(@(a) find(strcmp(condEvents,a)),...

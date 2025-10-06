@@ -2,11 +2,11 @@ conditions = ["Extra Small Sphere", "Large Sphere", "Photocell","Rest"];
 taskAlign = containers.Map(conditions,{{["GoSignal" "StartHold"]},{["GoSignal","StartHold"]},...
     {["GoSignal","StartHold"]},{["GoSignal","StartReplaceHold"]}});
 taskWindow =repmat({{[-0.3, 0]}},1,length(conditions));
-alignLimits = {[-5.5, 12]};
+alignLimits = {[-1, 3]};
 pVal=0.05;
-savePath = "S:\Lab\ngc14\Working\PMd\Task_Units\";
+savePath = "S:\Lab\ngc14\Working\PMd\Task_Units\M1\";
 params = PhysRecording(string(conditions),.01,.15,-6,15,containers.Map(conditions,...
-    {"StartHold","StartHold","StartHold","GoSignal"}));
+    {"GoSignal","GoSignal","GoSignal","GoSignal"}));
 plotUnits = false;
 MIN_BLOCKS_FOR_UNIT = 13;
 %%
@@ -186,7 +186,7 @@ plotJointPSTHS(params.bins,{repmat(allPSTHSCond(restUnitInds,:),length(condition
 plotJointPSTHS(params.bins,{allPSTHSCond(~restUnitInds,:)},{allTrialsCond(~restUnitInds,:)},condInds(~restUnitInds)',...
     allTaskInds(~restUnitInds),[], alignLimits,[1 10],cell2struct(num2cell(...
     distinguishable_colors(length(conditions),'r'),2),string(params.condAbbrev.values)));
-saveFigures(gcf,savePath+"PSTHS\","All_PSTH_Reach",[]);
+saveFigures(gcf,savePath+"PSTHS\","All_PSTH",[]);
 
 if(plotUnits)
     figure('Units','normalized','Position',[0 0 1 1]);

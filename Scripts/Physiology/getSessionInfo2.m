@@ -2,7 +2,7 @@ function [spikes,times,unitTrials,trials,conds,channel,eventNames,labels,chMap] 
 folderName = char(folderName);
 sessionDir = dir(folderName+"\*.mat");
 if(~exist('loadChannelMap','var'))
-    loadChannelMap = true;
+    loadChannelMap = false;
 end
 if(isempty(sessionDir))
     [spikes,times,unitTrials,trials,conds,channel,eventNames,labels,chMap] = deal([]);

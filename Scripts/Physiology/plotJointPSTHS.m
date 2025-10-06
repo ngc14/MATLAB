@@ -108,18 +108,19 @@ for j = 1:length(jointName)
                 end
             end
             if(a==size(jointPSTH,2))
-                allXTicks = cellfun(@(ta,pd) [0,find(mod(pd(1):.01:pd(end),1)==0),...
+                allXTicks = cellfun(@(ta,pd) [find(mod(pd(1):.01:pd(end),1)==0),...
                     length(ta)],xAlignTicks,PSTHDisplayLimits,'UniformOutput',false);
                 allXTicks = unique(cell2mat(allXTicks),'stable');
                 xticks(allXTicks);
                 allLabels = arrayfun(@(pd)num2str(pd,'%.2f'),...
-                    [PSTHDisplayLimits{a}(1),ceil(PSTHDisplayLimits{a}(1)):1:...
-                    floor(PSTHDisplayLimits{a}(end)),PSTHDisplayLimits{a}(end)], 'UniformOutput', false);
+                    unique([PSTHDisplayLimits{a}(1),ceil(PSTHDisplayLimits{a}(1)):1:...
+                    floor(PSTHDisplayLimits{a}(end)),PSTHDisplayLimits{a}(end)]), 'UniformOutput', false);
                 xticklabels(allLabels);
             end
             plotStart = plotStart + size(currJointAlign,2) + alignmentGap;
         end
     end
+    set(gca,'XLim',[allXTicks(1), allXTicks(end)]);
 end
 set(figHandle.Children,'YLim',[FRLim(1),maxPlot]);
 end

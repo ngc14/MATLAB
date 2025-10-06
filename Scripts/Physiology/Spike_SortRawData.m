@@ -1,5 +1,5 @@
 function Spike_SortRawData(date, monkeyName)
-sessionDate = '07_15_2019';
+sessionDate = '04_22_2019';
 monkey = 'Gilligan';
 if(exist('date', 'var'))
     sessionDate = date;
@@ -155,7 +155,16 @@ switch(char(datetime(sessionDate,'InputFormat',dateFormat,'Format',dateFormat)))
         pulseLength(2156) = 0.0195;
         pulseLength(1220:1224) = 0.01;
         pulseLength(1282:1284)=0.01;
-    case('07_09_2019')
+    case('04_17_2019')
+        pulseLength(1573) = 0.01;
+    case('04_22_2019')
+        pulseLength(112) = 0.01;
+        pulseLength(2287) = 0.01;
+        pulseLength(2557) = 0.01;
+        pulseLength(652) = 0.01;
+        pulseLength(1823) = 0.01;
+        pulseLength(2232) = 0.01;
+
         
 end
 startEventIdx=find(pulseLength>0.0175 & pulseLength<0.03);
@@ -301,6 +310,11 @@ for f = 1:sum(spikeChannels)
                 [~, SMA4Times(i), pulseVal(i), ~] = ns_GetEventData(hFile, eventEntityID, i);
             end
             SMA4Times = SMA4Times(pulseVal == 32767);
+            if(length(SMA4Times)>length(SMA2Times))
+                SMA4TimesT = SMA4Times;
+                SMA4Times = SMA2Times;
+                SMA2Times = SMA4TimesT;
+            end
             SMA2Times = SMA2Times(correctTrialIdx(trialLength>3 & trialLength~=5 | correctTrialIdx~=1 & trialLength==5));
             [minVal,minInd]=arrayfun(@(a) min([min(abs(a-SMA3Times)),min(abs(a-SMA4Times))]),SMA2Times);
   

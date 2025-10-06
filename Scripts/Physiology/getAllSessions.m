@@ -31,7 +31,7 @@ end
 numSites = height(siteDateMap);
 [siteLocation, siteRep, siteThresh,siteSegs,siteChannels,...
     siteTrialPSTHS,siteActiveInd,rawSpikes,channelMap] = deal(cell(1,numSites));
-delete(gcp('nocreate'));parpool('local');
+%delete(gcp('nocreate'));parpool('local');
 hbar = parforProgress(numSites);
 for  i = 1:numSites
     currSession = siteDateMap(i,:);

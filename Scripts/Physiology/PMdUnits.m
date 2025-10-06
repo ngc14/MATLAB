@@ -4,14 +4,14 @@ taskAlign = containers.Map(conditions,{{["GoSignal" "StartHold"]},{["GoSignal","
 taskWindow =repmat({{[-0.3, 0]}},1,length(conditions));
 alignLimits = {[-1, 3]};
 pVal=0.05;
-savePath = "S:\Lab\ngc14\Working\PMd\Task_Units\M1\";
+savePath = "S:\Lab\ngc14\Working\PMd\Task_Units\";
 params = PhysRecording(string(conditions),.01,.15,-6,15,containers.Map(conditions,...
     {"GoSignal","GoSignal","GoSignal","GoSignal"}));
 plotUnits = false;
 MIN_BLOCKS_FOR_UNIT = 13;
 %%
 [siteDateMap, siteSegs, siteTrialPSTHS, rawSpikes, siteChannels, siteActiveInd,...
-    siteRep,siteLocation,siteMasks,monkeys,vMask,conditions,chMaps,siteTrialInfo] = getAllSessions(params,"Single","M1");
+    siteRep,siteLocation,siteMasks,monkeys,vMask,conditions,chMaps,siteTrialInfo] = getAllSessions(params,"Single","PMd");
 clear rawSpikes;
 %%
 trialFR = cellfun(@(ct,cs,ta) cellfun(@(a,b) cell2mat(cellfun(@(m,tt) ...

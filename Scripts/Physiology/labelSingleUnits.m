@@ -23,7 +23,7 @@ for d = 1:length(dateArray)
         names = {currDir.name};
         sortedFile = find((contains(names, '-sorted') | contains(names, 'RASort'))...
             & ~contains(names, 'stim') &  (contains(names, '.nev') | contains(names, '.plx')));
-        ns5FilesInd = find(cellfun(@(a) ~contains(a,"stim") & ...
+        ns5FilesInd = find(cellfun(@(a) ~contains(lower(a),"stim") & ...
             contains(a, '.ns5'), names));
         if(~isempty(ns5FilesInd))
             [~,mostRecent]= sort({currDir(ns5FilesInd).date});
@@ -41,13 +41,12 @@ for d = 1:length(dateArray)
                     [~,mostRecent]=sort([currDir(cellfun(@(s) contains(s,'.plx'),...
                         {currDir(sortedFile).name})).datenum]);
                     loadFile = currDir(sortedFile(mostRecent(1)));
-                    [~,channels] = plx_chan_names([loadFile.folder, '\', loadFile.name]);
                 else
                     NEVFile = 1;
                     [~,mostRecent] = sort([currDir(sortedFile).datenum],'descend');
                     loadFile = currDir(sortedFile(mostRecent(1)));
-                    spkInds = find(cellfun(@(s) strcmp(string(s), "Segment"),...
-                        {hFileRaw.Entity(:).EntityType}, 'UniformOutput', true));
+                    spkInds = find(cellfun(@(s,u) strcmp(string(s), "Segment") & strcmp(u,'uV'),...
+                        {hFileRaw.Entity(:).EntityType},{hFileRaw.Entity(:).Units}, 'UniformOutput', true));
                 end
                 if(~isempty(dir([currName, subDirName,'\*.mat'])))
                     channelMats = dir([currName,subDirName,'\*.mat']);
@@ -82,15 +81,15 @@ for d = 1:length(dateArray)
                         [~,nevFile] = ns_OpenFile([loadFile.folder, '\', loadFile.name]);
                     end
                     %%
-                    for e = 1:dirTotal
+                     for e = 1:dirTotal
                         sChInd = e;%channelMap(e);
                         savedStruct = matfile([currName, subDirName,'\', channelMats{e}], 'Writable', true);
                         savedFields = fieldnames(savedStruct);
                         if(~any(contains(savedFields, 'label')) | writeLabels | plotWaveforms)
                             if(NEVFile)
                                 [dataTime, ids] = loadSpikeData(nevFile, sChInd);
-                                sortedIDs = 1:nevFile.Entity(sChInd).nUnits;
-                                %sortedIDs = 1:sum(unique(ids) > 0 & unique(ids)<255);
+                                %sortedIDs = 1:nevFile.Entity(sChInd).nUnits;
+                                sortedIDs = 1:sum(unique(ids) > 0 & unique(ids)<255);
                             else
                                 info = plx_info([loadFile.folder, '\', loadFile.name],1);
                                 sortedIDs = 1:sum(info(2:end,sChInd+1)>0);
@@ -103,9 +102,9 @@ for d = 1:length(dateArray)
                                     currUnitTime = dataTime(ids==sortedIDs(a));
                                     data = [];
                                     for s = 1:length(unitIndx)
-                                        [~,~,data(:,s),~,~] = ns_GetSegmentData(hFileRaw, ...
-                                           find([hFileRaw.Entity(spkInds).ElectrodeID]== ...
-                                           nevFile.Entity(sChInd).ElectrodeID,1), unitIndx(s));
+                                         [~,~,data(:,s),~,~] = ns_GetSegmentData(hFileRaw, ...
+                                           spkInds([hFileRaw.Entity(spkInds).ElectrodeID]== ...
+                                           nevFile.Entity(sChInd).ElectrodeID), unitIndx(s));
                                     end
                                 else
                                     [~,~,currUnitTime,data] = plx_waves_v(...
@@ -145,13 +144,13 @@ for d = 1:length(dateArray)
                                 end
                             end
                             numUnitsTrials = size(getfield(savedStruct.sortedSpikeData, 'SpikeTimes'));
-                            if(length(label)<numUnitsTrials(1))
-                                oldUnits = ~ismember(1:numUnitsTrials(1), sortedIDs)';
-                                savedStruct = load(savedStruct.Properties.Source);
-                                sortedSpikeData = savedStruct.sortedSpikeData;
-                                sortedSpikeData.SpikeTimes(oldUnits) = [];
-                                savedStruct.sortedSpikeData = sortedSpikeData;
-                            end
+                            % if(length(label)<numUnitsTrials(1))
+                            %     oldUnits = ~ismember(1:numUnitsTrials(1), sortedIDs)';
+                            %     savedStruct = load(savedStruct.Properties.Source);
+                            %     sortedSpikeData = savedStruct.sortedSpikeData;
+                            %     sortedSpikeData.SpikeTimes(oldUnits) = [];
+                            %     savedStruct.sortedSpikeData = sortedSpikeData;
+                            % end
                             if(writeLabels)
                                 if(isfield(savedStruct.sortedSpikeData,'label'))
                                     savedStruct.label = [];

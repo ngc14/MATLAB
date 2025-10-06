@@ -1,5 +1,5 @@
 function Spike_SortRawData(date, monkeyName)
-sessionDate = '03_17_2020';
+sessionDate = '07_15_2019';
 monkey = 'Gilligan';
 if(exist('date', 'var'))
     sessionDate = date;
@@ -69,7 +69,7 @@ if GET_EVENTS
     dispstat('','init');
     for i = 1:numCount
         [~, eventTimeStamps(i), eventTimes(i), dataSize(i)] = ns_GetEventData(hFile, eventEntityID, i);
-        dispstat(['Loading Event Data... ',num2str(round(i/numCount*100)),'% Done.']);
+        %dispstat(['Loading Event Data... ',num2str(round(i/numCount*100)),'% Done.']);
     end
     dispstat('Loading Event Data... 100% Done.');
     
@@ -149,13 +149,20 @@ switch(char(datetime(sessionDate,'InputFormat',dateFormat,'Format',dateFormat)))
         pulseLength(2184)=0.01;
     case('03_17_2020')
         pulseLength(1664:end) = 0.01;
-
+    case('04_18_2019')
+        pulseLength(1272) = 0.01;
+    case('07_15_2019')
+        pulseLength(2156) = 0.0195;
+        pulseLength(1220:1224) = 0.01;
+        pulseLength(1282:1284)=0.01;
+    case('07_09_2019')
+        
 end
 startEventIdx=find(pulseLength>0.0175 & pulseLength<0.03);
 endEventIdx = find(pulseLength>0.030 & pulseLength<0.070);
 
 passed=false;
-while(~passed)
+ while(~passed)
     for i = 1:min(length(startEventIdx),length(endEventIdx))-1
         if(startEventIdx(i)>endEventIdx(i+1))
             startEventIdx(i) = [];
@@ -372,9 +379,9 @@ for f = 1:sum(spikeChannels)
             '\Physiology\Results_All\',fullName,'.mat'];
         if(exist(fName,'file'))
             m = matfile(fName,"Writable",true);
-            save(fName,'sortedSpikeData','-mat','-append');%m.sortedSpikeData = sortedSpikeData;
+            save(fName,'sortedSpikeData','-append');%m.sortedSpikeData = sortedSpikeData;
         else
-            save(fName,'sortedSpikeData','-mat','-append');
+            save(fName,'sortedSpikeData');
         end
         clear sortedSpikeData spikeTimes segmentTimes
     end

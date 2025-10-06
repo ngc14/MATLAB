@@ -24,6 +24,8 @@ end
 siteDateMap = siteDateMap(~cellfun(@isempty, siteDateMap.Date),:);
 if(strcmp(domain,"PMd"))
     siteDateMap = siteDateMap([2,4:17,19,20,21,23,24,25,27,28,31,32,38,43,46,47,48,49,51,53,56],:);
+else
+    siteDateMap = siteDateMap([50,51,82,5,9,10,11,13,22,23,29,32,33,37,39,45,49,53,60,61,67,69,71,72,73,77,84,85,87,93,97,19,47,59],:)
 end
 % load info from all sites
 numSites = height(siteDateMap);
@@ -31,7 +33,7 @@ numSites = height(siteDateMap);
     siteTrialPSTHS,siteActiveInd,rawSpikes,channelMap] = deal(cell(1,numSites));
 delete(gcp('nocreate'));parpool('local');
 hbar = parforProgress(numSites);
-parfor  i = 1:numSites
+for  i = 1:numSites
     currSession = siteDateMap(i,:);
     if(strcmpi(currSession.Monkey,"Gilligan"))
         dateFormat = 'MM_dd_uuuu';
@@ -45,20 +47,22 @@ parfor  i = 1:numSites
         "_",string(currSession.Date),"\Physiology\");
     %delete(fullfile(fullfile(physDir,'*.cache')));
     physDir = strcat(physDir,"Results_All");
-    dirChannels = dir(physDir+"\*.mat");
-    if(isempty(dirChannels))
+    if(isempty(dir(physDir+"\*.mat")))
         if(~ismember(currSession.Date,{'05_02_2019','11_11_2019'}))
-            disp(['Sorting and labeling session: ', currSession.Date]);
+            disp(['Sorting and labeling session...']);
             Spike_SortRawData(currSession.Date,char(currSession.Monkey));
             labelSingleUnits(currSession.Date,char(currSession.Monkey));
         else
             disp(['Bad session: ', currSession.Date]);
         end
     end
-    firstChannel = load([strcat(physDir,'\',dirChannels(1).name)]);
-    if(~isfield(firstChannel,'label') && ~contains(fieldnames(firstChannel,'-full'),'label'))
-        disp(['Labeling session: ', currSession.Date]);
-        labelSingleUnits(currSession.Date,char(currSession.Monkey));
+    if(~isempty(dir(physDir+"\*.mat")))
+        dirChannels = dir(physDir+"\*.mat");
+        firstChannel = load([strcat(physDir,'\',dirChannels(1).name)]);
+        if(~isfield(firstChannel,'label') && ~contains(fieldnames(firstChannel,'-full'),'label'))
+            disp(['Labeling session...']);
+            labelSingleUnits(currSession.Date,char(currSession.Monkey));
+        end
     end
     [spikes,times,weights,currTrials,sessionConds,channels,~,~,chMap] =...
         getSessionInfo2(physDir,singleOrAllUnits,true);

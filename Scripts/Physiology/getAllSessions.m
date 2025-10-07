@@ -32,14 +32,14 @@ numSites = height(siteDateMap);
 [siteLocation, siteRep, siteThresh,siteSegs,siteChannels,...
     siteTrialPSTHS,siteActiveInd,rawSpikes,channelMap] = deal(cell(1,numSites));
 delete(gcp('nocreate'));
-%parpool('local'); 
+parpool('local'); 
 parRun = size(gcp('nocreate'),1);
 if(~parRun)
     hbar = waitbar(0, 'Processing...', 'Name',['Iterating ',num2str(numSites),' instances....']);
 else
     hbar = parforProgress(numSites);
 end
-for  i = 1:numSites
+parfor  i = 1:numSites
     currSession = siteDateMap(i,:);
     if(strcmpi(currSession.Monkey,"Gilligan"))
         dateFormat = 'MM_dd_uuuu';
@@ -78,8 +78,8 @@ for  i = 1:numSites
         for c = 1:length(conditions)
             currCond = conditions{c};
             condParamInd = cellfun(@(a) contains(a,conditions{c}),sessionConds);
-            condInds = cellfun(@(a,b) contains(a,conditions{c}) & (~isnan(str2double(b)) | ...
-                isempty(b)),currTrials(:,1),currTrials(:,end-1))';
+            condInds = cellfun(@(a,b,t) contains(a,conditions{c}) & ((~isnan(str2double(b)) & ...
+                ~isempty(b)) | (~any(isnan(b)) & isempty(b))),currTrials(:,1),currTrials(:,end-1),times')';
             condWeights = weights(:, condParamInd);
             condEvents = params.condSegMap(currCond);
             condAlign = cellfun(@(a) find(strcmp(condEvents,a)),...
@@ -96,7 +96,7 @@ for  i = 1:numSites
             if(any(condInds) && ~isempty(spikes))
                 % {alignedPSTHS}{units,trials}
                 alignedSpikes(c) = cellfun(@(ap) cellfun(@(s) cellfun(@(t) s-t(ap), ...
-                    times(condInds & cellfun(@(n) sum(isnan(n))<=1,times)),'UniformOutput',false),...
+                    times(condInds),'UniformOutput',false),...
                     spikes,'UniformOutput',false),condAlign,'UniformOutput',false);
                 alignedTimes = cellfun(@(ap) cell2mat(cellfun(@(t)[t(1:end-1)-t(ap), ...
                     NaN(1,length(condEvents)-length(t)),t(end)-t(ap)], times(condInds),...
@@ -121,19 +121,19 @@ for  i = 1:numSites
                 currTrialPSTHS{c} = repmat({NaN(numUnits,length(bins),1)},1,length(condAlign));
                 alignedSpikes{c} = repmat({NaN(numUnits,1)},1,length(condAlign));
             end
-
+            currTrials{c} =  condInds;
         end
         % get current session joint label
         siteRep{i} = currSession.SiteRep{:};
         siteThresh{i} = currSession.Thresh{:};
         siteLocation{i} = [currSession.x, currSession.y];
-        siteSegs{i} = currSeg;
         siteChannels{i} = channels;
-        siteTrialPSTHS{i} = currTrialPSTHS;
         siteActiveInd{i} = currActive;
-        rawSpikes{i} = alignedSpikes;
         channelMap{i} = chMap;
         trialInfo{i} = currTrials;
+        siteSegs{i} = currSeg;
+        siteTrialPSTHS{i} = currTrialPSTHS;
+        rawSpikes{i} = alignedSpikes;
     end
     if(parRun)
         send(hbar, i);
@@ -141,7 +141,9 @@ for  i = 1:numSites
         waitbar(i/numSites,hbar,['Processed ' num2str(i),' of ', num2str(numSites), ' instances.']);
     end
 end
-close(hbar);
+if(~parRun)
+    close(hbar);
+end
 %% remove sessions that had no trial information
 emptyInds = cellfun(@isempty, siteLocation);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

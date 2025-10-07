@@ -141,6 +141,7 @@ for  i = 1:numSites
         waitbar(i/numSites,hbar,['Processed ' num2str(i),' of ', num2str(numSites), ' instances.']);
     end
 end
+close(hbar);
 %% remove sessions that had no trial information
 emptyInds = cellfun(@isempty, siteLocation);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

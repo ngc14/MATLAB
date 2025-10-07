@@ -1,6 +1,6 @@
 function [baselineActivity, taskActivity] = calculatePhases(params,...
     alignment,alignWindow,siteSegs,siteTrialPSTHS,AUCCalc,keepTrials)
-baselineWindow = [-5,-1];
+baselineWindow = [-5,-2];
 baselineAlignPhases = ["GoSignal", "GoSignal"];
 [baselineActivity, taskActivity] = deal(cell(1,length(siteTrialPSTHS)));
 keyNames = params.condSegMap.keys;
@@ -73,7 +73,7 @@ end
 end
 
 function AUCPSTH = AUCBaselineBootstrap(ap,psths,winds,bSz,AUCCalc,trialMean)
-NUMSBASELINESAMPLES = 10;
+NUMSBASELINESAMPLES = 1;
 phaseL = cellfun(@(inWin) cell2mat(cellfun(@(w) w(:,2)-w(:,1), inWin,...
     'UniformOutput', false)), winds, 'UniformOutput', false)';
 phaseL = num2cell(max(cat(3,phaseL{:}),[],3),1);

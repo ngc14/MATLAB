@@ -79,7 +79,7 @@ parfor  i = 1:numSites
             currCond = conditions{c};
             condParamInd = cellfun(@(a) contains(a,conditions{c}),sessionConds);
             condInds = cellfun(@(a,b,t) contains(a,conditions{c}) & ((~isnan(str2double(b)) & ...
-                ~isempty(b)) | (~any(isnan(b)) & isempty(b))),currTrials(:,1),currTrials(:,end-1),times')';
+                ~isempty(b)) | (~any(isnan(t)) & isempty(b))),currTrials(:,1),currTrials(:,end-1),times')';
             condWeights = weights(:, condParamInd);
             condEvents = params.condSegMap(currCond);
             condAlign = cellfun(@(a) find(strcmp(condEvents,a)),...
@@ -121,7 +121,6 @@ parfor  i = 1:numSites
                 currTrialPSTHS{c} = repmat({NaN(numUnits,length(bins),1)},1,length(condAlign));
                 alignedSpikes{c} = repmat({NaN(numUnits,1)},1,length(condAlign));
             end
-            currTrials{c} =  condInds;
         end
         % get current session joint label
         siteRep{i} = currSession.SiteRep{:};
@@ -130,7 +129,8 @@ parfor  i = 1:numSites
         siteChannels{i} = channels;
         siteActiveInd{i} = currActive;
         channelMap{i} = chMap;
-        trialInfo{i} = currTrials;
+        trialInfo{i} = currTrials(cellfun(@(a,b,t) ismember(a,conditions) & ((~isnan(str2double(b)) & ...
+                ~isempty(b)) | (~any(isnan(t)) & isempty(b))),currTrials(:,1),currTrials(:,end-1),times'),:);
         siteSegs{i} = currSeg;
         siteTrialPSTHS{i} = currTrialPSTHS;
         rawSpikes{i} = alignedSpikes;

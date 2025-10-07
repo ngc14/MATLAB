@@ -1,4 +1,4 @@
-function [spikes,times,unitTrials,trials,conds,channel,eventNames,labels,chMap] = getSuccessfulTrials(folderName, singleOrAll,loadChannelMap)
+function [spikes,times,unitTrials,trials,conds,channel,eventNames,labels,chMap] = getAllTrials(folderName, singleOrAll,loadChannelMap)
 folderName = char(folderName);
 sessionDir = dir(folderName+"\*.mat");
 if(~exist('loadChannelMap','var'))
@@ -87,9 +87,9 @@ else
                         NaN, b(find(strcmp(a, 'StartGrasp')):end)],trialSegs(missGraspInds),...
                         segTimes(missGraspInds),'UniformOutput', false);
                 end
-               segTimes(cellfun(@length,trialSegs)~=cellfun(@length,segTimes)) = ...
-                   cellfun(@(n) NaN(1,length(n)), segTimes(cellfun(@length,trialSegs)...
-                   ~=cellfun(@length,segTimes)),'UniformOutput',false);
+                failedTrials = cellfun(@length,trialSegs)~=cellfun(@length,segTimes);
+                segTimes(failedTrials) = cellfun(@(c,n) [n(1:end-1),NaN(1,length(c)-length(n)),n(end)], ...
+                    trialSegs(failedTrials),segTimes(failedTrials),'UniformOutput',false);
                 allTimes(end+1:end+size(segTimes,1),:) = segTimes;
                 channel(end+1:end+sum(goodUnits)) = f;
                 labels(end+1:end+length(labs)) = labs;

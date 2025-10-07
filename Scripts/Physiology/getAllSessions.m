@@ -71,7 +71,7 @@ for  i = 1:numSites
         end
     end
     [spikes,times,weights,currTrials,sessionConds,channels,~,~,chMap] =...
-        getSessionInfo2(physDir,singleOrAllUnits,true);
+        getSuccessfulTrials(physDir,singleOrAllUnits,true);
     if(~isempty(spikes))
         [currSeg,currTrialPSTHS,currActive,trialHists,alignedSpikes] = deal(repmat({[]},1,length(conditions)));
         numUnits = size(spikes,1);

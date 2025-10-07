@@ -1,5 +1,5 @@
 function Spike_SortRawData(date, monkeyName)
-sessionDate = '04_22_2019';
+sessionDate = '01_27_2021';
 monkey = 'Gilligan';
 if(exist('date', 'var'))
     sessionDate = date;
@@ -14,7 +14,7 @@ events = repmat({{'StartTrial','GoSignal','StartReach','StartGrasp','StartLift',
     'StartWithdraw','StartReplaceHold','StartReplaceSuccess','StartReward','EndTrial'}}, 2,1);
 events(end+1) = {{'StartTrial','GoSignal','StartReach','StartGrasp','StartHold',...
     'StartWithdraw','StartReplaceHold','StartReplaceSuccess','StartReward','EndTrial'}};
-events(end+1) = {{'StartTrial','GoSignal','StartHold', 'StartReplaceHold','StartReplaceSuccess','StartReward','EndTrial'}};
+events(end+1) = {{'StartTrial','GoSignal', 'StartReplaceHold','StartReplaceSuccess','StartReward','EndTrial'}};
 events = events';
 conds = {'Extra Small Sphere','Large Sphere','Photocell', 'Rest'};
 eventChannel = 'SMA 1';
@@ -164,8 +164,15 @@ switch(char(datetime(sessionDate,'InputFormat',dateFormat,'Format',dateFormat)))
         pulseLength(652) = 0.01;
         pulseLength(1823) = 0.01;
         pulseLength(2232) = 0.01;
-
-        
+    case('04_03_2020')
+        pulseLength(162) = 0.01;
+        pulseLength(612) = 0.01;
+        pulseLength(802) = 0.01;
+    case('07_07_2020')
+        pulseLength(422) = 0.01;
+        pulseLength(884) = 0.01;
+        pulseLength(1146) = 0.01;
+        pulseLength(1258) = 0.01;
 end
 startEventIdx=find(pulseLength>0.0175 & pulseLength<0.03);
 endEventIdx = find(pulseLength>0.030 & pulseLength<0.070);
@@ -173,23 +180,18 @@ endEventIdx = find(pulseLength>0.030 & pulseLength<0.070);
 passed=false;
  while(~passed)
     for i = 1:min(length(startEventIdx),length(endEventIdx))-1
-        if(startEventIdx(i)>endEventIdx(i+1))
-            startEventIdx(i) = [];
-            removed = true;
-            break;
-        elseif(startEventIdx(i+1)<endEventIdx(i))
+        if(startEventIdx(i+1)<endEventIdx(i))
             startEventIdx(i+1) = [];
-            removed = true;
+            passed = false;
             break;
         elseif(endEventIdx(i)<startEventIdx(i))
-            endEventIdx(i) = [];
-            removed = true;
+            endEventIdx(i-1) = [];
+            passed = false;
             break;
         else
-            removed = false;
+            passed = true;
         end
     end
-    passed = ~removed;
 end
 switch(datestr(sessionDate,'yyyy_mm_dd'))
     case ('2021_09_22')

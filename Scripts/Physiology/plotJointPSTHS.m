@@ -6,7 +6,7 @@ else
     FRLim = FRLimIn;
 end
 alignmentGap = .1;
-segColors = ['k','r'];
+segColors = {[0 0 0],[.7 .7 .7]};
 
 activityInd = activityIn;
 PSTH = PSTHIn;
@@ -96,14 +96,14 @@ for j = 1:length(jointName)
                         avgSegs(s)<=PSTHDisplayLimits{a}(end) && ...
                         (~plotted(s) ||avgSegs(s)==plotStart))
                     if(avgSegs(s)==0)
-                        plotColor = segColors(1);
+                        plotColor = segColors{1};
                     else
-                        plotColor = segColors(end);
+                        plotColor = segColors{end};
                     end
                     %plotted(s) = true;
                     pSeg = find(isalmost(PSTHDisplayLimits{a}(1):binSize:...
                         PSTHDisplayLimits{a}(end),avgSegs(s),binSize/1.99),1);
-                    plot([xAlignTicks{a}(pSeg) xAlignTicks{a}(pSeg)],[0 groupMax],...
+                    plot([xAlignTicks{a}(pSeg) xAlignTicks{a}(pSeg)],[FRLim(1) groupMax],...
                         'Color',plotColor,'LineStyle','--');
                 end
             end

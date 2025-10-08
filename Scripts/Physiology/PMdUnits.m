@@ -4,7 +4,7 @@ taskAlign = containers.Map(conditions,{{["GoSignal" "StartHold"]},{["GoSignal","
 taskWindow =repmat({{[0, 0]}},1,length(conditions));
 alignLimits = {[-1, 2.5]};
 pVal=0.05;
-savePath = "S:\Lab\ngc14\Working\PMd\Task_Units\";
+savePath = "S:\Lab\ngc14\Working\PMd\Task_Units\M!\";
 params = PhysRecording(string(conditions),.01,.15,-6,15,containers.Map(conditions,...
     {"GoSignal","GoSignal","GoSignal","GoSignal"}));
 plotUnits = false;
@@ -96,6 +96,7 @@ for c =1:length(conditions)-1
     end
 end
 %%
+savePath = savePath + "SuperSites\";
 [allTrials,allPSTHS]= deal(cell(1,1));
 [condInds,allSiteInds,allRestInds] = deal([]);
 allSegs = params.condSegMap.values;
@@ -108,7 +109,7 @@ for c =1:length(conditions)
     [~,siteUnitMods] = unique(unit2SiteMap);
     taskSiteInds = find(cellfun(@any,arrayfun(@(a) tUnits(unit2SiteMap==a),...
         min(unit2SiteMap(unit2SiteMap~=0)):max(unit2SiteMap),'UniformOutput', false))');
-    %taskSiteInds = intersect(taskSiteInds,find(cellfun(@(s) s(1), siteLocation)>515& cellfun(@(s) s(1), siteLocation)<600));
+%    taskSiteInds = intersect(taskSiteInds,find(cellfun(@(s) s(1), siteLocation)>515 & cellfun(@(s) s(1), siteLocation)<600));
     tUnits = taskUnits(taskSiteInds);
     rUnits = restUnits(taskSiteInds);
     siteDates = siteDateMap(taskSiteInds,:);
@@ -135,7 +136,7 @@ for c =1:length(conditions)
         plotJointPSTHS(params.bins,{vertcat(unitPSTHS{:})},{cell2mat(siteUnitSegs)},...
             siteUnitNames,cell2mat(tUnits), [],alignLimits,[0 5],cell2struct(num2cell(...
             distinguishable_colors(length(siteUnitSegs)),2),arrayfun(@(t) "SiteNo"+num2str(siteDateMap{t,'Site'}),taskSiteInds)));
-        saveFigures(gcf,strcat(savePath,"PSTHS\Session_PSTHS\"),strcat("Task_Units_",params.condAbbrev(char(conditions(c))),"_"),[]);
+        saveFigures(gcf,strcat(savePath,"Session_PSTHS\"),strcat("Task_Units_",params.condAbbrev(char(conditions(c))),"_"),[]);
         close all;
         for s = 1:length(sitePSTHS)
             ucs = unitChannelMaps{s}(tUnits{s});
@@ -144,11 +145,11 @@ for c =1:length(conditions)
                 unique(ucs),unitIndex,'UniformOutput',false);
             unitLabels = string(arrayfun(@(t) "SiteNo"+num2str(siteDates{s,'Site'})+"_"+t,cell2mat(utc),'UniformOutput',false))';
             plotColors =cell2struct(num2cell(distinguishable_colors(length(ucs)),2),unitLabels);
-            unitTrialLabels = cell2mat(arrayfun(@(n) repmat(n,size(siteCondSegs{s},1),1),unitLabels,'UniformOutput',false));
+            unitTrialLabels = cell2mat(arrayfun(@(n) repmat(n,sum(goodTrials{s}),1),unitLabels,'UniformOutput',false));
             siteTrialSegs = repmat(siteCondSegs(s),length(unitLabels),1);
             plotJointPSTHS(params.bins,{cell2mat(sitePSTHS{s})},{cell2mat(siteTrialSegs)},...
                 unitTrialLabels,true(size(unitTrialLabels)), [],alignLimits,[0 5],plotColors);
-            saveFigures(gcf,savePath+"PSTHS\Units\"+string(datetime(siteDates.Date{s},'Format','MMMM_dd_yyyy'))+"\",...
+            saveFigures(gcf,savePath+"Units\"+string(datetime(siteDates.Date{s},'Format','MMMM_dd_yyyy'))+"\",...
                 params.condAbbrev(params.condNames(c))+"_PSTH",[]);
             close all;
         end
@@ -187,9 +188,8 @@ plotJointPSTHS(params.bins,{repmat(allPSTHSCond(restUnitInds,:),length(condition
 plotJointPSTHS(params.bins,{allPSTHSCond(~restUnitInds,:)},{allTrialsCond(~restUnitInds,:)},condInds(~restUnitInds)',...
     allTaskInds(~restUnitInds),[], alignLimits,[1 10],cell2struct(num2cell(...
     distinguishable_colors(length(conditions),'r'),2),string(params.condAbbrev.values)));
-saveFigures(gcf,savePath+"PSTHS\","All_PSTH_Cue",[]);
-%%
-if(plotUnits)
+saveFigures(gcf,savePath,"All_PSTH",[]);
+
     figure('Units','normalized','Position',[0 0 1 1]);
     for a = 1:length(conditions)-1; subplot(length(conditions)-1,1,a); end
     restUnitInds = restUnitInds(allTaskInds);
@@ -205,7 +205,7 @@ if(plotUnits)
     plotJointPSTHS(params.bins,{restPSTHSCond(~restUnitInds,:)},{restTrialsCond(~restUnitInds,:)},...
         condInds(~restUnitInds)',allRestTaskInds(~restUnitInds),[],alignLimits,[0 5],...
         cell2struct(num2cell(distinguishable_colors(length(conditions),'r'),2),string(params.condAbbrev.values)));
-    saveFigures(gcf,savePath+"PSTHS\","All_PSTH_EqRest",[]);
+    saveFigures(gcf,savePath,"All_PSTH_EqRest",[]);
 
     figure('Units','normalized','Position',[0 0 1 1]);
     for a = 1:length(conditions)-1; subplot(length(conditions)-1,1,a); end
@@ -220,24 +220,4 @@ if(plotUnits)
     plotJointPSTHS(params.bins,{restPSTHSCond(~restUnitInds,:)},{restTrialsCond(~restUnitInds,:)},...
         condInds(~restUnitInds)',allRestTaskInds(~restUnitInds),[],alignLimits,[0 5],...
         cell2struct(num2cell(distinguishable_colors(length(conditions),'r'),2),string(params.condAbbrev.values)));
-    saveFigures(gcf,savePath+"PSTHS\","All_PSTH_DiffRest",[]);
-    %%
-
-    taskPSTHS = cellfun(@(c,t) c(t,:), unitPSTHS,tUnits, 'UniformOutput',false);
-    for t = 1:2
-        if(t==1)
-            typeName = "EqRest";
-        else
-            typeName = "DiffRest";
-        end
-        condGroupUnits = cellfun(@(u,d) d(u)==(t-1), tUnits, rUnits,'UniformOutput',false);
-        unitAvgPSTHS = cellfun(@(m,p) (m./m).*p,condGroupUnits,taskPSTHS,'UniformOutput',false);
-        if(plotUnits)
-            plotJointPSTHS(params.bins,{vertcat(unitAvgPSTHS{:})},{cell2mat(cellfun(@(s,u)repmat(mean(s,1,'omitnan'),length(u),1),...
-                siteCondSegs,condGroupUnits,'UniformOutput',false))},siteUnitNames(vertcat(tUnits{:})),...
-                cell2mat(condGroupUnits)', [],alignLimits,[0 5],cell2struct(num2cell(...
-                distinguishable_colors(length(condGroupUnits)),2),"SiteNo"+num2str(siteDates{:,'Site'})));
-            saveFigures(gcf,strcat(savePath,"PSTHS\Session_PSTHS\"),strcat(params.condAbbrev(params.condNames(c)),"_",typeName),[]);
-        end
-    end
-end
+    saveFigures(gcf,savePath,"All_PSTH_DiffRest",[]);

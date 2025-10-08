@@ -6,6 +6,7 @@ rawSpikes = [];
 drivePath = "S:\Lab\";
 monkeys = ["Gilligan", "Skipper"];
 excludeRep = "Face";
+condWindows = [0 0 0 .5];
 % PSTH parameters: bin sizes, smoothing kernel, seconds prior to zero
 % alignment,seconds after zero alignment, alignment point(s) for each
 % condition (default value)
@@ -39,7 +40,7 @@ if(~parRun)
 else
     hbar = parforProgress(numSites);
 end
-parfor  i = 1:numSites
+for  i = 1:numSites
     currSession = siteDateMap(i,:);
     if(strcmpi(currSession.Monkey,"Gilligan"))
         dateFormat = 'MM_dd_uuuu';
@@ -78,7 +79,7 @@ parfor  i = 1:numSites
         NaNGraspInd = cellfun(@(s,t) sum(isnan(t))==1 & isnan(t(strcmp(params.condSegMap(s),"StartGrasp"))), ...
             currTrials(:,1),times','UniformOutput',false);
         NaNGraspInd(cellfun(@isempty,NaNGraspInd)) = deal({false});
-        successfulInds = cellfun(@(b,t) (~isnan(str2double(b)) & ~isempty(b)) | (~any(isnan(t)) & isempty(b)),currTrials(:,end-1),times');
+        successfulInds = cellfun(@(b,t) ~isnan(str2double(b)) | isempty(b),currTrials(:,end-1));
         successfulTrials = successfulInds | cell2mat(NaNGraspInd);
         currTrials = currTrials(successfulTrials,:);
         times = times(successfulTrials);
@@ -101,11 +102,11 @@ parfor  i = 1:numSites
             % generate and smooth PSTHS  from current session
             if(any(condInds) && ~isempty(spikes))
                 % {alignedPSTHS}{units,trials}
-                alignedSpikes(c) = cellfun(@(ap) cellfun(@(s) cellfun(@(t) s-t(ap), ...
-                    times(condInds),'UniformOutput',false),...
+                alignedSpikes(c) = cellfun(@(ap) cellfun(@(s) cellfun(@(t) ...
+                    s-(t(ap)+condWindows(c)),times(condInds),'UniformOutput',false),...
                     spikes,'UniformOutput',false),condAlign,'UniformOutput',false);
-                alignedTimes = cellfun(@(ap) cell2mat(cellfun(@(t)[t(1:end-1)-t(ap), ...
-                    NaN(1,length(condEvents)-length(t)),t(end)-t(ap)], times(condInds),...
+                alignedTimes = cellfun(@(ap) cell2mat(cellfun(@(t)[t(1:end-1)-(t(ap)+condWindows(c)), ...
+                    NaN(1,length(condEvents)-length(t)),t(end)-(t(ap)+condWindows(c))], times(condInds),...
                     'UniformOutput', false)'), condAlign, 'UniformOutput', false);
                 trialHists{c} = cellfun(@(ac) cellfun(@(a) histcounts(a,...
                     [bins(1)-(params.sigmaSize/2):params.binSize:bins(end)+...
@@ -124,8 +125,8 @@ parfor  i = 1:numSites
             else
                 % pad stored info with empty arrays and NaN pad indicies for missing conditions
                 currSeg{c} = repmat({NaN(size(params.condSegMap(currCond)))},1,length(condAlign));
-                currTrialPSTHS{c} = repmat({NaN(numUnits,length(bins),1)},1,length(condAlign));
-                alignedSpikes{c} = repmat({NaN(numUnits,1)},1,length(condAlign));
+                currTrialPSTHS{c} = repmat(NaN(numUnits,length(bins),1),1,length(condAlign));
+                alignedSpikes{c} = repmat(NaN(numUnits,1),1,length(condAlign));
             end
         end
         % get current session joint label

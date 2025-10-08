@@ -2,11 +2,11 @@ conditions = ["Extra Small Sphere", "Large Sphere", "Photocell","Rest"];
 taskAlign = containers.Map(conditions,{{["GoSignal" "StartHold"]},{["GoSignal","StartHold"]},...
     {["GoSignal","StartHold"]},{["GoSignal","StartReplaceHold"]}});
 taskWindow =repmat({{[0, 0]}},1,length(conditions));
-alignLimits = {[-1, 2.5]};
+alignLimits = {[-1.5, 2]};
 pVal=0.05;
-savePath = "S:\Lab\ngc14\Working\PMd\Task_Units\M1\";
+saveDir = "S:\Lab\ngc14\Working\PMd\M1\";
 params = PhysRecording(string(conditions),.01,.15,-6,15,containers.Map(conditions,...
-    {"GoSignal","GoSignal","GoSignal","GoSignal"}));
+    {"StartReach","StartReach","StartReach","GoSignal"}));
 plotUnits = false;
 MIN_BLOCKS_FOR_UNIT = 13;
 %%
@@ -66,7 +66,7 @@ for c =1:length(conditions)-1
     hold on;
     xlim([1,maxClusters]);
     scatter(clusterP.OptimalK,clusterP.CriterionValues(clusterP.OptimalK),'r','filled','o');
-    saveFigures(gcf,savePath+"Clustering\Correlation\"+params.condAbbrev(params.condNames(c))+"\","EvaluationValues",[]);
+    saveFigures(gcf,saveDir+"Clustering\Correlation\"+params.condAbbrev(params.condNames(c))+"\","EvaluationValues",[]);
     wrapPlots = 3;
     for s = 1:length(clusterP.InspectedK)
         close all;
@@ -89,14 +89,14 @@ for c =1:length(conditions)-1
         plotJointPSTHS(params.bins,{restPSTHS},{cell2mat(siteUnitSegs)},...
             clusterGroups,cell2mat(tUnits)',[],alignLimits,[0,1],clusterColors);
         if(clusterP.OptimalK==s)
-            saveFigures(gcf,savePath+"Clustering\Correlation\"+params.condAbbrev(params.condNames(c))+"\",num2str(s)+"_Optimal_PSTH",[]);
+            saveFigures(gcf,saveDir+"Clustering\Correlation\"+params.condAbbrev(params.condNames(c))+"\",num2str(s)+"_Optimal_PSTH",[]);
         else
-            saveFigures(gcf,savePath+"Clustering\Correlation\"+params.condAbbrev(params.condNames(c))+"\",num2str(s)+"_PSTH",[]);
+            saveFigures(gcf,saveDir+"Clustering\Correlation\"+params.condAbbrev(params.condNames(c))+"\",num2str(s)+"_PSTH",[]);
         end
     end
 end
 %%
-savePath = savePath + "PSTHS\";
+savePath = saveDir + "PSTHS\";
 [allTrials,allPSTHS]= deal(cell(1,1));
 [condInds,allSiteInds,allRestInds] = deal([]);
 allSegs = params.condSegMap.values;
@@ -109,7 +109,7 @@ for c =1:length(conditions)
     [~,siteUnitMods] = unique(unit2SiteMap);
     taskSiteInds = find(cellfun(@any,arrayfun(@(a) tUnits(unit2SiteMap==a),...
         min(unit2SiteMap(unit2SiteMap~=0)):max(unit2SiteMap),'UniformOutput', false))');
-%    taskSiteInds = intersect(taskSiteInds,find(cellfun(@(s) s(1), siteLocation)>515 & cellfun(@(s) s(1), siteLocation)<600));
+    % taskSiteInds = intersect(taskSiteInds,find(cellfun(@(s) s(1), siteLocation)<515 & cellfun(@(s) s(1), siteLocation)<600));
     tUnits = taskUnits(taskSiteInds);
     rUnits = restUnits(taskSiteInds);
     siteDates = siteDateMap(taskSiteInds,:);
@@ -179,7 +179,7 @@ allTaskInds = vertcat(allSiteInds{:});
 restUnitInds = strcmp(condInds,"R")';
 
 figure('Units','normalized','Position',[0 0 1 1]);
-for a = 1:length(conditions)-1; subplot(length(conditions)-1,1,a); end
+for a = 1:length(conditions)-1; subplot(1,length(conditions)-1,a); end
 plotJointPSTHS(params.bins,{repmat(allPSTHSCond(restUnitInds,:),length(conditions)-1,1)},...
     {repmat(allTrialsCond(restUnitInds,:),length(conditions)-1,1)},cell2mat(arrayfun(@(s) ...
     repmat("R"+num2str(s),sum(restUnitInds),1),1:length(conditions)-1,'UniformOutput',false)'),...
@@ -190,8 +190,9 @@ plotJointPSTHS(params.bins,{allPSTHSCond(~restUnitInds,:)},{allTrialsCond(~restU
     distinguishable_colors(length(conditions),'r'),2),string(params.condAbbrev.values)));
 saveFigures(gcf,savePath,"All_PSTH",[]);
 
+if(plotUnits)
     figure('Units','normalized','Position',[0 0 1 1]);
-    for a = 1:length(conditions)-1; subplot(length(conditions)-1,1,a); end
+    for a = 1:length(conditions)-1; subplot(1,length(conditions)-1,a); end
     restUnitInds = restUnitInds(allTaskInds);
     condInds = condInds(allTaskInds);
     allRestTaskInds = vertcat(allRestInds{:});
@@ -221,3 +222,4 @@ saveFigures(gcf,savePath,"All_PSTH",[]);
         condInds(~restUnitInds)',allRestTaskInds(~restUnitInds),[],alignLimits,[0 5],...
         cell2struct(num2cell(distinguishable_colors(length(conditions),'r'),2),string(params.condAbbrev.values)));
     saveFigures(gcf,savePath,"All_PSTH_DiffRest",[]);
+end

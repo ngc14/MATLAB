@@ -108,7 +108,7 @@ for j = 1:length(jointName)
                 end
             end
             if(a==size(jointPSTH,2))
-                allXTicks = cellfun(@(ta,pd) [find(mod(pd(1):.01:pd(end),1)==0),...
+                allXTicks = cellfun(@(ta,pd) [0,find(mod(pd(1):.01:pd(end),1)==0),...
                     length(ta)],xAlignTicks,PSTHDisplayLimits,'UniformOutput',false);
                 allXTicks = unique(cell2mat(allXTicks),'stable');
                 xticks(allXTicks);

@@ -75,11 +75,17 @@ parfor  i = 1:numSites
     if(~isempty(spikes))
         [currSeg,currTrialPSTHS,currActive,trialHists,alignedSpikes] = deal(repmat({[]},1,length(conditions)));
         numUnits = size(spikes,1);
+        NaNGraspInd = cellfun(@(s,t) sum(isnan(t))==1 & isnan(t(strcmp(params.condSegMap(s),"StartGrasp"))), ...
+            currTrials(:,1),times','UniformOutput',false);
+        NaNGraspInd(cellfun(@isempty,NaNGraspInd)) = deal({false});
+        successfulInds = cellfun(@(b,t) (~isnan(str2double(b)) & ~isempty(b)) | (~any(isnan(t)) & isempty(b)),currTrials(:,end-1),times');
+        successfulTrials = successfulInds | cell2mat(NaNGraspInd);
+        currTrials = currTrials(successfulTrials,:);
+        times = times(successfulTrials);
         for c = 1:length(conditions)
             currCond = conditions{c};
             condParamInd = cellfun(@(a) contains(a,conditions{c}),sessionConds);
-            condInds = cellfun(@(a,b,t) contains(a,conditions{c}) & ((~isnan(str2double(b)) & ...
-                ~isempty(b)) | (~any(isnan(t)) & isempty(b))),currTrials(:,1),currTrials(:,end-1),times')';
+            condInds = cellfun(@(a) contains(a,conditions{c}),currTrials(:,1));
             condWeights = weights(:, condParamInd);
             condEvents = params.condSegMap(currCond);
             condAlign = cellfun(@(a) find(strcmp(condEvents,a)),...
@@ -129,8 +135,7 @@ parfor  i = 1:numSites
         siteChannels{i} = channels;
         siteActiveInd{i} = currActive;
         channelMap{i} = chMap;
-        trialInfo{i} = currTrials(cellfun(@(a,b,t) ismember(a,conditions) & ((~isnan(str2double(b)) & ...
-                ~isempty(b)) | (~any(isnan(t)) & isempty(b))),currTrials(:,1),currTrials(:,end-1),times'),:);
+        trialInfo{i} = currTrials(cellfun(@(a) ismember(a,conditions),currTrials(:,1)),:);
         siteSegs{i} = currSeg;
         siteTrialPSTHS{i} = currTrialPSTHS;
         rawSpikes{i} = alignedSpikes;

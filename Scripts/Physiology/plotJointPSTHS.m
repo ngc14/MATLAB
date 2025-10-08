@@ -39,8 +39,8 @@ if(~isempty(figHandle))
 else
     figure();
     figHandle = gcf;
-    nrows = min(length(jointName),3);
-    wrapPlots = ceil(length(jointName)/nrows);
+    wrapPlots = min(length(jointName),3);
+    nrows = ceil(length(jointName)/wrapPlots);
 end
 xAlignTicks = {};
 maxPlot = 0;
@@ -82,7 +82,7 @@ for j = 1:length(jointName)
             d = patch(xP,yP,1);
             set(d,'edgecolor','none','facealpha',.5,'facecolor',plotColors.(jointName{j}));
             if(~isempty(yP))
-                maxPlot = max(maxPlot,FRLim(end)*max(1,ceil(max(yP)/FRLim(end))));
+                groupMax = max(FRLim(end),FRLim(end)*ceil(max(yP)/FRLim(end)));
             end
             avgSegs = nanmean(currSegs,1);
             if(a==1)
@@ -103,7 +103,7 @@ for j = 1:length(jointName)
                     %plotted(s) = true;
                     pSeg = find(isalmost(PSTHDisplayLimits{a}(1):binSize:...
                         PSTHDisplayLimits{a}(end),avgSegs(s),binSize/1.99),1);
-                    plot([xAlignTicks{a}(pSeg) xAlignTicks{a}(pSeg)],[0 maxPlot],...
+                    plot([xAlignTicks{a}(pSeg) xAlignTicks{a}(pSeg)],[0 groupMax],...
                         'Color',plotColor,'LineStyle','--');
                 end
             end
@@ -121,6 +121,8 @@ for j = 1:length(jointName)
         end
     end
     set(gca,'XLim',[allXTicks(1), allXTicks(end)]);
+    set(gca,'YLim',[FRLim(1),groupMax]);
+    maxPlot = max(maxPlot,groupMax);
 end
-set(figHandle.Children,'YLim',[FRLim(1),maxPlot]);
+%set(figHandle.Children,'YLim',[FRLim(1),maxPlot]);
 end

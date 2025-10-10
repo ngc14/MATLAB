@@ -25,7 +25,15 @@ else
             chMapR = [hFile.Entity.Label];
             chs = cellfun(@(r) cell2mat(regexp(r,'(\d+)(?!.*\d)','match')),chMapR,'Uniformoutput',false);
             chMapR = chMapR(~cellfun(@isempty,chs));
+            if(isempty(chMapR))
+                chMapR = [hFile.Entity.ElectrodeID];
+                chMapR = arrayfun(@(e) "e"+sprintf('%02d',e), chMapR(chMapR~=0)); 
+            end
             chs = chs(~cellfun(@isempty,chs));
+            if(isempty(chs))
+                chs= arrayfun(@num2str,[hFile.Entity.ElectrodeID],'UniformOutput',false);
+                chs = chs(cellfun(@(c) ~strcmp(c,"0"), chs));
+            end
             [chs,ci,~] = unique(cellfun(@str2double,chs));
             if(any(contains(infoLines,"Microprobes",'IgnoreCase',true)) && ...
                     any(contains(infoLines, "Channel 1"+wildcardPattern+"deep")))

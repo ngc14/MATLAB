@@ -2,21 +2,24 @@ varNames = ["Unit" "SiteNum" "Monkey" "Somatotopy" "Channel" "X" "Y" "Condition"
      "TaskUnits" "DiffRest"];
 rNames = ["RT_r", "RSpeed_r"];
 conditions = params.condNames;
-phaseNames = ["Go", "Reach", "Hold", "Withdraw","Reward"];
-phaseAlignmentPoints = {["GoSignal","StartReach","StartHold","StartWithdraw","StartReward"],...
-    ["GoSignal","StartReach","StartHold","StartWithdraw","StartReward"],...
-    ["GoSignal","StartReach","StartHold","StartWithdraw","StartReward"],...
-    ["GoSignal","StartReplaceHold","StartReward"]};
+phaseNames = ["Baseline", "Go", "Reach", "Hold", "Withdraw","Reward"];
+phaseAlignmentPoints = {["GoSignal","GoSignal","StartReach","StartHold","StartWithdraw","StartReward"],...
+    ["GoSignal","GoSignal","StartReach","StartHold","StartWithdraw","StartReward"],...
+    ["GoSignal","GoSignal","StartReach","StartHold","StartWithdraw","StartReward"],...
+    ["GoSignal","GoSignal","StartReplaceHold","StartReward"]};
 phaseWinSz = .2;
-phaseWindows = repmat({{[-phaseWinSz*(3/4),phaseWinSz*(1/4)],[-phaseWinSz*(1/2),phaseWinSz*(1/2)],...
-    [-phaseWinSz, 0],[-phaseWinSz*(3/4),phaseWinSz*(1/4)],[-phaseWinSz*(1/2),phaseWinSz*(1/2)]}},...
-    1,length(conditions)-1);
-phaseWindows(end+1) = {{[-phaseWinSz*(3/4),phaseWinSz*(1/4)],[-phaseWinSz*(1/4),phaseWinSz*(3/4)],...
-    [-phaseWinSz*(1/4),phaseWinSz*(3/4)]}};
+phaseWindows = repmat({{[-phaseWinSz,0],[0,phaseWinSz],[-phaseWinSz,0],[-(1/2)*phaseWinSz,(1/2)*phaseWinSz]...
+    [-phaseWinSz*(3/4),phaseWinSz*(1/4)],[-phaseWinSz*(1/2),phaseWinSz*(1/2)]}},1,length(conditions)-1);
+phaseWindows(end+1) = {{[-phaseWinSz,0],[0,phaseWinSz], [-phaseWinSz*(1/2),phaseWinSz*(1/2)],...
+    [-phaseWinSz*(1/2),phaseWinSz*(1/2)]}};
+% phaseWindows = repmat({{[-phaseWinSz,phaseWinSz*(1/4)],[-phaseWinSz*(1/2),phaseWinSz*(1/2)],...
+%     [-phaseWinSz, 0],[-phaseWinSz*(3/4),phaseWinSz*(1/4)],[-phaseWinSz*(1/2),phaseWinSz*(1/2)]}},...
+%     1,length(conditions)-1);
+% phaseWindows(end+1) = {{[-phaseWinSz*(3/4),phaseWinSz*(1/4)],[-phaseWinSz*(1/4),phaseWinSz*(3/4)],...
+%     [-phaseWinSz*(1/4),phaseWinSz*(3/4)]}};
 savePath = "S:\Lab\ngc14\Working\PMd\Task_Units\";
 close all;
 %%
-normPSTH = siteTrialPSTHS;
 mappedChannels = cellfun(@(ch,l) ch{2}(l(~isnan(l))), chMaps,siteChannels, 'Uniformoutput', false)';
 avgSeg = cellfun(@(ct) cellfun(@(ca) cellfun(@(t) mean(t,1,'omitnan'), ca, 'UniformOutput',false),...
     ct, 'UniformOutput',false),siteSegs, 'UniformOutput',false);
@@ -79,14 +82,14 @@ for c = 1:length(conditions)
     condTable.Y = mapSites2Units(condUnitMapping,siteDateMap.y);
     condTable.Condition = categorical(repmat({params.condAbbrev(conditions{c})},length(mLabs),1));
     condTable.TaskUnits =  logical(tUnits);
-    condTable.unitType = NaN(size(tUnits));
     for pn = 1:length(phaseNames)
         condTable.(phaseNames(pn)) = AUCVals(:,pn);
     end
-    for r = 1:length(rNames)
-        condTable.(rNames(r)) = cell2mat(vertcat(Rs{r}{c}{:}));
-    end
-    condTable.Properties.VariableNames = [varNames, phaseNames, rNames];
+    % condTable.unitType = NaN(size(tUnits));
+    % for r = 1:length(rNames)
+    %     condTable.(rNames(r)) = cell2mat(vertcat(Rs{r}{c}{:}));
+    % end
+    % condTable.Properties.VariableNames = [varNames, phaseNames, rNames];
     tPhys = [tPhys;condTable];
 end
 plotNames = arrayfun(@(p) arrayfun(@(c) p+"_"+c{1}(1), conditions, 'UniformOutput', true), phaseNames, 'UniformOutput', false);

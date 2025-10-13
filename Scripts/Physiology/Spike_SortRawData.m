@@ -1,5 +1,5 @@
 function Spike_SortRawData(date, monkeyName)
-sessionDate = '07_11_2019';
+sessionDate = '09_17_2019';
 monkey = 'Gilligan';
 if(exist('date', 'var'))
     sessionDate = date;
@@ -177,6 +177,8 @@ switch(char(datetime(sessionDate,'InputFormat',dateFormat,'Format',dateFormat)))
          pulseLength(539) = 0.01;
          pulseLength(649) = 0.01;
          pulseLength(962) = 0.01;
+    case('09_17_2019')
+        pulseLength(2558) = 0.01;
 end
 startEventIdx=find(pulseLength>0.0175 & pulseLength<0.03);
 endEventIdx = find(pulseLength>0.030 & pulseLength<0.070);

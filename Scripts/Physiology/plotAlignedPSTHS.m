@@ -11,9 +11,9 @@ for u = 1:size(PSTHunits{1},2)
     allSegs = segs;
     figure(); hold on;
     plotStart = 0;
-    plotted = false(1,size(allSegs,2));
     xAlignTicks = {};
     for a = 1:length(PSTH)
+        plotted = false(1,size(allSegs{a}{u},2));
         xAlignTicks{a} = plotStart+[1:size(PSTH{a},2)];
         plot(xAlignTicks{a},nanmean(squeeze(PSTH{a}(u,:,:)),2), 'LineWidth',2,'Color', 'b')
         ue = nanmean(squeeze(PSTH{a}(u,:,:)),2) + (nanstd(squeeze(PSTH{a}(u,:,:)),0,2)/sqrt(size(PSTH{a},3)));

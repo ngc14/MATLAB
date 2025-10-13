@@ -37,16 +37,15 @@ normBaseline = cellfun(@(p,t) mean(cell2mat(cellfun(@(a,n) max(1,mean(...
     'UniformOutput',false)),2,'omitnan'),num2cell([siteTrialPSTHS{:}],2),num2cell([allCondSegs{:}],2),"UniformOutput",false);
 normPSTH = cellfun(@(cp) cellfun(@(p,nb)p./repmat(nb,1,1,size(p,3)),cp,normBaseline,...
     'UniformOutput',false),siteTrialPSTHS,'Uniformoutput', false);
-
 taskUnits = cellfun(@(a,b) any(cell2mat(a),2) & sum(b,2)>MIN_BLOCKS_FOR_UNIT*size(b,2), ...
     num2cell(cat(2,tUnit{:}),2),goodUnits,'Uniformoutput',false);
 allMaps = cellfun(@(d) d{end}, chMaps, 'UniformOutput',false);
+%%
 unitChannels = siteChannels;
 unit2SiteMap=cell2mat(arrayfun(@(m,n) ones(1,size(m{1},2))*n,unitChannels,1:length(unitChannels),'UniformOutput',false));
 maxCondsFR = cellfun(@(c) cellfun(@(d) max(mean(d,3,'omitnan'),[],2,'omitnan'),...
     c,'UniformOutput',false),normPSTH, 'UniformOutput',false);
 %normPSTH = num2cell([siteTrialPSTHS{:}],2);
-%%
 [~,restFR] = calculatePhases(params,containers.Map(["Rest"],{["GoSignal","StartReplaceHold"]}),taskWindow,siteSegs(end),siteTrialPSTHS(end),false,true);
 [rVals,rUnit] = cellfun(@(tc) cellfun(@(r,c) ttestTrials(r,c,1,false,pVal),...
     restFR{1},tc,'UniformOutput',false),taskFR,'UniformOutput',false);

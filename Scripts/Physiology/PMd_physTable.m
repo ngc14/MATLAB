@@ -34,7 +34,7 @@ for j = 1:size(sumSegs,2)
         sumSegs{j}{i}(:,condSegMappedInds{j}) = siteSegs{j}{i}{1};
     end
 end
-[~,avgPhase] =  calculatePhases(params,condPhaseAlign,phaseWindows,avgSeg,siteTrialPSTHS,false,false);
+[~,avgPhase] =  calculatePhases(params,condPhaseAlign,phaseWindows,avgSeg,normPSTH,false,false);
 avgPhase = cellfun(@(c) cellfun(@(a) median(cell2mat(reshape(cellfun(@cell2mat,a(1),'UniformOutput',false),1,1,[])),3,'omitnan'),...
     c, 'UniformOutput', false), avgPhase, 'UniformOutput',false);
 taskUnits = cellfun(@(a,b) cell2mat(a) & repmat(sum(b,2)>MIN_BLOCKS_FOR_UNIT*size(b,2),1,size(b,2)), ...

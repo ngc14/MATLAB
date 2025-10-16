@@ -33,14 +33,14 @@ numSites = height(siteDateMap);
 [siteLocation, siteRep, siteThresh,siteSegs,siteChannels,...
     siteTrialPSTHS,siteActiveInd,rawSpikes,channelMap] = deal(cell(1,numSites));
 delete(gcp('nocreate'));
-%parpool('local'); 
+parpool('local'); 
 parRun = size(gcp('nocreate'),1);
 if(~parRun)
     hbar = waitbar(0, 'Processing...', 'Name',['Iterating ',num2str(numSites),' instances....']);
 else
     hbar = parforProgress(numSites);
 end
-for  i = 1:numSites
+parfor  i = 1:numSites
     currSession = siteDateMap(i,:);
     if(strcmpi(currSession.Monkey,"Gilligan"))
         dateFormat = 'MM_dd_uuuu';

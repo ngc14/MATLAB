@@ -92,7 +92,8 @@ for j = 1:length(jointName)
             avgSegs = nanmean(currSegs,1);
             if(a==1)
                 plotted = false(1,size(currSegs,2));
-                maxSegNames=maxSegL(~all(isnan(currSegs),1));
+                maxSegNames=maxSegL;
+                maxSegNames(all(isnan(currSegs),1)) = "";
                 patches = cellfun(@(i,w) findBins(avgSegs(find(contains(maxSegNames,i)))+w,...
                     PSTHDisplayLimits{a}(1):binSize:PSTHDisplayLimits{a}(end)), pa,pw,'UniformOutput',false);
             end
@@ -132,7 +133,7 @@ for j = 1:length(jointName)
     set(gca,'XLim',[allXTicks(1), allXTicks(end)]);
     set(gca,'YLim',[FRLim(1),groupMax]);
     maxPlot = max(maxPlot,groupMax);
-    cellfun(@(cr) patch([cr,fliplr(cr)],[FRLim(1) FRLim(1) groupMax groupMax],'k','FaceAlpha',.15),patches);
+    cellfun(@(cr) patch([cr,fliplr(cr)],[FRLim(1) FRLim(1) groupMax groupMax],'k','FaceAlpha',.15,'EdgeColor','none'),patches);
 end
 %set(figHandle.Children,'YLim',[FRLim(1),maxPlot]);
 end

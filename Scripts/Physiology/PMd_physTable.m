@@ -20,6 +20,11 @@ taskAlign = containers.Map(conditions,{{["GoSignal" "StartHold"]},{["GoSignal","
 % phaseWindows(end+1) = {{[-phaseWinSz*(3/4),phaseWinSz*(1/4)],[-phaseWinSz*(1/4),phaseWinSz*(3/4)],...
 %     [-phaseWinSz*(1/4),phaseWinSz*(3/4)]}};
 savePath = "S:\Lab\ngc14\Working\PMd\Task_Units\";
+condPhaseAlign = containers.Map(conditions,cellfun(@num2cell,phaseAlignmentPoints,'UniformOutput',false));
+allSegs = params.condSegMap.values;
+[~,maxSegL]= max(cellfun(@length,allSegs));
+maxSegL = allSegs{maxSegL};
+condSegMappedInds = cellfun(@(f) find(contains(maxSegL,f)), allSegs, 'UniformOutput', false);
 close all;
 %%
 trialFR = cellfun(@(ct,cs,ta) cellfun(@(a,b) cell2mat(cellfun(@(m,tt) ...
@@ -33,15 +38,10 @@ trialFR = cellfun(@(ct,cs,ta) cellfun(@(a,b) cell2mat(cellfun(@(m,tt) ...
 goodFR = cellfun(@(c) cellfun(@(s) s>2 & s<200,c,'UniformOutput',false),trialFR,'UniformOutput',false);
 goodUnits = cellfun(@(tn) cell2mat(cellfun(@(s)sum(s,2), tn,'UniformOutput',false)),...
     num2cell(cat(2,goodFR{:}),2),'UniformOutput',false);
-condPSTHS = normPSTH;%cellfun(@(c) cellfun(@(cp) cell2mat(cp),c,'UniformOutput',false),siteTrialPSTHS,'UniformOutput',false);
+condPSTHS = siteTrialPSTHS;%cellfun(@(c) cellfun(@(cp) cell2mat(cp),c,'UniformOutput',false),siteTrialPSTHS,'UniformOutput',false);
 mappedChannels = cellfun(@(ch,l) ch{2}(l(~isnan(l))), chMaps,siteChannels, 'Uniformoutput', false)';
 avgSeg = cellfun(@(ct) cellfun(@(ca) cellfun(@(t) mean(t,1,'omitnan'), ca, 'UniformOutput',false),...
     ct, 'UniformOutput',false),siteSegs, 'UniformOutput',false);
-condPhaseAlign = containers.Map(conditions,cellfun(@num2cell,phaseAlignmentPoints,'UniformOutput',false));
-allSegs = params.condSegMap.values;
-[~,maxSegL]= max(cellfun(@length,allSegs));
-maxSegL = allSegs{maxSegL};
-condSegMappedInds = cellfun(@(f) find(contains(maxSegL,f)), allSegs, 'UniformOutput', false);
 sumSegs = cellfun(@(c) cellfun(@(n) NaN(size(n{1},1),length(maxSegL)), c, 'UniformOutput',false), siteSegs,'UniformOutput',false);
 for j = 1:size(sumSegs,2)
     for i = 1:length(mappedChannels)
@@ -72,6 +72,7 @@ Rs = {RTr,RSpeedr};
 tPhys = [];
 condXphase = cellfun(@(pc) cell2mat(pc),cellfun(@(e) e(repmat(~isempty(e),size(e))),avgPhase,'UniformOutput', false),'UniformOutput',false);
 condXphase = cellfun(@(s) [s,NaN(size(s,1),length(phaseNames)-size(s,2))], condXphase, 'UniformOutput',false);
+condXphase{end} = condXphase{end}(:,[1 2 5 3 4]);
 %%
 % condXphase = cellfun(@(s,sc) s(:,sc), condXphase,sortCols,'UniformOutput',false);
 for c = 1:length(conditions)

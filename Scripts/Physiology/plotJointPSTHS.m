@@ -7,7 +7,12 @@ else
 end
 alignmentGap = .1;
 segColors = {[0 0 0],[.7 .7 .7]};
-
+phaseWinSz = .2;
+pw = {[-phaseWinSz, 0],[0, phaseWinSz],[-phaseWinSz*(3/4),phaseWinSz*(1/4)],...
+    [-phaseWinSz, 0],[-phaseWinSz*(3/4),phaseWinSz*(1/4)]};
+pa = cellstr(["GoSignal","GoSignal","StartReach","StartHold","StartReward"]);
+maxSegL = ["StartTrial","GoSignal","StartReach","StartGrasp","StartLift","StartHold","StartWithdraw",...
+    "StartReplaceHold","StartReplaceSuccess","StartReward","EndTrial"];
 activityInd = activityIn;
 PSTH = PSTHIn;
 allSegs = allSegsIn;
@@ -31,7 +36,7 @@ alignmentGap = alignmentGap/binSize;
 PSTH =  cellfun(@(t,w) t(:,(fix(w(1)/binSize)+zeroBinInd):...
     fix((w(end)/binSize)+zeroBinInd)),PSTH,PSTHDisplayLimits,'UniformOutput',false);
 g = groot;
-figHandle = g.CurrentFigure;
+figHandle = [];%g.CurrentFigure;
 if(~isempty(figHandle))
     pos = cell2mat(arrayfun(@(n) get(n,'Position'), get(figHandle,'Children'), 'UniformOutput', false));
     wrapPlots = numel(unique(pos(:,1)));
@@ -87,6 +92,9 @@ for j = 1:length(jointName)
             avgSegs = nanmean(currSegs,1);
             if(a==1)
                 plotted = false(1,size(currSegs,2));
+                maxSegNames=maxSegL(~all(isnan(currSegs),1));
+                patches = cellfun(@(i,w) findBins(avgSegs(find(contains(maxSegNames,i)))+w,...
+                    PSTHDisplayLimits{a}(1):binSize:PSTHDisplayLimits{a}(end)), pa,pw,'UniformOutput',false);
             end
             if(sum(~isnan(avgSegs))==6)
                 plotted = true(1,size(currSegs,2));
@@ -108,14 +116,15 @@ for j = 1:length(jointName)
                 end
             end
             if(a==size(jointPSTH,2))
-                allXTicks = cellfun(@(ta,pd) [0,find(mod(pd(1):.01:pd(end),1)==0),...
+                allXTicks = cellfun(@(ta,pd) [find(mod(pd(1):.01:pd(end),.5)==0),...
                     length(ta)],xAlignTicks,PSTHDisplayLimits,'UniformOutput',false);
                 allXTicks = unique(cell2mat(allXTicks),'stable');
-                xticks(allXTicks);
+                xticks(allXTicks(1:2:end));
                 allLabels = arrayfun(@(pd)num2str(pd,'%.2f'),...
                     unique([PSTHDisplayLimits{a}(1),ceil(PSTHDisplayLimits{a}(1)):1:...
                     floor(PSTHDisplayLimits{a}(end)),PSTHDisplayLimits{a}(end)]), 'UniformOutput', false);
                 xticklabels(allLabels);
+                set(gca,'XMinorTick','on');
             end
             plotStart = plotStart + size(currJointAlign,2) + alignmentGap;
         end
@@ -123,6 +132,7 @@ for j = 1:length(jointName)
     set(gca,'XLim',[allXTicks(1), allXTicks(end)]);
     set(gca,'YLim',[FRLim(1),groupMax]);
     maxPlot = max(maxPlot,groupMax);
+    cellfun(@(cr) patch([cr,fliplr(cr)],[FRLim(1) FRLim(1) groupMax groupMax],'k','FaceAlpha',.15),patches);
 end
 %set(figHandle.Children,'YLim',[FRLim(1),maxPlot]);
 end

@@ -20,6 +20,7 @@ phaseWindows(end+1) = {{[-phaseWinSz, 0],[0, phaseWinSz], [-phaseWinSz,0],...
 savePath = "S:\Lab\ngc14\Working\PMd\Task_Units\";
 close all;
 %%
+condPSTHS = siteTrialPSTHS;%cellfun(@(c) cellfun(@(cp) cell2mat(cp),c,'UniformOutput',false),siteTrialPSTHS,'UniformOutput',false);
 mappedChannels = cellfun(@(ch,l) ch{2}(l(~isnan(l))), chMaps,siteChannels, 'Uniformoutput', false)';
 avgSeg = cellfun(@(ct) cellfun(@(ca) cellfun(@(t) mean(t,1,'omitnan'), ca, 'UniformOutput',false),...
     ct, 'UniformOutput',false),siteSegs, 'UniformOutput',false);
@@ -34,13 +35,12 @@ for j = 1:size(sumSegs,2)
         sumSegs{j}{i}(:,condSegMappedInds{j}) = siteSegs{j}{i}{1};
     end
 end
-[~,avgPhase] =  calculatePhases(params,condPhaseAlign,phaseWindows,avgSeg,normPSTH,false,false);
+[~,avgPhase] =  calculatePhases(params,condPhaseAlign,phaseWindows,avgSeg,condPSTHS,false,false);
 avgPhase = cellfun(@(c) cellfun(@(a) median(cell2mat(reshape(cellfun(@cell2mat,a(1),'UniformOutput',false),1,1,[])),3,'omitnan'),...
     c, 'UniformOutput', false), avgPhase, 'UniformOutput',false);
 taskUnits = cellfun(@(a,b) cell2mat(a) & repmat(sum(b,2)>MIN_BLOCKS_FOR_UNIT*size(b,2),1,size(b,2)), ...
     num2cell(cat(2,tUnit{:}),2),goodUnits,'Uniformoutput',false);
 %%
-condPSTHS = normPSTH;%cellfun(@(c) cellfun(@(cp) cell2mat(cp),c,'UniformOutput',false),normPSTH,'UniformOutput',false);
 trialCondInfo = arrayfun(@(c) cellfun(@(s) s(strcmp(s(:,1),c),:), siteTrialInfo, 'UniformOutput',false)',conditions,'UniformOutput',false);
 allPSTHS = cellfun(@(c,t) cellfun(@(r,n,i) permute(permute((any(i,2)./any(i,2)).*r,...
     [3 2 1]).*~isnan(cellfun(@str2double,n(:,end-1))),[3 2 1]),c,t,taskUnits,'UniformOutput',false),condPSTHS,trialCondInfo,'UniformOutput',false);

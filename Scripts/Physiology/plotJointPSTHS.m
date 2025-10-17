@@ -69,7 +69,8 @@ for j = 1:length(jointName)
             currSegs = jointSegs{a};
             currJointAlign = jointPSTH{a};
             xAlignTicks{a} = plotStart+(1:size(currJointAlign,2));
-            plot(xAlignTicks{a},nanmean(currJointAlign,1), 'LineWidth',2,'Color', plotColors.(jointName{j}));
+            meanTrace = mean(currJointAlign,1,'omitnan');
+            plot(xAlignTicks{a},meanTrace, 'LineWidth',2,'Color', plotColors.(jointName{j}));
             %             if(~isempty(activeJointInds))
             %                 plot(xAlignTicks{a},nanmean([jointPSTH{a}(activeJointInds,:)],1),...
             %                     'LineWidth',2,'Color', plotColors.(jointName{j}), 'LineStyle','--');
@@ -78,14 +79,24 @@ for j = 1:length(jointName)
             %                 plot(xAlignTicks{a},nanmean([jointPSTH{a}(inactiveJoints,:)],1),...
             %                     'LineWidth',2,'Color', plotColors.(jointName{j}), 'LineStyle','--');
             %             end
-            uE=nanmean(currJointAlign,1)+(nanstd(currJointAlign,0,1)/sqrt(sum(jointInds)));
-            lE=nanmean(currJointAlign,1)-(nanstd(currJointAlign,0,1)/sqrt(sum(jointInds)));
+            uE=meanTrace+(nanstd(currJointAlign,0,1)/sqrt(sum(jointInds)));
+            lE=meanTrace-(nanstd(currJointAlign,0,1)/sqrt(sum(jointInds)));
             yP=[lE,fliplr(uE)];
             xP=[xAlignTicks{a},fliplr(xAlignTicks{a})];
             xP(isnan(yP))=[];
             yP(isnan(yP))=[];
             d = patch(xP,yP,1);
             set(d,'edgecolor','none','facealpha',.5,'facecolor',plotColors.(jointName{j}));
+
+            medianTrace = median(currJointAlign,1,'omitnan');
+            uE=medianTrace+(nanstd(currJointAlign,0,1)/sqrt(sum(jointInds)));
+            lE=medianTrace-(nanstd(currJointAlign,0,1)/sqrt(sum(jointInds)));
+            yP=[lE,fliplr(uE)];
+            d = patch(xP,yP(~isnan(yP)),1);
+            cl=rgb2hsv(plotColors.(jointName{j}));
+            cl(end) = .5;
+            set(d,'edgecolor','none','facealpha',.5,'facecolor',hsv2rgb(cl));
+            plot(xAlignTicks{a},medianTrace, 'LineWidth',2,'Color', hsv2rgb(cl));
             if(~isempty(yP))
                 groupMax = max(FRLim(end),FRLim(end)*ceil(max(yP)/FRLim(end)));
             end

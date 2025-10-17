@@ -16,6 +16,7 @@ phaseWindows(end+1) = {{[-phaseWinSz, 0],[0, phaseWinSz], [-phaseWinSz,0],...
     [-phaseWinSz*(3/4),phaseWinSz*(1/4)]}};
 pVal=0.05;
 MIN_BLOCKS_FOR_UNIT = 13;
+plotSessions = false;
 savePath = "S:\Lab\ngc14\Working\PMd\Task_Units\";
 allSegs = params.condSegMap.values;
 [~,maxSegL]= max(cellfun(@length,allSegs));
@@ -64,6 +65,10 @@ infoTable.PSTHS = cellfun(@(r,i)(i./i).*r,allPSTHS,infoTable.TaskModulated,'Unif
 %%
 condPSTHS = cell(1,length(conditions)-1);
 segConds = cell(1,length(conditions)-1);
+condLabels = cell2mat(arrayfun(@(r) repmat(r,1,length(phaseNames)),1:length(conditions)-1, 'UniformOutput',false));
+phaseLabels = cell2mat(repmat({repmat(1:length(phaseNames),1,1)},1,length(conditions)-1)); %length(infoTable{s,'TaskModulated'}{1})
+cm = distinguishable_colors(length(phaseNames),{'k','r'});
+cm = cm([4 5 1 3 2],:);
 for s = 1:height(infoTable)
     currSite = infoTable(s,:);
     for c = 1:length(conditions)
@@ -79,28 +84,32 @@ for s = 1:height(infoTable)
         condPSTHS{c}{s} = avgPSTHS;
         segConds{c}{s} = condTimes;
     end
+    if(plotSessions)
     figure();
     currPhases = [{cell2mat(infoTable{s,6:10})};{cell2mat(infoTable{s,11:15})};{cell2mat(infoTable{s,16:20})}];
-    condLabels = arrayfun(@(r) repmat(r,length(infoTable{s,'TaskModulated'}{1}),length(phaseNames)),...
-        1:length(conditions)-1, 'UniformOutput',false)';
-    phaseLabels = reshape(repmat({repmat(1:length(phaseNames),length(infoTable{s,'TaskModulated'}{1}),1)},length(conditions)-1,1),[],1);
-    bx=boxchart(reshape(cell2mat(condLabels)',1,[]),reshape(cell2mat(currPhases)',1,[]),'GroupByColor',...
-         reshape(cell2mat(phaseLabels)',1,[]),'Notch', 'on','MarkerStyle','none');
+    %bx=boxchart(reshape(cell2mat(condLabels)',1,[]),reshape(cell2mat(currPhases)',1,[]),'GroupByColor',reshape(cell2mat(phaseLabels)',1,[]),'Notch', 'on','MarkerStyle','none');
+    bx=violin(condPhases,'x',4*(condLabels-1+repmat([-.3 -.15 0 .15 .3],1,3)),'facecolor',cm(phaseLabels,:));
+    set(gca,'XTick',[0:4:4*length(conditions)-1]);
+    set(gca,'XTickLabel',params.condAbbrev.values(conditions(1:length(conditions)-1)));
     plotJointPSTHS(params.bins,{cell2mat(cellfun(@(a) a{s},condPSTHS(1:length(conditions)-1),'UniformOutput',false)')},...
         {cell2mat(cellfun(@(a) repmat(a{s},length(currSite.TaskModulated{1}),1),segConds(1:length(conditions)-1),'UniformOutput',false)')},...
         cell2mat(cellfun(@(a) repmat(string(a),length(currSite.TaskModulated{1}),1),params.condAbbrev.values(conditions(1:end-1)),'UniformOutput',false)'),...
-        repmat(currSite.TaskModulated{1},length(conditions)-1,1),[],{[-1 3]},[0 3],cell2struct(num2cell( distinguishable_colors(length(conditions)-1,'r'),2),string(params.condAbbrev.values(conditions(1:end-1)))));
+        repmat(currSite.TaskModulated{1},length(conditions)-1,1),[],{[-1 3]},[1 5],cell2struct(num2cell( distinguishable_colors(length(conditions)-1,'r'),2),string(params.condAbbrev.values(conditions(1:end-1)))));
+    end
 end
 condPhases = [cell2mat([infoTable{:,6:10}]),cell2mat([infoTable{:,11:15}]),cell2mat([infoTable{:,16:20}])];
 condPhases = condPhases(cell2mat(infoTable.TaskModulated),:);
-condLabels = cell2mat(arrayfun(@(c) repmat(c,size(condPhases,1),length(phaseNames)), 1:length(conditions)-1,'UniformOutput', false));
-phaseLabels = repmat(1:length(phaseNames),size(condPhases,1),length(conditions)-1);
 figure();
-boxchart(reshape(condLabels,1,[]),reshape(condPhases,1,[]),'GroupByColor',reshape(phaseLabels,1,[]),'Notch','on','MarkerStyle','none');
+bx=violin(condPhases,'x',4*(condLabels-1+repmat([-.3 -.15 0 .15 .3],1,3)),'facecolor',cm(phaseLabels,:));
+%boxchart(reshape(condLabels,1,[]),reshape(condPhases,1,[]),'GroupByColor',reshape(phaseLabels,1,[]),'Notch','on','MarkerStyle','none');
 ylim([0 3]);
+set(gca,'XTick',[0:4:4*length(conditions)-1]);
+set(gca,'XTickLabel',params.condAbbrev.values(conditions(1:length(conditions)-1)));
+saveFigures(gcf,savePath,"Normalized_Violins",[]);
 allSegs = cellfun(@(u,s) repmat(s,size(u,1),1), vertcat(condPSTHS{1:length(conditions)-1}),vertcat(segConds{1:length(conditions)-1}), 'UniformOutput',false);
 psthLabs = arrayfun(@(c) cellfun(@(s) repmat(c,size(s,1),1),allSegs(1,:), 'UniformOutput',false), string(params.condAbbrev.values), 'UniformOutput',false);
 plotJointPSTHS(params.bins,{cell2mat(horzcat(condPSTHS{1:length(conditions)-1})')},...
     {cell2mat(reshape(allSegs',1,[])')},cell2mat(horzcat(psthLabs{1:length(conditions)-1})'),...
     cell2mat(repmat(infoTable.TaskModulated,length(conditions)-1,1)),[], {[-1 3]},[1 2],cell2struct(num2cell(...
     distinguishable_colors(length(conditions),'r'),2),string(params.condAbbrev.values)));
+saveFigures(gcf,savePath,"Normalized_PSTHS",[]);

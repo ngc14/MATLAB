@@ -36,7 +36,7 @@ alignmentGap = alignmentGap/binSize;
 PSTH =  cellfun(@(t,w) t(:,(fix(w(1)/binSize)+zeroBinInd):...
     fix((w(end)/binSize)+zeroBinInd)),PSTH,PSTHDisplayLimits,'UniformOutput',false);
 g = groot;
-figHandle = [];%g.CurrentFigure;
+figHandle = g.CurrentFigure;
 if(~isempty(figHandle))
     pos = cell2mat(arrayfun(@(n) get(n,'Position'), get(figHandle,'Children'), 'UniformOutput', false));
     wrapPlots = numel(unique(pos(:,1)));
@@ -88,28 +88,21 @@ for j = 1:length(jointName)
             d = patch(xP,yP,1);
             set(d,'edgecolor','none','facealpha',.5,'facecolor',plotColors.(jointName{j}));
 
-            medianTrace = median(currJointAlign,1,'omitnan');
-            uE=medianTrace+(nanstd(currJointAlign,0,1)/sqrt(sum(jointInds)));
-            lE=medianTrace-(nanstd(currJointAlign,0,1)/sqrt(sum(jointInds)));
-            yP=[lE,fliplr(uE)];
-            d = patch(xP,yP(~isnan(yP)),1);
-            cl=rgb2hsv(plotColors.(jointName{j}));
-            cl(end) = .5;
-            set(d,'edgecolor','none','facealpha',.5,'facecolor',hsv2rgb(cl));
-            plot(xAlignTicks{a},medianTrace, 'LineWidth',2,'Color', hsv2rgb(cl));
             if(~isempty(yP))
                 groupMax = max(FRLim(end),FRLim(end)*ceil(max(yP)/FRLim(end)));
             end
             avgSegs = nanmean(currSegs,1);
-            if(a==1)
+            if(sum(~isnan(avgSegs))==6)
+                plotted = true(1,size(currSegs,2));
+                pa = {};
+                pw = {};
+            end
+             if(a==1)
                 plotted = false(1,size(currSegs,2));
                 maxSegNames=maxSegL;
                 maxSegNames(all(isnan(currSegs),1)) = "";
                 patches = cellfun(@(i,w) findBins(avgSegs(find(contains(maxSegNames,i)))+w,...
                     PSTHDisplayLimits{a}(1):binSize:PSTHDisplayLimits{a}(end)), pa,pw,'UniformOutput',false);
-            end
-            if(sum(~isnan(avgSegs))==6)
-                plotted = true(1,size(currSegs,2));
             end
             for s = 1:length(avgSegs)
                 if(avgSegs(s)>=PSTHDisplayLimits{a}(1) && ...
@@ -128,15 +121,14 @@ for j = 1:length(jointName)
                 end
             end
             if(a==size(jointPSTH,2))
-                allXTicks = cellfun(@(ta,pd) [find(mod(pd(1):.01:pd(end),.5)==0),...
+                allXTicks = cellfun(@(ta,pd) [0 find(mod(pd(1):.01:pd(end),1)==0),...
                     length(ta)],xAlignTicks,PSTHDisplayLimits,'UniformOutput',false);
                 allXTicks = unique(cell2mat(allXTicks),'stable');
-                xticks(allXTicks(1:2:end));
+                xticks(allXTicks(1:1:end));
                 allLabels = arrayfun(@(pd)num2str(pd,'%.2f'),...
                     unique([PSTHDisplayLimits{a}(1),ceil(PSTHDisplayLimits{a}(1)):1:...
                     floor(PSTHDisplayLimits{a}(end)),PSTHDisplayLimits{a}(end)]), 'UniformOutput', false);
                 xticklabels(allLabels);
-                set(gca,'XMinorTick','on');
             end
             plotStart = plotStart + size(currJointAlign,2) + alignmentGap;
         end

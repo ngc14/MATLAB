@@ -26,7 +26,7 @@ siteDateMap = siteDateMap(~cellfun(@isempty, siteDateMap.Date),:);
 if(strcmp(domain,"PMd"))
     siteDateMap = siteDateMap([2,4:17,19,20,21,23,24,25,27,28,31,32,38,43,46,47,48,49,51,53,56],:);
 else
-    siteDateMap = siteDateMap([51,82,5,10,11,32,43,46,62],:);%,,33,37,39,45,49,53,60,61,67,69,71,72,73,77,84,85,87,93,97,19,47,59],:)
+    %siteDateMap = siteDateMap([51,82,5,10,11,32,43,46,62],:);%,,33,37,39,45,49,53,60,61,67,69,71,72,73,77,84,85,87,93,97,19,47,59],:)
 end
 % load info from all sites
 numSites = height(siteDateMap);
@@ -40,7 +40,7 @@ if(~parRun)
 else
     hbar = parforProgress(numSites);
 end
-parfor  i = 1:numSites
+for  i = 1:numSites
     currSession = siteDateMap(i,:);
     if(strcmpi(currSession.Monkey,"Gilligan"))
         dateFormat = 'MM_dd_uuuu';
@@ -53,7 +53,7 @@ parfor  i = 1:numSites
     physDir = strcat(drivePath,currSession.Monkey,"\All Data\", currSession.Monkey,...
         "_",string(currSession.Date),"\Physiology\");
     %delete(fullfile(fullfile(physDir,'*.cache')));
-    physDir = strcat(physDir,"Results_All");
+    physDir = strcat(physDir,"Results");
     if(isempty(dir(physDir+"\*.mat")))
         if(~ismember(currSession.Date,{'05_02_2019','11_11_2019'}))
             disp(['Sorting and labeling session...']);
@@ -76,9 +76,9 @@ parfor  i = 1:numSites
     if(~isempty(spikes))
         [currSeg,currTrialPSTHS,currActive,trialHists,alignedSpikes] = deal(repmat({[]},1,length(conditions)));
         numUnits = size(spikes,1);
-        NaNGraspInd = cellfun(@(s,t) sum(isnan(t))==1 & isnan(t(strcmp(params.condSegMap(s),"StartGrasp"))), ...
-            currTrials(:,1),times','UniformOutput',false);
-        NaNGraspInd(cellfun(@isempty,NaNGraspInd)) = deal({false});
+        NaNGraspInd = repmat({false},size(currTrials,1),1);
+        NaNGraspInd(ismember(currTrials(:,1),conditions)) = cellfun(@(s,t) sum(isnan(t))==1 & isnan(t(strcmp(params.condSegMap(s),"StartGrasp"))), ...
+            currTrials(ismember(currTrials(:,1),conditions),1),times(ismember(currTrials(:,1),conditions))','UniformOutput',false);
         successfulInds = cellfun(@(b,t) ~isnan(str2double(b)) | isempty(b),currTrials(:,end-1));
         successfulTrials = successfulInds | cell2mat(NaNGraspInd);
         currTrials = currTrials(successfulTrials,:);
@@ -102,13 +102,13 @@ parfor  i = 1:numSites
             % generate and smooth PSTHS  from current session
             if(any(condInds) && ~isempty(spikes))
                 % {alignedPSTHS}{units,trials}
-                alignedSpikes(c) = cellfun(@(ap) cellfun(@(s) cellfun(@(t) ...
-                    s-(t(ap)+condWindows(c)),times(condInds),'UniformOutput',false),...
+                alignedSpikes{c} = cellfun(@(ap) cellfun(@(st) cellfun(@(s,t) ...
+                    s-(t(ap)+condWindows(c)),st(condInds),times(condInds),'UniformOutput',false),...
                     spikes,'UniformOutput',false),condAlign,'UniformOutput',false);
                 alignedTimes = cellfun(@(ap) cell2mat(cellfun(@(t)[t(1:end-1)-(t(ap)+condWindows(c)), ...
                     NaN(1,length(condEvents)-length(t)),t(end)-(t(ap)+condWindows(c))], times(condInds),...
                     'UniformOutput', false)'), condAlign, 'UniformOutput', false);
-                trialHists{c} = cellfun(@(ac) cellfun(@(a) histcounts(a,...
+                trialHists{c} = cellfun(@(ac) cellfun(@(a) histcounts(vertcat(a{:}),...
                     [bins(1)-(params.sigmaSize/2):params.binSize:bins(end)+...
                     (params.sigmaSize/2)]),ac,'UniformOutput',false),alignedSpikes{c},'UniformOutput', false);
                 %{alignedPSTHS}{units,trials}{bins}

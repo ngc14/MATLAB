@@ -74,9 +74,9 @@ else
                 if(size(cSpikes,1)<length(labs))
                     labs = labs((length(labs)-size(cSpikes,1)+1):end);
                 end
-                allGoodTrials = cell2mat(cellfun(@(u) cellfun(@(s) ...
+                allGoodTrials = cell2mat(cellfun(@(u,s) ...
                     sum(u>s(1) & u<s(end)) > 2*(s(end)-s(1)) && ...
-                    sum(u>s(1) & u<s(end)) < 200*(s(end)-s(1)) , segTimes), cSpikes,'UniformOutput',false));
+                    sum(u>s(1) & u<s(end)) < 200*(s(end)-s(1)), cSpikes,segTimes,'UniformOutput',false));
                 blockInds = cumsum(mod(1:length(trials),length(conds))==1);
                 unitTrials{f} = num2cell(allGoodTrials.*blockInds,2);
                 goodUnitsOnChannel = (cellfun(@(tc) length(unique(tc))-1, unitTrials{f})>MIN_BLOCKS_FOR_UNIT)';
@@ -87,8 +87,8 @@ else
                 end
                 trialSegs = cellfun(@(e) values(events,{e}),trials(:,1)', 'UniformOutput', false);
                 labs = labs(goodUnits);
-                trialSegs = cellfun(@(t) t{:}, trialSegs, 'UniformOutput', false);
-                cSpikes = cSpikes(goodUnits);
+                trialSegs = repmat(cellfun(@(t) t{:}, trialSegs, 'UniformOutput', false),size(segTimes,1),1);
+                cSpikes = num2cell(cSpikes(goodUnits,:),2);
                 missGraspInds = cellfun(@(a,b) isalmost(a(max(1,end-1))-a(max(1,end-2)),2,.001)...
                     & length(a)+1==length(b), segTimes,trialSegs);
                 if(any(missGraspInds(:)))
@@ -118,7 +118,7 @@ else
     for uN = 1:size(spikes,1)
         for c = 1:length(conds)
             condInds = strcmp(trials(:,1)', conds{c});
-            weights(uN,c) = sum(cellfun(@(a) any(~isnan(a)), spikes(uN)));
+            weights(uN,c) = sum(cellfun(@(a) any(~isnan(a)), spikes{uN}));
         end
     end
     % ensure total number of trials per condition is calculated

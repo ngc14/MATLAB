@@ -6,8 +6,8 @@ RAD = 35; %28 = 0.5mm, 1.0mm^2; 42 = 0.75 mm, 2.2mm^2; 56 = 1mm, 3.4mm^2;
 siteSize = 8;
 REMOVE_NR = true;
 USE_CORNERS = true;
-SAVE = 1;
-maxThresh = 30;
+SAVE = 0;
+maxThresh = 40;
 %% load green
 green = imread(['S:\Lab\', animal, '\Mapping\M1_green_edited.bmp']);
 xlimits = [1 size(green,2)];
@@ -19,9 +19,10 @@ headings = excel(1,:);
 if REMOVE_NR
     NRi = logical(~strcmpi(excel(:,6),'None'));
 else
-    NRi = logical(~cellfun(@isempty, excel(:,4)));
+    NRi = logical(~cellfun(@(m) all(ismissing(m)), excel(:,5)));
 end
 NRi(1) = false;
+%NRi(cell2mat(excel(2:end,1))>288) = false;
 % trunkSites = cellfun(@(a) strfind(a,'Trunk'), excel, 'UniformOutput', false);
 % faceSites = cellfun(@(a) strfind(a,'Face'), excel, 'UniformOutput', false);
 % [trunkSites,~] = find(~cellfun(@isempty,trunkSites));
@@ -90,7 +91,7 @@ for i = 1:size(excel,1)
 end
 [~, sortThresh] = sort(Thresh,2, 'ascend');
 Thresh(Thresh>maxThresh) = maxThresh;
-Thresh = discretize(Thresh,7);
+[Thresh,te] = discretize(Thresh,[0:5:maxThresh]);
 %% encode primary RFs
 [Joint_num, Movement_num] = deal(zeros(size(Joint)));
 Joint_num(strcmpi(Joint,'None')) = 1;
@@ -194,7 +195,7 @@ for i = 1:numSites
         end
     end
     temp = length(unique(Joint_num(i,Thresh(i,:)<=bestThresh+bestThresh*.1 & Joint_num(i,:)~=0)));
-    %    temp = sum(Joint_num(i,:)~=0);
+    %temp = sum(Joint_num(i,:)~=0);
     for x = 1:imDims(1)
         for y = 1:imDims(2)
             if siteMask(x,y,i) == 1

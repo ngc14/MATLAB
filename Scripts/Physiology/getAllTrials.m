@@ -23,16 +23,22 @@ else
         [res,hFile] = ns_OpenFile([hFilePath.folder,'\',hFilePath.name],'single');
         if(strcmp(res, 'ns_OK'))
             chMapR = [hFile.Entity.Label];
+            chMapR = chMapR(~cellfun(@isempty,chMapR));
             chs = cellfun(@(r) cell2mat(regexp(r,'(\d+)(?!.*\d)','match')),chMapR,'Uniformoutput',false);
-            chMapR = chMapR(~cellfun(@isempty,chs));
-            if(isempty(chMapR))
-                chMapR = [hFile.Entity.ElectrodeID];
-                chMapR = arrayfun(@(e) "e"+sprintf('%02d',e), chMapR(chMapR~=0)); 
-            end
             chs = chs(~cellfun(@isempty,chs));
-            if(isempty(chs))
-                chs= arrayfun(@num2str,[hFile.Entity.ElectrodeID],'UniformOutput',false);
-                chs = chs(cellfun(@(c) ~strcmp(c,"0"), chs));
+            if(isempty(chMapR))
+                if(any(contains({dirPath.name},'map')))
+                    chMapR = cellstr(readlines(dirPath(1).folder+"\"+dirPath(contains({dirPath.name},'map')).name));
+                    chMapR = cellfun(@(r) regexp(r,';','split'),chMapR(cellfun(@(h) ~contains(h,"#") &  length(h)>1,chMapR)),'UniformOutput',false);
+                    chMapR = vertcat(chMapR{:});
+                    chs = cellfun(@(t) t{end},cellfun(@(s) regexp(s,'[.](\w*)','tokens'),chMapR(:,1)','UniformOutput',false));
+                    chMapR = cellfun(@strtrim,chMapR(:,2)','UniformOutput',false);
+                else
+                    chMapR = [hFile.Entity.ElectrodeID];
+                    chMapR = arrayfun(@(e) "e"+sprintf('%02d',e), chMapR(chMapR~=0));
+                    chs= arrayfun(@num2str,[hFile.Entity.ElectrodeID],'UniformOutput',false);
+                    chs = chs(cellfun(@(c) ~strcmp(c,"0"), chs));
+                end
             end
             [chs,ci,~] = unique(cellfun(@str2double,chs));
             if(any(contains(infoLines,"Microprobes",'IgnoreCase',true)) && ...
@@ -75,7 +81,7 @@ else
                     labs = labs((length(labs)-size(cSpikes,1)+1):end);
                 end
                 allGoodTrials = cell2mat(cellfun(@(u,s) ...
-                    sum(u>s(1) & u<s(end)) > 2*(s(end)-s(1)) && ...
+                    sum(u>s(1) & u<s(end)) > 1*(s(end)-s(1)) && ...
                     sum(u>s(1) & u<s(end)) < 200*(s(end)-s(1)), cSpikes,segTimes,'UniformOutput',false));
                 blockInds = cumsum(mod(1:length(trials),length(conds))==1);
                 unitTrials{f} = num2cell(allGoodTrials.*blockInds,2);

@@ -195,7 +195,6 @@ for i = 1:numSites
     end
     temp = length(unique(Joint_num(i,Thresh(i,:)<=bestThresh+bestThresh*.1 & Joint_num(i,:)~=0)));
     %    temp = sum(Joint_num(i,:)~=0);
-    temp = 1
     for x = 1:imDims(1)
         for y = 1:imDims(2)
             if siteMask(x,y,i) == 1
@@ -290,7 +289,7 @@ xlim(xlimits);
 ylim(ylimits);
 %% plot Thresh
 figure('color',[1 1 1],'position',[250 150 1000 800]);
-cmap_Thresh = hot;
+cmap_Thresh = hot(max(Thresh,[],'all'));
 cmap_Thresh(end,:) = [0.5 0.5 0.5];
 imagesc(green); axis image off; hold on;
 h = colorbar; colormap(cmap_Thresh); caxis([0 size(cmap_Thresh,1)]);

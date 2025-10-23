@@ -7,12 +7,11 @@ else
 end
 alignmentGap = .1;
 segColors = {[0 0 0],[.7 .7 .7]};
-phaseWinSz = .2;
-pw = {[-phaseWinSz, 0],[0, phaseWinSz],[-phaseWinSz*(3/4),phaseWinSz*(1/4)],...
-    [-phaseWinSz, 0],[-phaseWinSz*(3/4),phaseWinSz*(1/4)]};
-pa = cellstr(["GoSignal","GoSignal","StartReach","StartHold","StartReward"]);
-maxSegL = ["StartTrial","GoSignal","StartReach","StartGrasp","StartLift","StartHold","StartWithdraw",...
-    "StartReplaceHold","StartReplaceSuccess","StartReward","EndTrial"];
+phaseWinSz = .1;
+pw = {[-phaseWinSz, 0],[-phaseWinSz, 0]};
+pa = cellstr(["StartReach","StartHold"]);
+maxSegL = ["GoSignal","StartReach","StartLift","StartHold","StartWithdraw",...
+    "StartReplaceHold","StartReplaceSuccess","StartReward"];
 activityInd = activityIn;
 PSTH = PSTHIn;
 allSegs = allSegsIn;
@@ -36,7 +35,7 @@ alignmentGap = alignmentGap/binSize;
 PSTH =  cellfun(@(t,w) t(:,(fix(w(1)/binSize)+zeroBinInd):...
     fix((w(end)/binSize)+zeroBinInd)),PSTH,PSTHDisplayLimits,'UniformOutput',false);
 g = groot;
-figHandle = g.CurrentFigure;
+figHandle = [];%g.CurrentFigure;
 if(~isempty(figHandle))
     pos = cell2mat(arrayfun(@(n) get(n,'Position'), get(figHandle,'Children'), 'UniformOutput', false));
     wrapPlots = numel(unique(pos(:,1)));
@@ -51,19 +50,19 @@ xAlignTicks = {};
 maxPlot = 0;
 for j = 1:length(jointName)
     jointInds = arrayfun(@(s) cellfun(@(a) strcmp(a,jointName{j}),s), allReps,'UniformOutput',true);
-    jointPSTH = cellfun(@(t) t(jointInds,:), PSTH, 'UniformOutput', false);
-    jointSegs = cellfun(@(t) t(strcmp(allReps,jointName{j}) & siteInds,:), allSegs,'UniformOutput',false);
-    %     [~, ~, activeJointInds] = intersect(find(activityInd),jointInds(activityInd));
-    %     [~,~,inactiveJoints] = intersect(find(~activityInd),find(jointInds));
-    %% plot PSTHS
-    subplot(nrows,wrapPlots,j);hold on;
-    titleName = replace(jointName{j},"_", " ");
-    titleName = strcat(titleName, " (n= ", num2str(size(jointSegs{1},1)),")");
-    if(sum(siteInds)~=length(allReps))
-        titleName = strcat(titleName{:}(1:end-1), " of ", num2str(sum(jointInds)),")");
-    end
-    title(titleName);
     if(sum(jointInds)>0)
+        jointPSTH = cellfun(@(t) t(jointInds,:), PSTH, 'UniformOutput', false);
+        jointSegs = cellfun(@(t) t(strcmp(allReps,jointName{j}) & siteInds,:), allSegs,'UniformOutput',false);
+        %     [~, ~, activeJointInds] = intersect(find(activityInd),jointInds(activityInd));
+        %     [~,~,inactiveJoints] = intersect(find(~activityInd),find(jointInds));
+        %% plot PSTHS
+        subplot(nrows,wrapPlots,j);hold on;
+        titleName = replace(jointName{j},"_", " ");
+        titleName = strcat(titleName, " (n= ", num2str(sum(~all(isnan(jointPSTH{1}),2))),")");
+        if(sum(siteInds)~=length(allReps))
+            titleName = strcat(titleName{:}(1:end-1), " of ", num2str(sum(jointInds)),")");
+        end
+        title(titleName);
         plotStart = 0;
         for a = 1:size(jointPSTH,2)
             currSegs = jointSegs{a};
@@ -97,12 +96,12 @@ for j = 1:length(jointName)
                 pa = {};
                 pw = {};
             end
-             if(a==1)
+            if(a==1)
                 plotted = false(1,size(currSegs,2));
                 maxSegNames=maxSegL;
                 maxSegNames(all(isnan(currSegs),1)) = "";
                 patches = cellfun(@(i,w) findBins(avgSegs(find(contains(maxSegNames,i)))+w,...
-                    PSTHDisplayLimits{a}(1):binSize:PSTHDisplayLimits{a}(end)), pa,pw,'UniformOutput',false);
+                     PSTHDisplayLimits{a}(1):binSize:PSTHDisplayLimits{a}(end)), pa,pw,'UniformOutput',false);
             end
             for s = 1:length(avgSegs)
                 if(avgSegs(s)>=PSTHDisplayLimits{a}(1) && ...
@@ -121,7 +120,7 @@ for j = 1:length(jointName)
                 end
             end
             if(a==size(jointPSTH,2))
-                allXTicks = cellfun(@(ta,pd) [0 find(mod(pd(1):.01:pd(end),1)==0),...
+                allXTicks = cellfun(@(ta,pd) [find(mod(pd(1):.01:pd(end),1)==0),...
                     length(ta)],xAlignTicks,PSTHDisplayLimits,'UniformOutput',false);
                 allXTicks = unique(cell2mat(allXTicks),'stable');
                 xticks(allXTicks(1:1:end));

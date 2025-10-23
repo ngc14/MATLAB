@@ -2,7 +2,7 @@ close all;
 clearvars;
 %% user input
 animal = 'Gilligan';
-RAD = 35; %28 = 0.5mm, 1.0mm^2; 42 = 0.75 mm, 2.2mm^2; 56 = 1mm, 3.4mm^2;
+RAD = 42; %28 = 0.5mm, 1.0mm^2; 42 = 0.75 mm, 2.2mm^2; 56 = 1mm, 3.4mm^2;
 siteSize = 8;
 REMOVE_NR = true;
 USE_CORNERS = true;

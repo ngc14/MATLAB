@@ -145,9 +145,9 @@ for u = 1:sum(taskUnits)
         goMatrix(u,i) = corr(goSpk(u,:)',goSpk(i,:)',Rows='pairwise');
         reachMatrix(u,i) = corr(reachSpk(u,:)',reachSpk(i,:)',Rows='pairwise');
         graspMatrix(u,i) = corr(graspSpk(u,:)',graspSpk(i,:)',Rows='pairwise');
-        s1=scatter(goSpk(u,:)',goSpk(i,:)','green','*','LineWidth',.5,'AlphaData',1,'SizeData',20);
+        s1=scatter(goSpk(u,:)',goSpk(i,:)','green','x','LineWidth',.5,'AlphaData',1,'SizeData',20);
         s2=scatter(reachSpk(u,:)',reachSpk(i,:)','magenta','+','LineWidth',.5,'AlphaData',1,'SizeData',20);
-        s3=scatter(graspSpk(u,:)',graspSpk(i,:)','x','MarkerEdgeColor',[0 0 0],'LineWidth',.5,'AlphaData',1,'SizeData',20);
+        s3=scatter(graspSpk(u,:)',graspSpk(i,:)','*','MarkerEdgeColor',[0 0 0],'LineWidth',.5,'AlphaData',1,'SizeData',20);
         plot(xVals{3},mean(graspSpk(i,isalmost(graspSpk(u,:),min(graspSpk(u,:)),1)),'omitnan')+(xVals{3}.*graspMatrix(u,i)),...
             'Color',[.1 .1 .1],'LineWidth',2.5);
         plot(xVals{2},mean(reachSpk(i,isalmost(reachSpk(u,:),min(reachSpk(u,:)),1)),'omitnan')+(xVals{2}.*reachMatrix(u,i)),...

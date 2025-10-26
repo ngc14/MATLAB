@@ -7,7 +7,7 @@ else
 end
 alignmentGap = .1;
 segColors = {[0 0 0],[.3 .3 .3]};
-phaseWinSz = .1;
+phaseWinSz = .2;
 pw = {[-phaseWinSz, 0],[-phaseWinSz, 0]};
 pa = cellstr(["StartReach","StartHold"]);
 maxSegL = ["GoSignal","StartReach","StartLift","StartHold","StartWithdraw",...

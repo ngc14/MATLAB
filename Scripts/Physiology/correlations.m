@@ -25,7 +25,7 @@ maxSegL = allSegs{maxSegL};
 condSegMappedInds = cellfun(@(f) find(contains(maxSegL,f)), allSegs, 'UniformOutput', false);
 goInd = cellfun(@(as) find(contains(as,"Go")),allSegs,'UniformOutput',false);
 reachInd = cellfun(@(as) find(contains(as,"Reach")),allSegs,'UniformOutput',false);
-graspInd = cellfun(@(as) find(contains(as,"Hold"),1),allSegs,'UniformOutput',false);
+graspInd = cellfun(@(as) find(contains(as,"tHold"),1),allSegs,'UniformOutput',false);
 binInds = findBins(evalWindow,params.bins);
 close all;
 %%
@@ -123,8 +123,10 @@ graspSpk = cellfun(@(c,i,t,g) cellfun(@(a,gi) cellfun(@(s,at,gt) (gt./gt).*sum(s
 goSpk = reshape(permute(cell2mat(permute(cat(3,goSpk{:}),[2 1 3])),[1 3 2]),sum(taskUnits),[]);
 reachSpk = reshape(permute(cell2mat(permute(cat(3,reachSpk{:}),[2 1 3])),[1 3 2]),sum(taskUnits),[]);
 graspSpk = reshape(permute(cell2mat(permute(cat(3,graspSpk{:}),[2 1 3])),[1 3 2]),sum(taskUnits),[]);
+[goMatrix,reachMatrix,graspMatrix] = deal([]);
 for u = 1:sum(taskUnits)
     figure();
+    xVals = cellfun(@(m) min(m(u,:)):max(m(u,:)),{goSpk,reachSpk,graspSpk}, 'UniformOutput',false);
     for i = 1:sum(taskUnits)
         subplot(ceil(sum(taskUnits)/5),5,i);
         hold on;
@@ -140,21 +142,27 @@ for u = 1:sum(taskUnits)
             corrMatrix{c}(u,i) = cm{c};
             corrTrialMatrix{c}(u,i,:) = ctm(:,c);
         end
-        xVals = min(goSpk(u,:)):max(goSpk(u,:));
         goMatrix(u,i) = corr(goSpk(u,:)',goSpk(i,:)',Rows='pairwise');
         reachMatrix(u,i) = corr(reachSpk(u,:)',reachSpk(i,:)',Rows='pairwise');
         graspMatrix(u,i) = corr(graspSpk(u,:)',graspSpk(i,:)',Rows='pairwise');
-        s1=scatter(goSpk(u,:)',goSpk(i,:)','cyan','filled','o','AlphaData',.5);
-        s2=scatter(reachSpk(u,:)',reachSpk(i,:)','magenta','filled','square','AlphaData',.5);
-        s3=scatter(graspSpk(u,:)',graspSpk(i,:)','black','x','LineWidth',1,'AlphaData',.7);
-        plot(xVals,mean(goSpk(i,goSpk(u,:) == min(goSpk(u,:))),'omitnan')+(xVals.*goMatrix(u,i)),'Color','cyan','LineWidth',1.5);
-        plot(xVals,mean(reachSpk(i,reachSpk(u,:) == min(reachSpk(u,:))),'omitnan')+(xVals.*reachMatrix(u,i)),'Color','magenta','LineWidth',1.5);
-        plot(xVals,mean(graspSpk(i,graspSpk(u,:) == min(graspSpk(u,:))),'omitnan')+(xVals.*graspMatrix(u,i)),'Color','black','LineWidth',1.5);
+        s1=scatter(goSpk(u,:)',goSpk(i,:)','green','*','LineWidth',.5,'AlphaData',1,'SizeData',20);
+        s2=scatter(reachSpk(u,:)',reachSpk(i,:)','magenta','+','LineWidth',.5,'AlphaData',1,'SizeData',20);
+        s3=scatter(graspSpk(u,:)',graspSpk(i,:)','x','MarkerEdgeColor',[0 0 0],'LineWidth',.5,'AlphaData',1,'SizeData',20);
+        plot(xVals{3},mean(graspSpk(i,isalmost(graspSpk(u,:),min(graspSpk(u,:)),1)),'omitnan')+(xVals{3}.*graspMatrix(u,i)),...
+            'Color',[.1 .1 .1],'LineWidth',2.5);
+        plot(xVals{2},mean(reachSpk(i,isalmost(reachSpk(u,:),min(reachSpk(u,:)),1)),'omitnan')+(xVals{2}.*reachMatrix(u,i)),...
+            'Color',[.75 0 .75],'LineWidth',2.5);
+        plot(xVals{1},mean(goSpk(i,isalmost(goSpk(u,:),min(goSpk(u,:)),1)),'omitnan')+(xVals{1}.*goMatrix(u,i)),...
+            'Color',[0 .6 0],'LineWidth',2.5);
+        arrayfun(@(s) set(s,'XJitter','rand'), [s1,s2,s3]);
+        arrayfun(@(s) set(s,'YJitter','rand'), [s1,s2,s3]);
+        arrayfun(@(s) set(s,'XJitterWidth',.85), [s1,s2,s3]);
+        arrayfun(@(s) set(s,'YJitterWidth',.85), [s1,s2,s3]);
+        title(strcat(unitNames(i),": ",num2str(min(sum(~isnan(goSpk(u,:))),sum(~isnan(goSpk(i,:))))),...
+            " trials (",cell2mat(compose('%.2f; ',[goMatrix(u,i),reachMatrix(u,i),graspMatrix(u,i)])),")"));
         if(i==u)
             legend([s1,s2,s3],{'Go','Reach','Grasp'});
         end
-        title(strcat(unitNames(i),": ",num2str(min(sum(~isnan(goSpk(u,:))),sum(~isnan(goSpk(i,:))))),...
-            " trials (",cell2mat(compose('%.2f; ',[goMatrix(u,i),reachMatrix(u,i),graspMatrix(u,i)])),")"));
     end
     if(saveFig)
         saveFigures(gcf,saveDir+"Unit_Correlations\",unitNames{u}+"_Correlations",[]);

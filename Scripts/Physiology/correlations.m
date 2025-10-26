@@ -5,18 +5,15 @@ binSize = .01;
 smoothKernel = .15;
 secBeforeAlignment = -6;
 secAfterAlignment = 5;
+evalWindow = [-1 2];
+winSz = .2;
 pVal=0.05;
 mainDir = "S:\Lab\";
 monkey = "Gilligan";
 sessionDate = "08_05_2019";
-saveDir = strcat(mainDir,"ngc14\Working\Correlations\",sessionDate,"\");
 saveFig = true;
-evalWindow = [-1 2];
-winSz = .2;
 dirPath = mainDir+monkey+"\"+"All Data\"+monkey+"_"+sessionDate+"\Physiology\Results";
-if(~exist(saveDir,'dir'))
-    mkdir(saveDir);
-end
+saveDir = strcat(mainDir,"ngc14\Working\Correlations\",sessionDate,"\");
 params = PhysRecording(conditions,binSize,smoothKernel,secBeforeAlignment,secAfterAlignment,...
     containers.Map(conditions,{"StartReach","StartReach","StartReach","GoSignal"}));
 allSegs = cellfun(@(e) e(2:end-1), params.condSegMap.values,'UniformOutput',false);

@@ -1,8 +1,6 @@
 conditions = ["Extra Small Sphere", "Large Sphere", "Photocell","Rest"];
 taskAlign = containers.Map(conditions,{{["GoSignal" "StartHold"]},{["GoSignal","StartHold"]},...
     {["GoSignal","StartHold"]},{["GoSignal","StartReplaceHold"]}});
-plotUnits = false;
-MIN_BLOCKS_FOR_UNIT = 13;
 binSize = .01;
 smoothKernel = .15;
 secBeforeAlignment = -6;
@@ -11,37 +9,42 @@ pVal=0.05;
 mainDir = "S:\Lab\";
 monkey = "Gilligan";
 sessionDate = "08_05_2019";
+saveDir = strcat(mainDir,"ngc14\Working\Correlations\",sessionDate,"\");
+saveFig = true;
 evalWindow = [-1 2];
-winSz = .1;
+winSz = .2;
 dirPath = mainDir+monkey+"\"+"All Data\"+monkey+"_"+sessionDate+"\Physiology\Results";
+if(~exist(saveDir,'dir'))
+    mkdir(saveDir);
+end
 params = PhysRecording(conditions,binSize,smoothKernel,secBeforeAlignment,secAfterAlignment,...
     containers.Map(conditions,{"StartReach","StartReach","StartReach","GoSignal"}));
 allSegs = cellfun(@(e) e(2:end-1), params.condSegMap.values,'UniformOutput',false);
 [~,maxSegL]= max(cellfun(@length,allSegs));
 maxSegL = allSegs{maxSegL};
 condSegMappedInds = cellfun(@(f) find(contains(maxSegL,f)), allSegs, 'UniformOutput', false);
+goInd = cellfun(@(as) find(contains(as,"Go")),allSegs,'UniformOutput',false);
+reachInd = cellfun(@(as) find(contains(as,"Reach")),allSegs,'UniformOutput',false);
+graspInd = cellfun(@(as) find(contains(as,"Hold"),1),allSegs,'UniformOutput',false);
+binInds = findBins(evalWindow,params.bins);
+close all;
 %%
-[spikes,times,weights,currTrials,sessionConds,channels,events,labels,chMap] =...
-    getAllTrials(dirPath,"Single",true);
-[currTrialPSTHS,trialHists,alignedSpikes] = deal(repmat({[]},1,length(conditions)));
-numUnits = size(spikes,2);
-NaNGraspInd = false(size(currTrials,1),1);
-NaNGraspInd(ismember(currTrials(:,1),conditions)) = cellfun(@(s,t) sum(isnan(t))==1 & isempty(t(strcmp(params.condSegMap(s),"StartGrasp"))), ...
-    currTrials(ismember(currTrials(:,1),conditions),1),times(ismember(currTrials(:,1),conditions))');
-successfulInds = cellfun(@(b,t) ~isnan(str2double(b)) | isempty(b),currTrials(:,end-1));
-successfulTrials = successfulInds | NaNGraspInd;
-currTrials = currTrials(successfulTrials,:);
-times = times(successfulTrials);
+[condPSTHS,alignedSpikes,alignedTimes,allGoodTrials,corrTrialMatrix,corrMatrix] = deal(repmat({[]},1,length(conditions)));
+[spikes,times,weights,allTrials,sessionConds,channels,events,labels,chMap] = getAllTrials(dirPath,"Single",true);
 [~,~,unitNo] = unique(channels,'stable');
-unitNames = arrayfun(@(s,u) strcat(num2str(s) ,"_",num2str(u)),chMap{end}(channels),1+[0;~diff(unitNo)]');
+unitNames = arrayfun(@(s,u) strcat(num2str(s) ,"-",num2str(u)),chMap{end}(channels),1+[0;~diff(unitNo)]');
 [unitNames,sIndex] = natsort(cellstr(unitNames));
 spikes = spikes(sIndex);
-close all;
-figure();
-colormap('jet');
+NaNGraspInd = false(size(allTrials,1),1);
+NaNGraspInd(ismember(allTrials(:,1),conditions)) = cellfun(@(s,t) sum(isnan(t))==1 & isempty(t(strcmp(params.condSegMap(s),"StartGrasp"))), ...
+    allTrials(ismember(allTrials(:,1),conditions),1),times(ismember(allTrials(:,1),conditions))');
+successfulTrials = NaNGraspInd | cellfun(@(b,t) ~isnan(str2double(b)) | isempty(b),allTrials(:,end-1));
+allTrials = allTrials(successfulTrials,:);
+times = times(successfulTrials);
 for c = 1:length(conditions)
     currCond = conditions{c};
-    condInds = cellfun(@(a) contains(a,conditions{c}),currTrials(:,1));
+    taskCondInds = cell2mat(taskAlign(currCond));
+    condInds = cellfun(@(a) contains(a,currCond),allTrials(:,1));
     condEvents = params.condSegMap(currCond);
     condEvents = condEvents(2:end-1);
     condAlign = cellfun(@(a) find(strcmp(condEvents,a)),...
@@ -56,98 +59,151 @@ for c = 1:length(conditions)
         alignedSpikes(c) = cellfun(@(ap) cellfun(@(st) cellfun(@(s,t) ...
             s-t(ap),st(condInds),times(condInds),'UniformOutput',false),...
             spikes,'UniformOutput',false),condAlign,'UniformOutput',false);
-        alignedTimes = cellfun(@(ap) cellfun(@(t)[t(1:end-1)-t(ap), ...
+        alignedTimes(c) = cellfun(@(ap) cellfun(@(t)[t(1:end-1)-t(ap), ...
             NaN(1,length(condEvents)-length(t)),t(end)-t(ap)], times(condInds),...
             'UniformOutput', false), condAlign, 'UniformOutput', false);
-        trialHists{c} = cellfun(@(ac) cellfun(@(a) histcounts(a,...
+        trialHists = cellfun(@(ac) cellfun(@(a) histcounts(a,...
             [params.bins(1)-(params.sigmaSize/2):params.binSize:params.bins(end)+...
             (params.sigmaSize/2)]),ac,'UniformOutput',false),alignedSpikes{c},'UniformOutput', false);
         %{alignedPSTHS}{units,trials}{bins}
         smoothHists = cellfun(@(ac)  cellfun(@(a) conv(a,gausswin(params.sigma)/...
-            sum(gausswin(params.sigma)),'valid')./params.binSize,ac,'UniformOutput', false),...
-            trialHists{c},'UniformOutput',false);
-        taskCondInds = taskAlign(conditions{c});
-        taskCondInds = cellfun(@(n) cellfun(@(a) findBins(a(ismember(allSegs{c},taskCondInds{1})),...
-            params.bins),n,'UniformOutput',false),alignedTimes,'UniformOutput',false);
+            sum(gausswin(params.sigma)),'valid')./params.binSize,ac,'UniformOutput', false),trialHists,'UniformOutput',false);
+        taskCondInds = cellfun(@(a) findBins(a(ismember(allSegs{c},taskCondInds)),params.bins),alignedTimes{c},'UniformOutput',false);
         %{alignedPSTHS}{units,bins,trials}
-        allGoodTrials = cellfun(@(h) cellfun(@(u,s) mean(u(s(1):s(end))) > 1*params.binSize*(s(end)-s(1))...
-            && mean(u(s(1):s(end))) < 200*params.binSize*(s(end)-s(1)),h,taskCondInds{1}),smoothHists,'UniformOutput',false);
+        allGoodTrials{c} = cellfun(@(h) cellfun(@(u,s) mean(u(s(1):s(end))) > 1*params.binSize*(s(end)-s(1))...
+            && mean(u(s(1):s(end))) < 200*params.binSize*(s(end)-s(1)),h,taskCondInds),smoothHists,'UniformOutput',false);
         unitTrialPSTH = cellfun(@(s,a) permute((a./a)'.*... %condWeights.*
-            cat(1,s{:}),[3 2 1]),smoothHists,allGoodTrials,'UniformOutput', false);
+            cat(1,s{:}),[3 2 1]),smoothHists,allGoodTrials{c},'UniformOutput', false);
         % PSTH(units X bins X trials) for each alignment
-        currTrialPSTHS{c} = cat(1,unitTrialPSTH{:});
-    else
-        % pad stored info with empty arrays and NaN pad indicies for missing conditions
-        currTrialPSTHS{c} = repmat(NaN(numUnits,length(bins),1),1,length(condAlign));
-        alignedSpikes{c} = repmat(NaN(numUnits,1),1,length(condAlign));
+        condPSTHS{c} = cat(1,unitTrialPSTH{:});
     end
-    reachInd = find(contains(allSegs{c},"Reach"));
-    if(~isempty(reachInd))
-        reachCorr = cellfun(@(a,g) cellfun(@(s,at,gt) (gt./gt).*sum(s<at(reachInd) & s>at(reachInd)-winSz),...
-            a,alignedTimes{1},num2cell(g)),alignedSpikes{c},allGoodTrials,'UniformOutput',false);
-        graspInd = find(contains(allSegs{c},"Hold"),1);
-        graspCorr = cellfun(@(a,g) cellfun(@(s,at,gt) (gt./gt).*sum(s<at(graspInd) & s>at(graspInd)-winSz),...
-            a,alignedTimes{1},num2cell(g)),alignedSpikes{c},allGoodTrials,'UniformOutput',false);
-    else
-        [reachCorr,graspCorr]= deal(cellfun(@(n) NaN(size(n)), allGoodTrials,'UniformOutput',false));
-    end
-    corrMatrix = []; corrTrialMatrix = [];
-    binInds = findBins(evalWindow,params.bins);
-    for u = 1:numUnits
-        for i = 1:numUnits
-            corrMatrix(u,i) = corr(mean(currTrialPSTHS{c}(u,binInds(1):binInds(end),:),3,'omitnan')',...
-                mean(currTrialPSTHS{c}(i,binInds(1):binInds(end),:),3,'omitnan')');
-            reachMatrix{c}(u,i) = corr(reachCorr{u}',reachCorr{i}',Rows='pairwise');
-            graspMatrix{c}(u,i) = corr(graspCorr{u}',graspCorr{i}',Rows='pairwise');
-            for t = 1:size(currTrialPSTHS{c},3)
-                corrTrialMatrix(u,i,t) = corr(currTrialPSTHS{c}(u,binInds(1):binInds(end),t)',currTrialPSTHS{c}(i,binInds(1):binInds(end),t)');
-            end
+end
+baselineAlign = cellfun(@(c,u) cell2mat(cellfun(@(t,i) max(1,mean(u(:,findBins(t(1)-3,params.bins):...
+    findBins(t(1)-3,params.bins)+(1/params.binSize),i),2,'omitnan')),c,num2cell(1:size(u,3)),'UniformOutput',false)),alignedTimes,condPSTHS,'UniformOutput',false);
+for b = 1:length(baselineAlign)
+    condBaseline = baselineAlign{b};
+    condBaseline(isnan(condBaseline)) = 1;
+    baselineAlign{b} = condBaseline;
+end
+%%
+normPSTH = cellfun(@(p,b) permute(permute(p,[1 3 2])./b,[1 3 2]),condPSTHS,baselineAlign,"UniformOutput",false);
+[taskBaseline,taskFR] = calculatePhases(params,taskAlign,repmat({{[0 0]}},length(conditions),1),...
+   cellfun(@(a) {{cell2mat(a')}}, alignedTimes,'Uniformoutput',false),cellfun(@(c) {c},condPSTHS,'UniformOutput',false),false,true);
+[~,tUnit] = cellfun(@(tb,tc) cellfun(@(b,cn) ttestTrials(b,cn,1,true,pVal),...
+    tb,tc,'UniformOutput',false),taskBaseline,taskFR,'UniformOutput', false);
+taskUnits = any(cell2mat([tUnit{:}]),2);
+channels = channels(taskUnits);
+unitNo = unitNo(taskUnits);
+unitNames = unitNames(taskUnits);
+allGoodTrials = cellfun(@(a) a(taskUnits),allGoodTrials,'UniformOutput',false);
+alignedSpikes = cellfun(@(a) a(taskUnits), alignedSpikes, 'UniformOutput',false);
+condPSTHS = cellfun(@(a) a(taskUnits,:,:), condPSTHS, 'UniformOutput',false);
+normPSTH = cellfun(@(c) c(taskUnits,:,:),normPSTH,'UniformOutput',false);
+numTrials = min(cellfun(@(s) size(s,3), condPSTHS, 'UniformOutput',true));
+figure();
+condColors = {[1 0 0]; [.9 .7 0]; [0 .3 1]};
+unitLabs = cell2mat(arrayfun(@(a) repmat(strcat("ChU_",replace(a,'-','_')),numTrials,1),unitNames,'UniformOutput',false)');
+for c = 1:length(conditions)-1
+    plotJointPSTHS(params.bins,{reshape(permute(normPSTH{c},[3 1 2]),[],length(params.bins),1)},...
+        {repmat(cell2mat(vertcat(siteTrialSegs{1})),sum(taskUnits),1)},unitLabs,[any(diff(char(unitLabs)),2);1],...
+        [],{evalWindow},[0 5],cell2struct(num2cell(repmat(condColors{c},sum(taskUnits),1),2),unique(unitLabs,'stable')));
+end
+if(saveFig)
+    saveFigures(gcf,saveDir,"PSTHS",[]);
+end
+goSpk = cellfun(@(c,i,t,g) cellfun(@(a,gi) cellfun(@(s,at,gt) (gt./gt).*sum(s<at(i)+winSz & s>at(i)),...
+    a,t,num2cell(gi)),c,g,'UniformOutput',false),alignedSpikes(1:length(conditions)-1),...
+    goInd(1:length(conditions)-1),alignedTimes(1:length(conditions)-1),allGoodTrials(1:length(conditions)-1),'UniformOutput',false);
+reachSpk = cellfun(@(c,i,t,g) cellfun(@(a,gi) cellfun(@(s,at,gt) (gt./gt).*sum(s<at(i) & s>at(i)-winSz),...
+    a,t,num2cell(gi)),c,g,'UniformOutput',false),alignedSpikes(~cellfun(@isempty,reachInd)),...
+    reachInd(~cellfun(@isempty,reachInd)),alignedTimes(~cellfun(@isempty,reachInd)),allGoodTrials(~cellfun(@isempty,reachInd)),'UniformOutput',false);
+graspSpk = cellfun(@(c,i,t,g) cellfun(@(a,gi) cellfun(@(s,at,gt) (gt./gt).*sum(s<at(i) & s>at(i)-winSz),...
+    a,t,num2cell(gi)),c,g,'UniformOutput',false),alignedSpikes(~cellfun(@isempty,graspInd)),...
+    graspInd(~cellfun(@isempty,graspInd)),alignedTimes(~cellfun(@isempty,graspInd)),allGoodTrials(~cellfun(@isempty,graspInd)),'UniformOutput',false);
+goSpk = reshape(permute(cell2mat(permute(cat(3,goSpk{:}),[2 1 3])),[1 3 2]),sum(taskUnits),[]);
+reachSpk = reshape(permute(cell2mat(permute(cat(3,reachSpk{:}),[2 1 3])),[1 3 2]),sum(taskUnits),[]);
+graspSpk = reshape(permute(cell2mat(permute(cat(3,graspSpk{:}),[2 1 3])),[1 3 2]),sum(taskUnits),[]);
+for u = 1:sum(taskUnits)
+    figure();
+    for i = 1:sum(taskUnits)
+        subplot(ceil(sum(taskUnits)/5),5,i);
+        hold on;
+        cm = cellfun(@(cp) corr(mean(cp(u,binInds(1):binInds(end),:),3,'omitnan')',...
+            mean(cp(i,binInds(1):binInds(end),:),3,'omitnan')'),condPSTHS,'UniformOutput',false);
+        ctm = {};
+        for t = 1:numTrials
+            ctm{t} = cellfun(@(cp) corr(cp(u,binInds(1):binInds(end),t)',...
+                cp(i,binInds(1):binInds(end),t)'),condPSTHS,'UniformOutput',true);
         end
+        ctm = cell2mat(ctm');
+        for c = 1:length(conditions)
+            corrMatrix{c}(u,i) = cm{c};
+            corrTrialMatrix{c}(u,i,:) = ctm(:,c);
+        end
+        xVals = min(goSpk(u,:)):max(goSpk(u,:));
+        goMatrix(u,i) = corr(goSpk(u,:)',goSpk(i,:)',Rows='pairwise');
+        reachMatrix(u,i) = corr(reachSpk(u,:)',reachSpk(i,:)',Rows='pairwise');
+        graspMatrix(u,i) = corr(graspSpk(u,:)',graspSpk(i,:)',Rows='pairwise');
+        s1=scatter(goSpk(u,:)',goSpk(i,:)','cyan','filled','o','AlphaData',.5);
+        s2=scatter(reachSpk(u,:)',reachSpk(i,:)','magenta','filled','square','AlphaData',.5);
+        s3=scatter(graspSpk(u,:)',graspSpk(i,:)','black','x','LineWidth',1,'AlphaData',.7);
+        plot(xVals,mean(goSpk(i,goSpk(u,:) == min(goSpk(u,:))),'omitnan')+(xVals.*goMatrix(u,i)),'Color','cyan','LineWidth',1.5);
+        plot(xVals,mean(reachSpk(i,reachSpk(u,:) == min(reachSpk(u,:))),'omitnan')+(xVals.*reachMatrix(u,i)),'Color','magenta','LineWidth',1.5);
+        plot(xVals,mean(graspSpk(i,graspSpk(u,:) == min(graspSpk(u,:))),'omitnan')+(xVals.*graspMatrix(u,i)),'Color','black','LineWidth',1.5);
+        if(i==u)
+            legend([s1,s2,s3],{'Go','Reach','Grasp'});
+        end
+        title(strcat(unitNames(i),": ",num2str(min(sum(~isnan(goSpk(u,:))),sum(~isnan(goSpk(i,:))))),...
+            " trials (",cell2mat(compose('%.2f; ',[goMatrix(u,i),reachMatrix(u,i),graspMatrix(u,i)])),")"));
     end
-    condMatrix{c} = corrMatrix;
-    subplot(3,length(conditions)+2,c);hold on; axis image; axis ij;
+    if(saveFig)
+        saveFigures(gcf,saveDir+"Unit_Correlations\",unitNames{u}+"_Correlations",[]);
+    end
+end
+figure();
+colormap('jet');
+for c = 1:length(conditions)
+    subplot(2,length(conditions)+2,c);hold on; axis image; axis ij;
     title(conditions(c));
-    imagesc(corrMatrix);
+    imagesc(corrMatrix{c});
     xticks(1:length(unitNames));xticklabels(unitNames);yticklabels([]);clim([0 1]);
-    subplot(3,length(conditions)+2,(length(conditions)+2)+c);hold on; axis image; axis ij;
-    imagesc(reachMatrix{c});
-    if(c==1)
-        ylabel("Reach correlations");
-    end
-    xticks(1:length(unitNames));xticklabels(unitNames);yticklabels([]);clim([0 .5]);
-    subplot(3,length(conditions)+2,2*(length(conditions)+2)+c);hold on; axis image; axis ij;
-    imagesc(graspMatrix{c});
-    if(c==1)
-        ylabel("Grasp correlations");
-    end
-    xticks(1:length(unitNames));xticklabels(unitNames);yticklabels([]);clim([0 .5]);
-    if(c==length(conditions))
-        unitLabs = cell2mat(arrayfun(@(a) repmat(strcat("ChU_",a),size(currTrialPSTHS{c},3),1),unitNames,'UniformOutput',false)');
-        avgMatrix = mean(cat(3,condMatrix{1:length(conditions)-1}),3,'omitnan');
-        avgReach = mean(cat(3,reachMatrix{1:length(conditions)-1}),3,'omitnan');
-        avgGrasp = mean(cat(3,graspMatrix{1:length(conditions)-1}),3,'omitnan');
-        subplot(3,length(conditions)+2,c+1); hold on; axis image; axis ij;
-        title("Average");
-        imagesc(avgMatrix); 
-        xticks(1:length(unitNames));xticklabels(unitNames);yticklabels([]);clim([0 1]);
-        subplot(3,length(conditions)+2,(length(conditions)+2)+c+1);hold on; axis image; axis ij;
-        imagesc(avgReach);
-        xticks(1:length(unitNames));xticklabels(unitNames);yticklabels([]);clim([0 .5]);
-        subplot(3,length(conditions)+2,2*(length(conditions)+2)+c+1);hold on; axis image; axis ij;
-        imagesc(avgGrasp);
-        xticks(1:length(unitNames));xticklabels(unitNames);yticklabels([]);clim([0 .5]);
-        subplot(3,length(conditions)+2,c+2); hold on; axis ij;
-        imagesc(mean(avgMatrix.*(~logical(diag(true(numUnits,1)))./~logical(diag(true(numUnits,1)))),2,'omitnan'));
-        xlim([0.5 1]);xticklabels([]);yticks(1:length(unitNames));yticklabels(unitNames);colorbar;clim([0 1]);
-        subplot(3,length(conditions)+2,(length(conditions)+2)+c+2); hold on; axis ij;
-        imagesc(mean(avgReach.*(~logical(diag(true(numUnits,1)))./~logical(diag(true(numUnits,1)))),2,'omitnan'));
-        xlim([0.5 1]);xticklabels([]);yticks(1:length(unitNames));yticklabels(unitNames);colorbar;clim([0 .5]);
-        subplot(3,length(conditions)+2,2*(length(conditions)+2)+c+2); hold on; axis ij;
-        imagesc(mean(avgGrasp.*(~logical(diag(true(numUnits,1)))./~logical(diag(true(numUnits,1)))),2,'omitnan'));
-        xlim([0.5 1]);xticklabels([]);yticks(1:length(unitNames));yticklabels(unitNames);colorbar;clim([0 .5]);
-        plotJointPSTHS(params.bins,{reshape(permute(currTrialPSTHS{c},[3 1 2]),[],size(currTrialPSTHS{c},2),1)},...
-            {repmat(mean(cell2mat(vertcat(siteTrialSegs{1:length(conditions)-1})),1,'omitnan'),numUnits*size(currTrialPSTHS{c},3),1)},...
-            unitLabs,[any(diff(char(unitLabs)),2);1],[],{evalWindow},[0 15],...
-            cell2struct(num2cell(distinguishable_colors(numUnits),2),unique(unitLabs,'stable')));
-    end
+end
+avgMatrix = mean(cat(3,corrMatrix{1:length(conditions)-1}),3,'omitnan');
+subplot(2,length(conditions)+2,length(conditions)+1); hold on; axis image; axis ij;
+title("Average");
+imagesc(avgMatrix);
+xticks(1:length(unitNames));xticklabels(unitNames);yticklabels([]);clim([0 1]);
+subplot(2,length(conditions)+2,length(conditions)+2); hold on; axis ij; axis tight;
+title('Average marginals');
+imagesc(mean(avgMatrix.*(~logical(diag(true(sum(taskUnits),1)))./~logical(diag(true(sum(taskUnits),1)))),2,'omitnan'));
+xlim([0.5 1]);xticklabels([]);yticks(1:length(unitNames));yticklabels(unitNames);colorbar;clim([0 1]);
+% 2nd row
+subplot(2,length(conditions)+2,(length(conditions)+2)+1);hold on; axis image; axis ij;
+title('Go correlations');
+imagesc(goMatrix);
+xticks(1:length(unitNames));xticklabels(unitNames);yticklabels([]);clim([0 .5]);
+subplot(2,length(conditions)+2,(length(conditions)+2)+4); hold on; axis ij; axis tight;
+title('Go marginals');
+imagesc(mean(goMatrix.*(~logical(diag(true(sum(taskUnits),1)))./~logical(diag(true(sum(taskUnits),1)))),2,'omitnan'));
+xlim([0.5 1]);xticklabels([]);yticks(1:length(unitNames));yticklabels(unitNames);clim([0 .5]);
+subplot(2,length(conditions)+2,(length(conditions)+2)+2);hold on; axis image; axis ij;
+title('Reach correlations');
+imagesc(reachMatrix);
+xticks(1:length(unitNames));xticklabels(unitNames);yticklabels([]);clim([0 .5]);
+subplot(2,length(conditions)+2,(length(conditions)+2)+5); hold on; axis ij; axis tight;
+title('Reach marginals');
+imagesc(mean(reachMatrix.*(~logical(diag(true(sum(taskUnits),1)))./~logical(diag(true(sum(taskUnits),1)))),2,'omitnan'));
+xlim([0.5 1]);xticklabels([]);yticks(1:length(unitNames));yticklabels(unitNames);clim([0 .5]);
+subplot(2,length(conditions)+2,(length(conditions)+2)+3); hold on; axis ij; axis image;
+title('Grasp correlations');
+imagesc(graspMatrix);
+xticks(1:length(unitNames));xticklabels(unitNames);yticklabels([]);clim([0 .5]);
+subplot(2,length(conditions)+2,(length(conditions)+2)+6); hold on; axis ij; axis tight;
+title('Grasp marginals');
+imagesc(mean(graspMatrix.*(~logical(diag(true(sum(taskUnits),1)))./~logical(diag(true(sum(taskUnits),1)))),2,'omitnan'));
+xlim([0.5 1]);xticklabels([]);yticks(1:length(unitNames));yticklabels(unitNames);colorbar;clim([0 .5]);
+fa = get(gcf,'Children');
+cellfun(@(s) set(s,'FontSize',8,'TickLabelRotation',75), get(fa(strcmp(get(fa,'Type'),'axes')),'XAxis'));
+if(saveFig)
+    saveFigures(gcf,saveDir,"Correlations",[]);
 end

@@ -35,19 +35,20 @@ alignmentGap = alignmentGap/binSize;
 PSTH =  cellfun(@(t,w) t(:,(fix(w(1)/binSize)+zeroBinInd):...
     fix((w(end)/binSize)+zeroBinInd)),PSTH,PSTHDisplayLimits,'UniformOutput',false);
 g = groot;
-figHandle = [];%g.CurrentFigure;
-if(~isempty(figHandle))
+figHandle = g.CurrentFigure;
+reuseAxes = ~isempty(figHandle.Children);
+if(reuseAxes)
     pos = cell2mat(arrayfun(@(n) get(n,'Position'), get(figHandle,'Children'), 'UniformOutput', false));
     wrapPlots = numel(unique(pos(:,1)));
     nrows = numel(unique(pos(:,2)));
 else
-    figure();
     figHandle = gcf;
-    wrapPlots = min(length(jointName),3);
+    wrapPlots = min(length(jointName),5);
     nrows = ceil(length(jointName)/wrapPlots);
 end
 xAlignTicks = {};
 maxPlot = 0;
+trialSamples = sum(siteInds)~=length(allReps);
 for j = 1:length(jointName)
     jointInds = arrayfun(@(s) cellfun(@(a) strcmp(a,jointName{j}),s), allReps,'UniformOutput',true);
     if(sum(jointInds)>0)
@@ -58,8 +59,15 @@ for j = 1:length(jointName)
         %% plot PSTHS
         subplot(nrows,wrapPlots,j);hold on;
         titleName = replace(jointName{j},"_", " ");
-        titleName = strcat(titleName, " (n= ", num2str(sum(~all(isnan(jointPSTH{1}),2))),")");
-        if(sum(siteInds)~=length(allReps))
+        if(reuseAxes)
+            oldName = get(gca,'Title');
+            oldName = oldName.String;
+            titleName = strcat(titleName," (n= ",num2str(min(cellfun(@(s) str2num(s{1}),...
+                regexp(oldName,'[=]\s(\d*)','tokens')),sum(~all(isnan(jointPSTH{1}),2)))),")");
+        else
+            titleName = strcat(titleName, " (n= ", num2str(sum(~all(isnan(jointPSTH{1}),2))),")");
+        end
+        if(trialSamples)
             titleName = strcat(titleName{:}(1:end-1), " of ", num2str(sum(jointInds)),")");
         end
         title(titleName);
@@ -70,23 +78,18 @@ for j = 1:length(jointName)
             xAlignTicks{a} = plotStart+(1:size(currJointAlign,2));
             meanTrace = mean(currJointAlign,1,'omitnan');
             plot(xAlignTicks{a},meanTrace, 'LineWidth',2,'Color', plotColors.(jointName{j}));
-            %             if(~isempty(activeJointInds))
-            %                 plot(xAlignTicks{a},nanmean([jointPSTH{a}(activeJointInds,:)],1),...
-            %                     'LineWidth',2,'Color', plotColors.(jointName{j}), 'LineStyle','--');
-            %             end
-            %             if(~isempty(inactiveJoints))
-            %                 plot(xAlignTicks{a},nanmean([jointPSTH{a}(inactiveJoints,:)],1),...
-            %                     'LineWidth',2,'Color', plotColors.(jointName{j}), 'LineStyle','--');
-            %             end
-            uE=meanTrace+(nanstd(currJointAlign,0,1)/sqrt(sum(jointInds)));
-            lE=meanTrace-(nanstd(currJointAlign,0,1)/sqrt(sum(jointInds)));
+            SEM = nanstd(currJointAlign,0,1);
+            if(~trialSamples)
+                SEM = SEM/sqrt(sum(~all(isnan(currJointAlign),2)));
+            end
+            uE=meanTrace+SEM;
+            lE=meanTrace-SEM;
             yP=[lE,fliplr(uE)];
             xP=[xAlignTicks{a},fliplr(xAlignTicks{a})];
             xP(isnan(yP))=[];
             yP(isnan(yP))=[];
             d = patch(xP,yP,1);
-            set(d,'edgecolor','none','facealpha',.5,'facecolor',plotColors.(jointName{j}));
-
+            set(d,'edgecolor','none','facealpha',.15,'facecolor',plotColors.(jointName{j}));
             if(~isempty(yP))
                 groupMax = max(FRLim(end),FRLim(end)*ceil(max(yP)/FRLim(end)));
             end
@@ -135,7 +138,7 @@ for j = 1:length(jointName)
     set(gca,'XLim',[allXTicks(1), allXTicks(end)]);
     set(gca,'YLim',[FRLim(1),groupMax]);
     maxPlot = max(maxPlot,groupMax);
-    cellfun(@(cr) patch([cr,fliplr(cr)],[FRLim(1) FRLim(1) groupMax groupMax],'k','FaceAlpha',.15,'EdgeColor','none'),patches);
+    cellfun(@(cr) patch([cr,fliplr(cr)],[FRLim(1) FRLim(1) groupMax groupMax],[.5 .5 .5],'FaceAlpha',.25,'EdgeColor','none'),patches);
 end
 %set(figHandle.Children,'YLim',[FRLim(1),maxPlot]);
 end

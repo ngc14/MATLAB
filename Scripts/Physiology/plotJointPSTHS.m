@@ -6,7 +6,7 @@ else
     FRLim = FRLimIn;
 end
 alignmentGap = .1;
-segColors = {[0 0 0],[.7 .7 .7]};
+segColors = {[0 0 0],[.3 .3 .3]};
 phaseWinSz = .1;
 pw = {[-phaseWinSz, 0],[-phaseWinSz, 0]};
 pa = cellstr(["StartReach","StartHold"]);

@@ -126,6 +126,7 @@ infoTable = [infoTable table(cell(height(infoTable),1),...
 infoTable(vI,'Date') = table(dateToPNValue(viPN,dateInd));
 infoTable(vI,'Domain') = table(dateToPNValue(viPN,domainInd));
 infoTable(vI,'Site2')= dateToPNValue(viPN,PNInd);
+infoTable(viPN(~ismember(viPN,vI)),:) = [];
 clear dateToPNValue
 %%%%%%% confirm M1 sites based on assigned yellow border border
 MM = double(imread(strcat(dirPath,"Mapping\MMRGB.png")));

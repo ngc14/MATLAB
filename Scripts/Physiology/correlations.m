@@ -25,7 +25,7 @@ sessionDates = cellfun(@(d) datetime(d,'Format','MM_dd_yyyy'), table2cell(monkey
 sessionChannels = cell(1,length(sessionDates));
 [sessionGo,sessionReach,sessionGrasp,sessionCorrs] = deal(cell(length(sessionDates),length(conditions)));
 hbar = parforProgress(length(sessionDates));
-for n = 1:length(sessionDates)
+parfor n = 1:length(sessionDates)
     dirPath = mainDir+monkey+"\"+"All Data\"+monkey+"_"+string(sessionDates(n))+"\Physiology\Results";
     saveDir = strcat(mainDir,"ngc14\Working\Correlations\",string(sessionDates(n)),"\");
     if(0)%exist(saveDir,'dir'))
@@ -95,13 +95,13 @@ for n = 1:length(sessionDates)
             cellfun(@(a) {{cell2mat(a')}}, alignedTimes,'Uniformoutput',false),cellfun(@(c) {c},condPSTHS,'UniformOutput',false),false,true);
         [~,taskUnits] = cellfun(@(tb,tc) cellfun(@(b,cn) ttestTrials(b,cn,1,true,pVal),...
             tb,tc,'UniformOutput',false),taskBaseline,taskFR,'UniformOutput', false);
-        allFR{n} = taskFR;
         taskUnits = any(cell2mat([taskUnits{:}]),2);
         unitNames = unitNames(taskUnits);
         allGoodTrials = cellfun(@(a)  a(taskUnits),allGoodTrials,'UniformOutput',false);
         alignedSpikes =  cellfun(@(a) a(taskUnits), alignedSpikes, 'UniformOutput',false);
         normPSTH = cellfun(@(a) a(taskUnits,:,:),normPSTH,'UniformOutput',false);
         sessionChannels{n} = channels(taskUnits);
+        allFR{n} = taskFR;
         %%
         if(0)%saveFig)
             figure();
@@ -185,7 +185,7 @@ for n = 1:length(sessionDates)
             saveFigures(gcf,saveDir,"Correlations",[]);
         end
     end
-    send(hbar, i);
+    send(hbar, n);
     close all;
 end
 %%

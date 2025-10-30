@@ -17,6 +17,7 @@ corrPhases = ["Go","Reach","Grasp"];
 goInd = cellfun(@(as) find(contains(as,"Go")),allSegs,'UniformOutput',false);
 reachInd = cellfun(@(as) find(contains(as,"Reach")),allSegs,'UniformOutput',false);
 graspInd = cellfun(@(as) find(contains(as,"Hold"),1),allSegs,'UniformOutput',false);
+saveFig = false;
 %%
 [monkeyTable, ~, ~] = getMonkeyInfo(mainDir,monkey,"M1",true);
 sessionDates = cellfun(@(d) datetime(d,'Format','MM_dd_yyyy'), table2cell(monkeyTable(:,'Date'))); % randperm(height(monkeyTable),10)
@@ -26,11 +27,6 @@ hbar = parforProgress(length(sessionDates));
 for n = 1:length(sessionDates)
     dirPath = mainDir+monkey+"\"+"All Data\"+monkey+"_"+string(sessionDates(n))+"\Physiology\Results";
     saveDir = strcat(mainDir,"ngc14\Working\Correlations\",string(sessionDates(n)),"\");
-    if(0)%exist(saveDir,'dir'))
-        saveFig=false;
-    else
-        saveFig=true;
-    end
     [condPSTHS,alignedSpikes,alignedTimes,allGoodTrials,corrTrialMatrix,sigCorr,siteTrialSegs] = deal(repmat({[]},1,length(conditions)));
     [goMatrix,reachMatrix,graspMatrix] = deal([]);
     [spikes,times,~,allTrials,~,channels,~,~,chMap] = getAllTrials(dirPath,"Single",true);

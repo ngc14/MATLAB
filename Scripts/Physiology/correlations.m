@@ -22,8 +22,8 @@ graspInd = cellfun(@(as) find(contains(as,"Hold"),1),allSegs,'UniformOutput',fal
 %%
 [monkeyTable, ~, ~] = getMonkeyInfo(mainDir,monkey,"M1",true);
 sessionDates = cellfun(@(d) datetime(d,'Format','MM_dd_yyyy'), table2cell(monkeyTable(:,'Date'))); % randperm(height(monkeyTable),10)
-sessionChannels = cell(1,length(sessionDates));
-[sessionGo,sessionReach,sessionGrasp,sessionCorrs] = deal(cell(length(sessionDates),length(conditions)));
+sessionCorrs = cell(length(sessionDates),length(conditions));
+[sessionGo,sessionReach,sessionGrasp,sessionChannels] = deal(cell(length(sessionDates),1));
 hbar = parforProgress(length(sessionDates));
 parfor n = 1:length(sessionDates)
     dirPath = mainDir+monkey+"\"+"All Data\"+monkey+"_"+string(sessionDates(n))+"\Physiology\Results";
@@ -101,7 +101,7 @@ parfor n = 1:length(sessionDates)
         alignedSpikes =  cellfun(@(a) a(taskUnits), alignedSpikes, 'UniformOutput',false);
         normPSTH = cellfun(@(a) a(taskUnits,:,:),normPSTH,'UniformOutput',false);
         sessionChannels{n} = channels(taskUnits);
-        allFR{n} = taskFR;
+        allFR{n} = cellfun(@(t) t{1}{1}{1}(taskUnits,:), taskFR,'UniformOutput',false);
         %%
         if(0)%saveFig)
             figure();
@@ -169,20 +169,20 @@ parfor n = 1:length(sessionDates)
         if(saveFig)
             tiledlayout(2,length(conditions)+2);
             avgCorrs = mean(cat(3,sigCorr{1:length(conditions)-1}),3,'omitnan');
-            plotHeatMatrix([sigCorr,avgCorrs],[conditions,"Average"],unitNames);
+            plotHeatMatrix([sigCorr,avgCorrs],[conditions,"Average"],unitNames,[0 .5]);
             nexttile; hold on; axis tight; axis ij;title("Average marginals");
             imagesc(mean(avgCorrs.*(~logical(diag(true(length(unitNames),1)))./~logical(diag(true(length(unitNames),1)))),2,'omitnan'));
             xlim([0.5 1]);xticklabels([]);yticks(1:length(unitNames));yticklabels(unitNames);colorbar;clim([0 1]);
             noiseCorrMatrix = {goMatrix,reachMatrix,graspMatrix};
             corrNames = ["Go","Reach","Grasp"];
-            plotHeatMatrix({goMatrix,reachMatrix,graspMatrix},corrNames,unitNames);
+            plotHeatMatrix(noiseCorrMatrix,corrNames,unitNames,[0, .5]);
             for m = 1:length(noiseCorrMatrix)
                 nexttile; hold on; axis tight; axis ij;title(corrNames(m)+" marginals");
                 imagesc(mean(noiseCorrMatrix{m}.*(~logical(diag(true(length(unitNames),1)))./~logical(diag(true(length(unitNames),1)))),2,'omitnan'));
                 xlim([0.5 1]);xticklabels([]);yticks(1:length(unitNames));yticklabels(unitNames);clim([0 .5]);
             end
             colorbar;
-            saveFigures(gcf,saveDir,"Correlations",[]);
+            saveFigures(gcf,saveDir,"Correlations_ABS",[]);
         end
     end
     send(hbar, n);
@@ -191,39 +191,74 @@ end
 %%
 concatMatrix = cell(1,length(conditions));
 numChannels = 32;
+chNames = arrayfun(@num2str,1:numChannels,'UniformOutput',false);
 for c = 1:length(conditions)
     [sigAll,goAll,reachAll,graspAll] = deal(NaN(numChannels,numChannels,length(sessionCorrs)));
+    allCondFR = NaN(numChannels,length(sessionCorrs));
     for n = 1:length(sessionCorrs)
         sessCorrs = sessionCorrs{n,c};
+        sessGo = sessionGo{n};
+        sessReach = sessionReach{n};
+        sessGrasp = sessionGrasp{n};
         for h = 1:length(sessionChannels{n})
             xMapped=sessionChannels{n}==sessionChannels{n}(h);
+            allCondFR(sessionChannels{n}(h),n) = mean(cell2mat(cellfun(@(v) mean(v(xMapped,:),'all','omitnan'), allFR{n}, 'UniformOutput',false)),'omitnan');
             for i = 1:length(sessionChannels{n})
                 yMapped=sessionChannels{n}==sessionChannels{n}(i);
                 sigAll(sessionChannels{n}(h),sessionChannels{n}(i),n) =  mean(sessCorrs(xMapped,yMapped),'all','omitnan');
-                goAll(sessionChannels{n}(h),sessionChannels{n}(i),n) = mean(sessionGo(xMapped,yMapped),'all','omitnan');
-                reachAll(sessionChannels{n}(h),sessionChannels{n}(i),n) = mean(sessionReach(xMapped,yMapped),'all','omitnan');
-                graspAll(sessionChannels{n}(h),sessionChannels{n}(i),n) = mean(sessionGrasp(xMapped,yMapped),'all','omitnan');
+                goAll(sessionChannels{n}(h),sessionChannels{n}(i),n) = mean(sessGo(xMapped,yMapped),'all','omitnan');
+                reachAll(sessionChannels{n}(h),sessionChannels{n}(i),n) = mean(sessReach(xMapped,yMapped),'all','omitnan');
+                graspAll(sessionChannels{n}(h),sessionChannels{n}(i),n) = mean(sessGrasp(xMapped,yMapped),'all','omitnan');
             end
         end
     end
     concatMatrix{c} =mean(sigAll,3,'omitnan');
 end
+numPairs = sum(~isnan(sigAll),3);
+maxPairs = max(numPairs,[],'all');
+maxFR = mean(allCondFR,'all','omitnan');
+
 figure();
-tiledlayout(2,length(conditions)*2);
-plotHeatMatrix([sigAll,mean(cat(3,concatMatrix{1:length(conditions)-1}),3,'omitnan')],[conditions,"Average"],arrayfun(@num2str,1:numChannels));
-nextile;hold on; axis image; axis ij;
+colormap([0 0 0;colormap('jet')]);
+tiledlayout(3,length(conditions)+2);
+avgConcat = mean(cat(3,concatMatrix{1:length(conditions)-1}),3,'omitnan');
+plotHeatMatrix([concatMatrix,avgConcat],[conditions,"Average"],chNames,[0 .5]);
+
+nexttile;hold on; axis ij; axis tight;
+title("Average Marginals");
+imagesc(mean(avgConcat.*(~logical(diag(true(length(chNames),1)))./~logical(diag(true(length(chNames),1)))),2,'omitnan'));
+xlim([0.5 1]);xticklabels([]);yticks(1:2:length(chNames));yticklabels(chNames(1:2:end));clim([0 .5]);colorbar;
+
+noiseCorrMatrix = cellfun(@(m) mean(m,3,'omitnan'), {goAll,reachAll,graspAll}, 'UniformOutput',false);
+corrNames = ["Go","Reach","Grasp"];
+plotHeatMatrix(noiseCorrMatrix,corrNames,chNames,[0 .25]);
+
+for m = 1:length(noiseCorrMatrix)
+    nexttile; hold on; axis tight; axis ij;title(corrNames(m)+" marginals");
+    imagesc(mean(noiseCorrMatrix{m}.*(~logical(diag(true(length(chNames),1)))./~logical(diag(true(length(chNames),1)))),2,'omitnan'));
+    xlim([0.5 1]);xticklabels([]);yticks(1:2:length(chNames));yticklabels(chNames(1:2:end));clim([0 .25]);
+end
+colorbar;
+
+nexttile([1,1]);hold on; axis image; axis ij;
 title("NumPairs");
-imagesc(mean(cat(3,numPairs{:}),3,'omitnan'));
-maxPairs = max([numPairs{:}],[],'all');
-clim([1 maxPairs]); xticks(1:2:32);xticklabels(arrayfun(@num2str,1:2:numChannels,'UniformOutput',false));yticklabels([]);
-cb=colorbar(gca,'southoutside');cb.Ticks=[1,round(maxPairs/2),maxPairs];cb.TickLabels = num2cell([1,round(maxPairs/2),maxPairs]);
-nexttile;hold on; axis image; axis ij;
+imagesc(numPairs);
+xticks(1:2:32);xticklabels(arrayfun(@num2str,1:2:numChannels,'UniformOutput',false));yticklabels([]);
+cb=colorbar(gca,'southoutside');cb.Ticks=[0,round(maxPairs/2)];cb.TickLabels = num2cell([1,round(maxPairs/2)]);clim([0 round(maxPairs/2)]);
+
+nexttile([1,1]);hold on; axis ij; axis tight;
 title("FR");
-imagesc(mean(cat(3,allFR{1:length(conditions)-1}),3,'omitnan'));
-maxFR = max(cat(3,allFR{1:length(conditions)-1},[],'all'));
-clim([1 maxPairs]); xticks(1:2:32);xticklabels(arrayfun(@num2str,1:2:numChannels,'UniformOutput',false));yticklabels([]);
-cb=colorbar(gca,'southoutside');cb.Ticks=[1,round(maxPairs/2),maxPairs];cb.TickLabels = num2cell([1,round(maxPairs/2),maxPairs]);
-saveFigures(gcf,mainDir+"ngc14\Working\Correlations\","All",[]);
+imagesc(mean(allCondFR,2,'omitnan'));
+xticks([]);xlim([.5 1]);yticks(1:numChannels);yticklabels(arrayfun(@num2str,1:numChannels,'UniformOutput',false));yticklabels([]);
+cb=colorbar(gca,'southoutside');cb.Ticks=[0,round(maxFR)];cb.TickLabels = num2cell([1,round(maxFR)]);clim([0 round(maxFR)]);
+
+nexttile([1,4]);hold on; axis ij; axis tight;
+title("All FR");
+imagesc(allCondFR);
+yticks(1:numChannels);yticklabels(arrayfun(@num2str,1:numChannels,'UniformOutput',false));yticklabels([]);
+cb=colorbar(gca,'southoutside');cb.Ticks=[0,round(maxFR)];cb.TickLabels = num2cell([1,round(maxFR)]);clim([0 round(maxFR)]);
+
+saveFigures(gcf,mainDir+"ngc14\Working\Correlations\","All_ABS",[]);
 
 function spCounts= getSpikeCounts(spks,segInd,times,goodTrials,wSz)
 spCounts = cellfun(@(c,i,t,g) cellfun(@(a,gi) cellfun(@(s,at,gt) (gt./gt).*sum(s<at(i)+wSz & s>at(i)),...

@@ -76,18 +76,18 @@ params.CaseSensitive = false;
 params.addParameter('lineProps', '-k', @(x) ischar(x) | iscell(x));
 params.addParameter('transparent', true, @(x) islogical(x) || x==0 || x==1);
 params.addParameter('patchSaturation', 0.2, @(x) isnumeric(x) && x>=0 && x<=1);
+params.addParameter('flipXY',false,@(x) islogical(x) || x==0 || x==1);
 params.addParameter('ax',gca);
 
 params.parse(varargin{:});
-
 %Extract values from the inputParser
 lineProps =  params.Results.lineProps;
 transparent =  params.Results.transparent;
 patchSaturation = params.Results.patchSaturation;
 ax = params.Results.ax;
+flipXY = params.Results.flipXY;
 
 if ~iscell(lineProps), lineProps={lineProps}; end
-
 
 %Process y using function handles if needed to make the error bar dynamically
 if iscell(errBar) 
@@ -125,6 +125,11 @@ end
 initialHoldStatus=ishold;
 if ~initialHoldStatus, hold on,  end
 axes(ax);
+if(flipXY)
+    tmpX = x;
+    x = y;
+    y = tmpX;
+end
 H = makePlot(x,y,errBar,lineProps,transparent,patchSaturation);
 
 if ~initialHoldStatus, hold off, end

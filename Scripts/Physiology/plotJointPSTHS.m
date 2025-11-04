@@ -1,4 +1,4 @@
-function figHandle = plotJointPSTHS(bins,PSTHIn,allSegsIn,allRepsIn,siteInds,...
+function figHandle = plotJointPSTHS(params,PSTHIn,allSegsIn,allRepsIn,siteInds,...
     activityIn,PSTHDisplayLimits,FRLimIn,plotColors)
 if(~exist('FRLimIn', 'var'))
     FRLim = [5 30];
@@ -8,10 +8,10 @@ end
 alignmentGap = .1;
 segColors = {[0 0 0],[.3 .3 .3]};
 phaseWinSz = .2;
-pw = {[-phaseWinSz, 0],[-phaseWinSz, 0]};
-pa = cellstr(["StartReach","StartHold"]);
-maxSegL = ["GoSignal","StartReach","StartLift","StartHold","StartWithdraw",...
-    "StartReplaceHold","StartReplaceSuccess","StartReward"];
+pw = {[0,phaseWinSz],[-phaseWinSz, 0]};
+pa = cellstr(["GoSignal","StartHold"]);
+[~,maxSegL]= max(cellfun(@length,params.condSegMap.values));
+maxSegL= cell2mat(params.condSegMap.values({params.condNames(maxSegL)}));
 activityInd = activityIn;
 PSTH = PSTHIn;
 allSegs = allSegsIn;
@@ -28,8 +28,8 @@ end
 plotNames = fieldnames(plotColors);
 jointName = natsort(plotNames(matches(unique(allReps(allReps~="")),plotNames)));
 
-zeroBinInd = find(bins==0);
-binSize = mode(diff(bins));
+zeroBinInd = find(params.bins==0);
+binSize = params.binSize;
 alignmentGap = alignmentGap/binSize;
 
 PSTH =  cellfun(@(t,w) t(:,(fix(w(1)/binSize)+zeroBinInd):...
@@ -102,8 +102,7 @@ for j = 1:length(jointName)
             if(a==1)
                 plotted = false(1,size(currSegs,2));
                 maxSegNames=maxSegL;
-                maxSegNames(all(isnan(currSegs),1)) = "";
-                patches = cellfun(@(i,w) findBins(avgSegs(find(contains(maxSegNames,i)))+w,...
+                patches = cellfun(@(i,w) findBins(avgSegs(find(contains(maxSegNames,i),1))+w,...
                      PSTHDisplayLimits{a}(1):binSize:PSTHDisplayLimits{a}(end)), pa,pw,'UniformOutput',false);
             end
             for s = 1:length(avgSegs)

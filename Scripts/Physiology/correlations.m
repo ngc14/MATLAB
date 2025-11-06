@@ -19,7 +19,7 @@ corrPhases = ["Go","Reach","Grasp"];
 goInd = cellfun(@(as) find(contains(as,"Go")),allSegs,'UniformOutput',false);
 reachInd = cellfun(@(as) find(contains(as,"Reach")),allSegs,'UniformOutput',false);
 graspInd = cellfun(@(as) find(contains(as,"Hold"),1),allSegs,'UniformOutput',false);
-saveFig = true;
+saveFig = false;
 %%
 [monkeyTable, ~, ~] = getMonkeyInfo(mainDir,monkey,"M1",true);
 sessionDates = cellfun(@(d) datetime(d,'Format','MM_dd_yyyy'), table2cell(monkeyTable(:,'Date'))); % randperm(height(monkeyTable),10)
@@ -29,6 +29,7 @@ sessionCorrs = cell(length(sessionDates),length(conditions));
 maxSegL= cell2mat(params.condSegMap.values({params.condNames(maxSegL)}));
 condSegMappedInds = cellfun(@(f) find(contains(maxSegL,f)), allSegs, 'UniformOutput', false);
 hbar = parforProgress(length(sessionDates));
+avgTimeCorr = cell(length(sessionDates),1);
 saveDir= strcat(mainDir,"ngc14\Working\Correlations\");
 parfor n = 1:length(sessionDates)
     [condPSTHS,alignedSpikes,alignedTimes,allGoodTrials,corrTrialMatrix,sigCorr,siteTrialSegs] = deal(repmat({[]},1,length(conditions)));
@@ -75,7 +76,7 @@ parfor n = 1:length(sessionDates)
         moveCondsAll = cellfun(@(i) i(1):params.binSize:i(end),num2cell([min(sessionTimeSegs(:,1:find(contains(maxSegL,"Go"),1)),[],2),...
             max(sessionTimeSegs(:,1:find(contains(maxSegL,"Hold"),1)),[],2)+range(winSz)],2),'UniformOutput',false);
         [~,tRange] = max(cellfun(@length,moveCondsAll));
-        tRange = moveCondsAll{tRange};
+        tRange = -.5:params.binSize:1;%moveCondsAll{tRange};
         corrT = cell(length(tRange),1);
         for ti = 1:length(tRange)
             currWin = round(tRange(ti),2);
@@ -133,6 +134,7 @@ parfor n = 1:length(sessionDates)
         nexttile(t,tilenum(t,sum(taskUnits),sum(taskUnits))); hold on; axis tight;
         allTimeCorrs = cellfun(@(m) m.*(repmat(~diag(ones(1,size(m,1))),1,1,size(m,3))./repmat(~diag(ones(1,size(m,1))),1,1,size(m,3))),corrT, 'UniformOutput',false);
         plot(tRange,zeros(1,length(tRange)),'k');
+        avgTimeCorr{n} =  squeeze(num2cell(cat(4,allTimeCorrs{:}),[1 2 4]));
         cellfun(@(cm,cl) shadedErrorBar(tRange,squeeze(mean(cm,[1,2,3],'omitnan'))',squeeze(std(cm,0,[1,2,3],'omitnan'))','lineProps',{'Color',cl,'LineWidth',1.5}), ...
             squeeze(num2cell(cat(4,allTimeCorrs{:}),[1 2 4])),num2cell(condColors,2));
         plot([0 0],[-1 1],'--k','LineWidth',1);
@@ -300,6 +302,27 @@ yticks(resMap(1:2:end));yticklabels(arrayfun(@num2str,resMap(1:2:end),'UniformOu
 cb=colorbar(gca,'southoutside');cb.Ticks=[0,round(maxFR)];cb.TickLabels = num2cell([1,round(maxFR)]);clim([0 round(maxFR)]);
 
 saveFigures(gcf,mainDir+"ngc14\Working\Correlations\","All",[]);
+%%
+figure();     tiledlayout(10,10,'TileSpacing','none')
+goodSess = find(~cellfun(@isempty,avgTimeCorr));
+tRange = -.5:params.binSize:1;
+for n = 1:length(goodSess)
+    nexttile; hold on; axis tight;
+    sessTimeCorr = squeeze(num2cell(cat(4,avgTimeCorr{goodSess(n)}),[1 2 4]));
+    allTimeCorrs = cellfun(@(m) m.*(repmat(~diag(ones(1,size(m,1))),1,1,size(m,3))./...
+        repmat(~diag(ones(1,size(m,1))),1,1,size(m,3))),[avgTimeCorr{goodSess(n)}], 'UniformOutput',false);
+    cellfun(@(cm,cl) shadedErrorBar(tRange,squeeze(mean(cm,[1,2,3],'omitnan'))',squeeze(std(cm,0,[1,2,3],'omitnan'))','lineProps',{'Color',cl,'LineWidth',1.5}), ...
+        squeeze(num2cell(cat(3,allTimeCorrs{:}),[1 2 4])),num2cell(condColors,2));
+    plot(tRange,zeros(1,length(tRange)),'k');
+    plot([0 0],[-1 1],'--k','LineWidth',1);
+    title("Average");
+    ylim([-1 1]);
+    xticks(tRange([1,end]));
+    yticklabels([]);
+    plot([0 0],[-1 1],'--k','LineWidth',1);
+    xticklabels(arrayfun(@(s) num2str(s,'%.1f'),tRange(1:20:end),'UniformOutput',false));
+end
+    saveFigures(gcf,mainDir,sessionDates(n),[]);
 
 function spCounts= getSpikeCounts(spks,segInd,times,goodTrials,wSz)
 spCounts = cellfun(@(c,i,t,g) cellfun(@(a,gi) cellfun(@(s,at,gt) (gt./gt).*sum(s<at(i)+wSz(end) & s>at(i)+wSz(1)),...

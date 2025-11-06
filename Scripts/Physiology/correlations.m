@@ -260,7 +260,7 @@ for c = 1:length(conditions)
             end
         end
     end
-    concatMatrix{c} =mean(sigAll,3,'omitnan');
+    concatMatrix{c} = sigAll;
 end
 numPairs = sum(~isnan(sigAll),3);
 maxPairs = ceil(mean(numPairs(:),'omitnan')+std(numPairs(:),'omitnan'));
@@ -269,11 +269,11 @@ maxFR = mean(allCondFR(:),'omitnan')+std(allCondFR(:),'omitnan');
 figure();
 colormap([0 0 0;colormap('jet')]);
 tiledlayout(3,length(conditions)+2);
-avgConcat = mean(cat(3,concatMatrix{1:length(conditions)-1}),3,'omitnan');
-plotHeatMatrix([concatMatrix,avgConcat],[conditions,"Average"],chNames,cLim);
+avgConcat = mean(cat(4,concatMatrix{1:length(conditions)-1}),4,'omitnan');
+plotHeatMatrix(cellfun(@(m) mean(m,3,'omitnan'),[concatMatrix,{avgConcat}],'UniformOutput',false),[conditions,"Average"],chNames,cLim);
 
 nexttile;hold on; axis ij; axis tight;title("Average Marginals");
-imagesc(mean(avgConcat.*(~logical(diag(true(length(chNames),1)))./~logical(diag(true(length(chNames),1)))),2,'omitnan'));
+imagesc(mean(mean(avgConcat,3,'omitnan').*(~logical(diag(true(length(chNames),1)))./~logical(diag(true(length(chNames),1)))),2,'omitnan'));
 xlim([0.5 1]);xticklabels([]);yticks(1:2:length(chNames));yticklabels(chNames(1:2:end));clim(cLim./2);colorbar;
 
 noiseCorrMatrix = cellfun(@(m) mean(m,3,'omitnan'), {goAll,reachAll,graspAll}, 'UniformOutput',false);
@@ -296,10 +296,10 @@ imagesc(mean(allCondFR,2,'omitnan'));
 xticks([]);xlim([.5 1]);yticks(resMap(1:2:end));yticklabels(arrayfun(@num2str,resMap(1:2:end),'UniformOutput',false));yticklabels([]);
 cb=colorbar(gca,'southoutside');cb.Ticks=[0,round(maxFR)];cb.TickLabels = num2cell([1,round(maxFR)]);clim([0 round(maxFR)]);
 
-nexttile([1,4]);hold on; axis ij; axis tight;title("All FR");
-imagesc(allCondFR);
+nexttile([1,4]);hold on; axis ij; axis tight;title("All Signal Averages");
+imagesc(squeeze(mean(cat(4,concatMatrix{1:length(conditions)-1}),[2,4],'omitnan')));
 yticks(resMap(1:2:end));yticklabels(arrayfun(@num2str,resMap(1:2:end),'UniformOutput',false));yticklabels([]);
-cb=colorbar(gca,'southoutside');cb.Ticks=[0,round(maxFR)];cb.TickLabels = num2cell([1,round(maxFR)]);clim([0 round(maxFR)]);
+cb=colorbar(gca,'southoutside');clim(cLim);
 
 saveFigures(gcf,mainDir+"ngc14\Working\Correlations\","All",[]);
 %%

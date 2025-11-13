@@ -18,14 +18,14 @@ end
 if(all(round(valsToGraph)==valsToGraph))
     countRange = round(countRange);
 end
-positiveMap = flipud([linspace(.7,1,numSteps)',linspace(.1,.6,numSteps)',linspace(.2,0,numSteps)']);
-positiveMap = flipud(colormap(summer(numSteps)));
-negativeMap = flipud([linspace(0,.7,numSteps)', linspace(0,.7,numSteps)',linspace(.5,1,numSteps)']);
-%positiveMap = flipud(hot(numSteps*2));
+%negativeMap = flipud([linspace(0,.7,numSteps)', linspace(0,.7,numSteps)',linspace(.5,1,numSteps)']);
 negativeMap = (cool(numSteps));
+%positiveMap = flipud([linspace(.7,1,numSteps)',linspace(.1,.6,numSteps)',linspace(.2,0,numSteps)']);
+%positiveMap = flipud(colormap(summer(numSteps)));
 %positiveMap = positiveMap(all(positiveMap<=[1 .7 0],2),:);
-positiveMap = positiveMap(1:numSteps,:);
+positiveMap = jet(round(numSteps*1));
 %%
+positiveMap = positiveMap(1:numSteps,:);
 cMap = positiveMap;
 if(countZero)
     if(~any(countRange==0))
@@ -40,7 +40,9 @@ if(countZero)
     end
     cMap(zeroInd,:) = zeroColor;
 end
-cMap(1:sum(countRange<0)-countZero,:) = flipud(negativeMap(1:sum(countRange<0)-countZero,:));
+if(any(countRange<0))
+    cMap(1:sum(countRange<0)-countZero,:) = flipud(negativeMap(1:sum(countRange<0)-countZero,:));
+end
 cMap = [cMap;1 1 1;];
 tickNames = arrayfun(@(t) num2str(t,'%0.2f'), countRange, 'UniformOutput', false);
 %%

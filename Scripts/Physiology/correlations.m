@@ -1,37 +1,22 @@
 conditions = ["Extra Small Sphere", "Large Sphere", "Photocell","Rest"];
-taskAlign = containers.Map(conditions,{{["GoSignal" "StartHold"]},{["GoSignal","StartHold"]},...
-    {["GoSignal","StartHold"]},{["GoSignal","StartReplaceHold"]}});
-binSize = .01;
-smoothKernel = .15;
-secBeforeAlignment = -6;
-secAfterAlignment = 5;
-evalWindow = [-1 2];
-winSz = [0 .2];
-pVal=0.05;
 cLim = [0 .5];
 numChannels = 32;
 channelRes = 1;
 condColors = [[1 0 0]; [.9 .7 0]; [0 .3 1]];
 corrPhases = ["Go","Reach","Grasp"];
 groupLabels = ["S","M","D"];
-params = PhysRecording(conditions,binSize,smoothKernel,secBeforeAlignment,secAfterAlignment,...
+params = PhysRecording(conditions, .01,.15, -6, 5,...
     containers.Map(conditions,{"StartReach","StartReach","StartReach","GoSignal"}));
 tRange = -.5:params.binSize:1;
-[maxSegSz,maxSegL]= max(cellfun(@length,params.condSegMap.values));
-maxSegL= cell2mat(params.condSegMap.values({params.condNames(maxSegL)}));
-allSegs = cellfun(@(e) e(2:end-1), params.condSegMap.values,'UniformOutput',false);
-goInd = cellfun(@(as) find(contains(as,"Go")),allSegs,'UniformOutput',false);
-reachInd = cellfun(@(as) find(contains(as,"Reach")),allSegs,'UniformOutput',false);
-graspInd = cellfun(@(as) find(contains(as,"Hold"),1),allSegs,'UniformOutput',false);
 mainDir = "S:\Lab\";
 monkey = "Gilligan";
+saveDir= strcat(mainDir,"ngc14\Working\Correlations\");
 saveFig = false;
 %%
-saveDir= strcat(mainDir,"ngc14\Working\Correlations\");
-[monkeyTable, ~, ~] = getMonkeyInfo(mainDir,monkey,"M1",true);
-sessionDates = cellfun(@(d) datetime(d,'Format','MM_dd_yyyy'), table2cell(monkeyTable(:,'Date')));
+[siteDateMap, vMask, ~] = getMonkeyInfo(mainDir,monkey,"M1",true);
+sessionDates = cellfun(@(d) datetime(d,'Format','MM_dd_yyyy'), table2cell(siteDateMap(:,'Date')));
 [sessionCorrs,sessionGo,sessionReach,sessionGrasp,avgTimeCorr,sessionChannels,allFR] = ...
-    loadCorrelations(sessionDates,cellfun(@(f) find(contains(maxSegL,f)), allSegs, 'UniformOutput', false),saveFig);
+    loadCorrelations(sessionDates,params,mainDir,monkey,false);
 %%
 sessionCorrs(:,end+1) = cellfun(@(n) mean(cat(3,n{1:length(conditions)-1}),3,'omitnan'), num2cell(sessionCorrs,2), 'UniformOutput',false);
 concatMatrix = cell(1,length(conditions));
@@ -66,7 +51,8 @@ maxPairs = ceil(mean(numPairs(:),'omitnan')+std(numPairs(:),'omitnan'));
 maxFR = mean(allCondFR(:),'omitnan')+std(allCondFR(:),'omitnan');
 avgConcat = mean(cat(4,concatMatrix{1:length(conditions)-1}),4,'omitnan');
 goodSess = find(~cellfun(@isempty,avgTimeCorr));
-noiseCorrMatrix = cellfun(@(m) mean(m,3,'omitnan'), {goAll,reachAll,graspAll}, 'UniformOutput',false);
+corrSigs = [{goAll},{reachAll},{graspAll}];
+noiseCorrMatrix = cellfun(@(m) mean(m,3,'omitnan'), corrSigs, 'UniformOutput',false);
 [maxVals,maxInds]= cellfun(@(c) max(cat(3,c{:}),[],4), avgTimeCorr(goodSess), 'UniformOutput', false);
 maxVals = cell2mat(cellfun(@(m) reshape(m(repmat(tril(true(size(m,[1 2])),-1),1,1,size(m,3))),[],3), maxVals,'UniformOutput',false));
 maxInds = cell2mat(cellfun(@(m) reshape(m(repmat(tril(true(size(m,[1 2])),-1),1,1,size(m,3))),[],3), maxInds,'UniformOutput',false));
@@ -75,13 +61,13 @@ figure(); colormap([0 0 0;colormap('jet')]); tiledlayout(3,length(conditions)+2)
 plotHeatMatrix(cellfun(@(m) mean(m,3,'omitnan'),[concatMatrix,{avgConcat}],'UniformOutput',false),[conditions,"Average"],chNames,cLim);
 nexttile;hold on; axis ij; axis tight;title("Average Marginals");
 imagesc(mean(mean(avgConcat,3,'omitnan').*(~logical(diag(true(length(chNames),1)))./~logical(diag(true(length(chNames),1)))),2,'omitnan'));
-xlim([0.5 1]);xticklabels([]);yticks(1:2:length(chNames));yticklabels(chNames(1:2:end));clim(cLim./2);colorbar;
+xlim([0.5 1]);xticklabels([]);yticks(1:2:length(chNames));yticklabels(chNames(1:2:end));clim(cLim);colorbar;
 
-plotHeatMatrix(noiseCorrMatrix,corrPhases,chNames,cLim./4);
+plotHeatMatrix(noiseCorrMatrix,corrPhases,chNames,cLim./2);
 for m = 1:length(noiseCorrMatrix)
     nexttile; hold on; axis tight; axis ij;title(corrPhases(m)+" marginals");
     imagesc(mean(noiseCorrMatrix{m}.*(~logical(diag(true(length(chNames),1)))./~logical(diag(true(length(chNames),1)))),2,'omitnan'));
-    xlim([0.5 1]);xticklabels([]);yticks(1:2:length(chNames));yticklabels(chNames(1:2:end));clim(cLim./4);
+    xlim([0.5 1]);xticklabels([]);yticks(1:2:length(chNames));yticklabels(chNames(1:2:end));clim(cLim./2);
 end
 colorbar;nexttile([1,1]);hold on; axis image; axis ij;title("NumPairs");
 imagesc(numPairs);
@@ -98,7 +84,7 @@ imagesc(squeeze(mean(cat(4,concatMatrix{1:length(conditions)-1}),[2,4],'omitnan'
 yticks(resMap(1:2:end));yticklabels(arrayfun(@num2str,resMap(1:2:end),'UniformOutput',false));yticklabels([]);
 cb=colorbar(gca,'southoutside');clim(cLim);
 if(saveFig)
-    saveFigures(gcf,mainDir+"ngc14\Working\Correlations\","All",[]);
+    saveFigures(gcf,saveDir,"All",[]);
 end
 %%
 figure(); tiledlayout(10,10,'TileSpacing','tight');
@@ -117,7 +103,7 @@ for n = 1:length(goodSess)
     xticklabels(arrayfun(@(s) num2str(s,'%.1f'),tRange([1,end]),'UniformOutput',false));
 end
 if(saveFig)
-    saveFigures(gcf,mainDir+"ngc14\Working\Correlations\TimeNoiseCorr\","All",[]);
+    saveFigures(gcf,saveDir+"TimeNoiseCorr\","All",[]);
 end
 %%
 conditions(5) = "Average";
@@ -130,23 +116,22 @@ for c = 1:length(conditions)
     t=nexttile;
     hold on; title(conditions(c));
     corrSigs = concatMatrix{c};
-    corrGroups = cell(1,length(uniqueCombs));
+    cg = cell(1,length(uniqueCombs));
     for u = 1:length(uniqueCombs)
         g1=uniqueCombs(u,1);
         g2=uniqueCombs(u,2);
         fullMat = corrSigs(1+(11*(g1-1)):min(size(corrSigs,1),11*g1),1+(11*(g2-1)):min(size(corrSigs,1),11*g2),:);
-        corrGroups{u} = fullMat(:);
+        cg{u} = fullMat(:);
     end
-    condGroups{c} = cell2mat(cellfun(@(l) [l;NaN(max(cellfun(@length,corrGroups))-length(l),size(l,2))],corrGroups,'UniformOutput',false));
-    violin(cell2mat(cellfun(@(l) [l;NaN(max(cellfun(@length,corrGroups))-length(l),size(l,2))],corrGroups,'UniformOutput',false)),...
+    condGroups{c} = cell2mat(cellfun(@(l) [l;NaN(max(cellfun(@length,cg))-length(l),size(l,2))],cg,'UniformOutput',false));
+    violin(cell2mat(cellfun(@(l) [l;NaN(max(cellfun(@length,cg))-length(l),size(l,2))],cg,'UniformOutput',false)),...
         'xlabel',{groupNames},'medc',[],'facecolor',distinguishable_colors(length(uniqueCombs)),'plotlegend',0,'ax',t); ylim(cLim);
 end
 if(saveFig)
-    saveFigures(gcf,mainDir+"ngc14\Working\Correlations\Compartments\","Signal",[]);
+    saveFigures(gcf,saveDir+"Compartments\","Signal",[]);
 end
 %%
 f=axes(figure());hold on; title("Phases");
-corrSigs = [{goAll},{reachAll},{graspAll}];
 corrGroups = cell(1,length(uniqueCombs));
 for u = 1:length(uniqueCombs)
     g1=uniqueCombs(u,1);
@@ -154,10 +139,9 @@ for u = 1:length(uniqueCombs)
     fullMat = cellfun(@(cs) cs(1+(11*(g1-1)):min(size(corrSigs{1},1),11*g1),1+(11*(g2-1)):min(size(corrSigs{1},1),11*g2),:),corrSigs,'UniformOutput',false);
     corrGroups{u} = cell2mat(cellfun(@(f)f(:),fullMat,'UniformOutput',false));
 end
-phaseCorrs = cellfun(@(l) [l;NaN(max(cellfun(@(s) size(s,1),corrGroups))-size(l,1),size(l,2))],corrGroups,'UniformOutput',false);
 sp = length(corrPhases)+1;
 for a = 1:length(uniqueCombs)
-    f=violin(phaseCorrs{a},'x',linspace(-1,1,length(corrPhases))+sp*a,'medc',[],'facecolor',groupColors{a},'plotlegend',0,'ax',f);
+    f=violin(corrGroups{a},'x',linspace(-1,1,length(corrPhases))+sp*a,'medc',[],'facecolor',groupColors{a},'plotlegend',0,'ax',f);
     f = f(1).Parent;
 end
 xlim([sp-(sp/2) (sp/2)+(sp*length(uniqueCombs))]);
@@ -165,7 +149,7 @@ xticks(sp:sp:sp*length(uniqueCombs))
 xticklabels(groupNames);
 ylim(cLim);
 if(saveFig)
-    saveFigures(gcf,mainDir+"ngc14\Working\Correlations\Compartments\","Phases",[]);
+    saveFigures(gcf,saveDir+"Compartments\","Phases",[]);
 end
 %%
 figure(); tiledlayout(1,length(conditions)-1);
@@ -179,19 +163,21 @@ for c = 1:length(conditions)-1
     ylim(cLim);
 end
 if(saveFig)
-    saveFigures(gcf,mainDir+"ngc14\Working\Correlations\Compartments\","Scatter",[]);
+    saveFigures(gcf,saveDir+"Compartments\","Scatter",[]);
 end
+%%
 maxGroup = max(cellfun(@(s) max(sum(~isnan(s),1)), condGroups));
 condGroups = cellfun(@(m) cell2mat(cellfun(@(l) [l(~isnan(l));NaN(maxGroup-sum(~isnan(l)),1)], ...
     num2cell(m,1),'Uniformoutput',false)),condGroups, 'UniformOutput',false);
 condTables = cellfun(@(a) array2table(a,'VariableNames',groupNames),condGroups,'UniformOutput',false);
 allTables = cellfun(@(a,n) renamevars(a,a.Properties.VariableNames,cellfun(@(s) strcat(s,"_",n),a.Properties.VariableNames)), ...
     condTables, conditions, 'UniformOutput',false);
-allTables = stack(cat(2,allTables{:}),arrayfun(@(g) (1+(length(groupNames)*(g-1))):(length(groupNames)*g),1:length(conditions)),...
+allTables = stack(cat(2,allTables{:}),arrayfun(@(g) (1+(length(groupNames)*(g-1))):(length(groupNames)*g),1:length(conditions),'UniformOutput',false),...
     'NewDataVariableName',conditions,'IndexVariableName','Group');
 allTables.Group = categorical(groupNames(allTables.Group));
 allTables = allTables(~any(isnan(allTables{:,2:end}),2),:);
 
+phaseCorrs = cellfun(@(l) [l;NaN(max(cellfun(@(s) size(s,1),corrGroups))-size(l,1),size(l,2))],corrGroups,'UniformOutput',false);
 maxPhases = max(cellfun(@(s) max(sum(~isnan(s),1)), phaseCorrs));
 phaseGroups = cellfun(@(m) cell2mat(cellfun(@(l) [l(~isnan(l));NaN(maxPhases-sum(~isnan(l)),1)],...
     num2cell(m,1),'UniformOutput',false)), phaseCorrs, 'UniformOutput',false);
@@ -202,3 +188,37 @@ allPhases = stack(cat(2,allPhases{:}), arrayfun(@(g) (1+(length(corrPhases)*(g-1
     'NewDataVariableName', groupNames, 'IndexVariableName', 'Phase');
 allPhases.Phase = categorical(corrPhases(allPhases.Phase)');
 allPhases = allPhases(~any(isnan(allPhases{:,2:end}),2),:);
+
+siteMasks = repmat({},1,height(siteDateMap));
+mm = MotorMapping(35);
+mRefMask = vMask{1};
+[verticies, vCells] = voronoin(fliplr([siteDateMap{:,'x'},siteDateMap{:,'y'}; ...
+    [0 size(mRefMask,2); size(mRefMask,1) 0; 0 0;size(mRefMask,1) size(mRefMask,2)]]));
+for i = 1:height(siteDateMap)
+    currSite = [siteDateMap{i,'x'},siteDateMap{i,'y'}];
+    tempCircle = zeros(size(mRefMask)+2*mm.tileBuffer);
+    tempCircle((currSite(2)-mm.siteRadius+mm.tileBuffer):(currSite(2)+...
+        mm.siteRadius+mm.tileBuffer),(currSite(1)-mm.siteRadius+mm.tileBuffer):...
+        (currSite(1)+mm.siteRadius+mm.tileBuffer))= mm.poolCircle;
+    tempCircle = tempCircle(mm.tileBuffer:end-(mm.tileBuffer+1),...
+        mm.tileBuffer:end-(mm.tileBuffer+1));
+    siteMasks{i} = tempCircle & poly2mask(verticies(vCells{i},2),...
+        verticies(vCells{i},1),size(tempCircle,1),size(tempCircle,2));
+end
+clear tempCircle verticies vCells poolCircle; close all;
+vM = vMask{1};
+vM(:,round(size(vM,2)/2):end) = [];
+for c = 1:length(conditions)
+    vals = squeeze(mean(concatMatrix{c},[1 2],'omitnan'));
+    mapUnitVals(vM,siteMasks,vals,[],false,5,cLim); %setdiff(1:height(siteDateMap),goodSess)
+    if(saveFig)
+        saveFigures(gcf,saveDir+"Maps\SignalCorr\",conditions(c),[]);
+    end
+end
+for p = 1:length(corrPhases)
+    vals = squeeze(mean(corrSigs{p},[1 2],'omitnan'));
+    mapUnitVals(vM,siteMasks,vals,[],false,5,cLim./2);
+    if(saveFig)
+        saveFigures(gcf,saveDir+"Maps\",corrPhases(p),[]);
+    end
+end

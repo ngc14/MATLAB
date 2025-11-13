@@ -98,6 +98,7 @@ plotlegend=1;
 plotmean=1;
 plotmedian=1;
 x = [];
+ax = [];
 %_____________________
 
 %convert single columns to cells:
@@ -150,6 +151,9 @@ end
 if isempty(find(strcmp(varargin,'x')))==0
     x = varargin{find(strcmp(varargin,'x'))+1};
 end
+if isempty(find(strcmp(varargin,'ax')))==0
+    ax = varargin{find(strcmp(varargin,'ax'))+1};
+end
 %%
 if size(fc,1)==1
     fc=repmat(fc,size(Y,2),1);
@@ -192,7 +196,11 @@ else
         error('please provide either x or xlabel. not both.')
     end
 end
-
+if(isempty(ax))
+    ax = gca(figure());
+end
+axes(ax);
+hold on;
 %% Plot the violins
 i=1;
 for i=i:size(Y,2)
@@ -251,10 +259,10 @@ elseif setX == 1
 end
 
 %% Set x-labels
-xL2={''};
+xL2=[];
 i=1;
 for i=1:size(xL,2)
-    xL2=[xL2,xL{i},{''}];
+    xL2=[xL2,xL{i}];
 end
 set(gca,'TickLength',[0 0],'FontSize',12)
 box on

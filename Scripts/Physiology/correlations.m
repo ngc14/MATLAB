@@ -64,8 +64,7 @@ end
 numPairs = sum(~isnan(sigAll),3);
 maxPairs = ceil(mean(numPairs(:),'omitnan')+std(numPairs(:),'omitnan'));
 maxFR = mean(allCondFR(:),'omitnan')+std(allCondFR(:),'omitnan');
-allSigCorrs = cat(4,concatMatrix{1:length(conditions)-1});
-avgConcat = mean(allSigCorrs,4,'omitnan');
+avgConcat = mean(cat(4,concatMatrix{1:length(conditions)-1}),4,'omitnan');
 goodSess = find(~cellfun(@isempty,avgTimeCorr));
 noiseCorrMatrix = cellfun(@(m) mean(m,3,'omitnan'), {goAll,reachAll,graspAll}, 'UniformOutput',false);
 [maxVals,maxInds]= cellfun(@(c) max(cat(3,c{:}),[],4), avgTimeCorr(goodSess), 'UniformOutput', false);
@@ -122,7 +121,7 @@ if(saveFig)
 end
 %%
 conditions(5) = "Average";
-allSigCorrs(:,:,:,5) = avgConcat;
+concatMatrix{5} = avgConcat;
 figure(); tiledlayout(1,length(conditions));
 uniqueCombs=bsxfun(@minus, nchoosek(1:3+2-1, 2), 0:2-1);
 groupNames = cellfun(@(h) string(strcat(h{:})), num2cell(groupLabels(uniqueCombs),2));
@@ -130,7 +129,7 @@ groupColors = num2cell(distinguishable_colors(length(uniqueCombs)),2);
 for c = 1:length(conditions)
     t=nexttile;
     hold on; title(conditions(c));
-    corrSigs = allSigCorrs(:,:,:,c);
+    corrSigs = concatMatrix{c};
     corrGroups = cell(1,length(uniqueCombs));
     for u = 1:length(uniqueCombs)
         g1=uniqueCombs(u,1);
@@ -182,7 +181,6 @@ end
 if(saveFig)
     saveFigures(gcf,mainDir+"ngc14\Working\Correlations\Compartments\","Scatter",[]);
 end
-
 maxGroup = max(cellfun(@(s) max(sum(~isnan(s),1)), condGroups));
 condGroups = cellfun(@(m) cell2mat(cellfun(@(l) [l(~isnan(l));NaN(maxGroup-sum(~isnan(l)),1)], ...
     num2cell(m,1),'Uniformoutput',false)),condGroups, 'UniformOutput',false);

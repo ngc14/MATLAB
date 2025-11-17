@@ -49,7 +49,9 @@ parfor n = 1:length(sessionDates)
         alignedSpikes =  cellfun(@(a) a(taskUnits), alignedSpikes, 'UniformOutput',false);
         normPSTH = cellfun(@(a) a(taskUnits,:,:),normPSTH,'UniformOutput',false);
         sessionChannels{n} = channels(taskUnits);
-        allFR{n} = cellfun(@(t) t{1}{1}{1}(taskUnits,:), taskFR,'UniformOutput',false);
+        [~,allFR{n}] = calculatePhases(params,taskAlign,repmat({{[0 0]}},length(conditions),1),...
+            cellfun(@(a) {{cell2mat(a')}},alignedTimes,'UniformOutput',false),cellfun(@(c) {c},condPSTHS,'UniformOutput',false),true,false);
+        allFR{n} = cellfun(@(t) t{1}{1}{1}(taskUnits,:), allFR{n},'UniformOutput',false);
         numTrials = size(condPSTHS{1},3);
         for c = 1:length(conditions)
             siteTrialSegs{c} = num2cell(NaN(numTrials,maxSegSz),2);
@@ -155,7 +157,6 @@ parfor n = 1:length(sessionDates)
         graspSpk = getSpikeCounts(alignedSpikes(1:length(conditions)-1),graspInd(1:length(conditions)-1),...
             alignedTimes(1:length(conditions)-1),allGoodTrials(1:length(conditions)-1),winSz);
         for u = 1:sum(taskUnits)
-            xVals = cellfun(@(m) min(m(u,:)):max(m(u,:)),{goSpk,reachSpk,graspSpk}, 'UniformOutput',false);
             for i = 1:sum(taskUnits)
                 avgTimes = cellfun(@(t) mean(cell2mat(t'),1,'omitnan'),alignedTimes, 'Uniformoutput',false);
                 cm = cellfun(@(cp,t,n,s) abs(corr(mean(cp(u,findBins(t(find(ismember(s,n{1}),1)),params.bins):...%abs
@@ -165,19 +166,21 @@ parfor n = 1:length(sessionDates)
                 for c = 1:length(conditions)
                     sigCorr{c}(u,i) = cm{c};
                 end
-                goMatrix(u,i) = corr(goSpk(u,:)',goSpk(i,:)',Rows='pairwise');
-                reachMatrix(u,i) = corr(reachSpk(u,:)',reachSpk(i,:)',Rows='pairwise');
-                graspMatrix(u,i) = corr(graspSpk(u,:)',graspSpk(i,:)',Rows='pairwise');
+                goMatrix(u,i,:) = cellfun(@(z,q) corr(z',q',Rows='pairwise'),num2cell(goSpk(u,:,:),[1 2]),num2cell(goSpk(i,:,:),[1 2]));
+                reachMatrix(u,i,:) = cellfun(@(z,q) corr(z',q',Rows='pairwise'),num2cell(reachSpk(u,:,:),[1 2]),num2cell(reachSpk(i,:,:),[1 2]));
+                graspMatrix(u,i,:) = cellfun(@(z,q) corr(z',q',Rows='pairwise'),num2cell(graspSpk(u,:,:),[1 2]),num2cell(graspSpk(i,:,:),[1 2]));
                 if(saveFig)
+                    xVals = cellfun(@(m) min(m(u,:),[],'all'):max(m(u,:),[],'all'),{goSpk,reachSpk,graspSpk}, 'UniformOutput',false);
                     if(i==1);figure();end
                     subplot(ceil(sum(taskUnits)/5),5,i);hold on;
                     sc=cellfun(@(s,l,m) scatter(s(u,:)', s(i,:)','Marker',m,'MarkerEdgeColor',l,'LineWidth',.5,'AlphaData',1,'SizeData',20),...
                         {goSpk,reachSpk,graspSpk},{'g','m','k'},{'x','+','*'});
                     cellfun(@(p,s,l) plot(p,mean(s(i,isalmost(s(u,:),min(s(u,:)),1)),'omitnan')+(p.*s(u,i)),'Color',l,'LineWidth',2.5),...
-                        xVals,{graspSpk,reachSpk,goSpk},{[.1 .1 .1], [.75 0 .75], [0 .6 0]});
+                        xVals,{goSpk,reachSpk,graspSpk},{[.1 .1 .1], [.75 0 .75], [0 .6 0]});
                     cellfun(@(s) set(s,'XJitter','rand','YJitter','rand','XJitterWidth',.85,'YJitterWidth',.85),sc);
                     title(strcat(unitNames(i),": ",num2str(min(sum(~isnan(goSpk(u,:))),sum(~isnan(goSpk(i,:))))),...
-                        " trials (",cell2mat(compose('%.2f; ',[goMatrix(u,i),reachMatrix(u,i),graspMatrix(u,i)])),")"));
+                        " trials (",cell2mat(compose('%.2f; ',[mean(goMatrix(u,i,:),3,'omitnan'),mean(reachMatrix(u,i,:),3,'omitnan'),...
+                        mean(graspMatrix(u,i,:),3,'omitnan')])),")"));
                     if(i==u);legend([sc{:}],{'Go','Reach','Grasp'});end
                     if(i==sum(taskUnits));saveFigures(gcf,saveDir+"Unit_Correlations\",unitNames{u}+"_Correlations",[]);end
                 end
@@ -221,5 +224,5 @@ end
 function spCounts= getSpikeCounts(spks,segInd,times,goodTrials,wSz)
 spCounts = cellfun(@(c,i,t,g) cellfun(@(a,gi) cellfun(@(s,at,gt) (gt./gt).*sum(s<at(i)+wSz(end) & s>at(i)+wSz(1)),...
     a,t,num2cell(gi)),c,g,'UniformOutput',false),spks,segInd,times,goodTrials,'UniformOutput',false);
-spCounts = reshape(permute(cell2mat(permute(cat(3,spCounts{:}),[2 1 3])),[1 3 2]),size(goodTrials{1},2),[]);
+spCounts = cell2mat(permute(cat(3,spCounts{:}),[2 1 3]));
 end

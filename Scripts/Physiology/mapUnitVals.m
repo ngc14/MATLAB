@@ -83,8 +83,8 @@ h2 = imshow(ind2rgb(vMask,[.3 .3 .3; 1 1 1]));
 set(h2, 'alphadata',double(vMask~=1));
 colormap(h.Parent,cMap(1:end-1,:));
 cb = colorbar(h.Parent);
-cb.Ticks = linspace(cb.Limits(1),cb.Limits(end),size(cMap,1));
-cb.TickLabels = [tickNames(:);' ';]';
+cb.Ticks = linspace(cb.Limits(1),cb.Limits(end),min(6,size(cMap,1)));
+cb.TickLabels = [tickNames(round(linspace(1+any(contains(tickNames,"NaN")),numStepsIn,length(cb.Ticks))))]';
 for i = 1:numSites
     currVal = valsToGraph(i);
         % text(gca(figureMap), vCentroids(i,1), vCentroids(i,2),...

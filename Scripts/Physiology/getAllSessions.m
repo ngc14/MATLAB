@@ -55,7 +55,7 @@ for  i = 1:numSites
     %delete(fullfile(fullfile(physDir,'*.cache')));
     physDir = strcat(physDir,"Results");
     if(isempty(dir(physDir+"\*.mat")))
-        if(~ismember(currSession.Date,{'05_02_2019','11_11_2019'}))
+        if(~ismember(currSession.Date,{'05_02_2019','11_11_2019','2021_09_20','2022_06_22','2022_06_28','2022_07_11','2022_07_12'}))
             disp(['Sorting and labeling session...']);
             Spike_SortRawData(currSession.Date,char(currSession.Monkey));
             labelSingleUnits(currSession.Date,char(currSession.Monkey));
@@ -108,7 +108,7 @@ for  i = 1:numSites
                 alignedTimes = cellfun(@(ap) cell2mat(cellfun(@(t)[t(1:end-1)-(t(ap)+condWindows(c)), ...
                     NaN(1,length(condEvents)-length(t)),t(end)-(t(ap)+condWindows(c))], times(condInds),...
                     'UniformOutput', false)'), condAlign, 'UniformOutput', false);
-                trialHists{c} = cellfun(@(ac) cellfun(@(a) histcounts(vertcat(a{:}),...
+                trialHists{c} = cellfun(@(ac) cellfun(@(a) histcounts(vertcat(a(:)),...
                     [bins(1)-(params.sigmaSize/2):params.binSize:bins(end)+...
                     (params.sigmaSize/2)]),ac,'UniformOutput',false),alignedSpikes{c},'UniformOutput', false);
                 %{alignedPSTHS}{units,trials}{bins}

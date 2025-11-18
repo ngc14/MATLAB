@@ -4,7 +4,8 @@ binSize = .01;
 smoothKernel = .15;
 secBeforeAlignment = -6;
 secAfterAlignment = 5;
-params = PhysRecording(conditions,binSize,smoothKernel,secBeforeAlignment,secAfterAlignment);
+params = PhysRecording(conditions,binSize,smoothKernel,secBeforeAlignment,secAfterAlignment,containers.Map(conditions,...
+    num2cell(repmat({"StartReach"},1,length(conditions)))));
 alignLimits = {[-.5, .15], [-.20, .20],[-.15,.5]};
 pVal = 0.05;
 unitNames = ["Reach", "Grasp", "Both"];

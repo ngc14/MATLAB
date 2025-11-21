@@ -28,7 +28,6 @@ allCondSegs = cellfun(@(c) cellfun(@(a) cellfun(@(t) findBins(t(1)-3,params.bins
     c,'UniformOutput',false),siteSegs,'UniformOutput',false);
 avgSeg = cellfun(@(ct) cellfun(@(ca) cellfun(@(t) mean(t,1,'omitnan'), ca, 'UniformOutput',false),...
     ct, 'UniformOutput',false),siteSegs, 'UniformOutput',false);
-clear rawSpikes
 %%
 [taskBaseline,taskFR] = calculatePhases(params,taskAlign,taskWindow,siteSegs,siteTrialPSTHS,false,true);
 [phaseBaseline,phaseFR] = calculatePhases(params,condPhaseAlign,phaseWindows,siteSegs,siteTrialPSTHS,false,true);

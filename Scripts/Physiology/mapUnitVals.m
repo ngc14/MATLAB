@@ -23,7 +23,7 @@ negativeMap = (cool(numSteps));
 %positiveMap = flipud([linspace(.7,1,numSteps)',linspace(.1,.6,numSteps)',linspace(.2,0,numSteps)']);
 %positiveMap = flipud(colormap(summer(numSteps)));
 %positiveMap = positiveMap(all(positiveMap<=[1 .7 0],2),:);
-positiveMap = jet(round(numSteps*1));
+positiveMap = parula(round(numSteps*1));
 %%
 positiveMap = positiveMap(1:numSteps,:);
 cMap = positiveMap;
@@ -72,17 +72,17 @@ end
 % mask is black, nans are white
 % MM_image(vMask==0) = length(cMap)-1;
 MM_image(isinf(MM_image) & vMask==1) = length(cMap);
-figureMap = figure('Units', 'normalized', 'Position', [0 0 1 1]);hold on;
-h = imshow(ind2rgb(MM_image,cMap),'XData', 1:size(MM_image,2),...
-    'YData',1:size(MM_image,1));hold on;
+if(isempty(get(0,'CurrentFigure')))
+    figure('Units', 'normalized', 'Position', [0 0 1 1]);hold on;
+end
+MM_image(vMask~=1) = size(cMap,1)+1;
+figureMap = ind2rgb(MM_image,[cMap; .3 .3 .3]);
+%imshow(figureMap,'XData', 1:size(MM_image,2),'YData',1:size(MM_image,1));hold on;
 bnds = arrayfun(@(b) bwboundaries(siteMask{b}), find(emptyInds), 'UniformOutput',false);
 cellfun(@(tr) plot(tr{1}(:,2), tr{1}(:,1), 'LineStyle','--', 'LineWidth',.5,...
     'Color','k'),bnds,'UniformOutput',false);
-set(h,'alphadata',~isinf(MM_image));
-h2 = imshow(ind2rgb(vMask,[.3 .3 .3; 1 1 1]));
-set(h2, 'alphadata',double(vMask~=1));
-colormap(h.Parent,cMap(1:end-1,:));
-cb = colorbar(h.Parent);
+colormap(cMap);
+cb = colorbar;
 cb.Ticks = linspace(cb.Limits(1),cb.Limits(end),min(6,size(cMap,1)));
 cb.TickLabels = [tickNames(round(linspace(1+any(contains(tickNames,"NaN")),numStepsIn,length(cb.Ticks))))]';
 for i = 1:numSites

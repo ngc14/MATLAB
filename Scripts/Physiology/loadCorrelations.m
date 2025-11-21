@@ -14,6 +14,7 @@ goInd = cellfun(@(as) find(contains(as,"Go")),allSegs,'UniformOutput',false);
 reachInd = cellfun(@(as) find(contains(as,"Reach")),allSegs,'UniformOutput',false);
 graspInd = cellfun(@(as) find(contains(as,"Hold"),1),allSegs,'UniformOutput',false);
 hbar = parforProgress(length(sessionDates));
+allFR = repmat({repmat({NaN(1,3)},1,length(conditions)-1)},length(sessionDates),1);
 parfor n = 1:length(sessionDates)
     [sigCorr,siteTrialSegs] = deal(repmat({[]},1,length(conditions)));
     [goMatrix,reachMatrix,graspMatrix] = deal([]);
@@ -49,9 +50,12 @@ parfor n = 1:length(sessionDates)
         alignedSpikes =  cellfun(@(a) a(taskUnits), alignedSpikes, 'UniformOutput',false);
         normPSTH = cellfun(@(a) a(taskUnits,:,:),normPSTH,'UniformOutput',false);
         sessionChannels{n} = channels(taskUnits);
-        [~,allFR{n}] = calculatePhases(params,taskAlign,repmat({{[0 0]}},length(conditions),1),...
-            cellfun(@(a) {{cell2mat(a')}},alignedTimes,'UniformOutput',false),cellfun(@(c) {c},condPSTHS,'UniformOutput',false),true,false);
-        allFR{n} = cellfun(@(t) t{1}{1}{1}(taskUnits,:), allFR{n},'UniformOutput',false);
+        condSegMap = containers.Map(conditions(1:end-1),repmat(cellfun(@num2cell,{["GoSignal","StartReach","StartHold"]},...
+            'UniformOutput',false),1,length(conditions)-1));
+        [~,sessFR] = calculatePhases(params,condSegMap,repmat({{[0 .2],[-.1 .1],[-.2 0]}},1,length(conditions)-1),...
+            cellfun(@(a) {{cell2mat(a')}},alignedTimes(1:length(conditions)-1),'UniformOutput',false),...
+            cellfun(@(c) {c},condPSTHS(1:length(conditions)-1),'UniformOutput',false),true,false);
+        allFR{n} = cellfun(@(t) cell2mat(t{1}{1}).*(taskUnits./taskUnits), sessFR,'UniformOutput',false);
         numTrials = size(condPSTHS{1},3);
         for c = 1:length(conditions)
             siteTrialSegs{c} = num2cell(NaN(numTrials,maxSegSz),2);

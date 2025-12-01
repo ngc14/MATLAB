@@ -4,7 +4,7 @@ numChannels = 32;
 channelRes = 1;
 condColors = [[1 0 0]; [.9 .7 0]; [0 .3 1]];
 corrPhases = ["Go","Reach","Grasp"];
-groupLabels = ["S","M","D"];
+compartments = ["S","M","D"];
 params = PhysRecording(conditions, .01,.15, -6, 5,...
     containers.Map(conditions,{"StartReach","StartReach","StartReach","GoSignal"}));
 tRange = -.5:params.binSize:1;
@@ -169,27 +169,26 @@ if(saveFig)
     saveFigures(gcf,saveDir,"Noise Distributions",[]);
 end
 %%
-groupColors = containers.Map(corrPhases,1:sp:length(corrPhases)*length(groupLabels));
+groupColors = distinguishable_colors(length(corrPhases),{'r','g','b','k','w'});
 figure(); hold on;
+cellfun(@(c) scatter(NaN,NaN,36,c,'filled'),num2cell(groupColors,2));legend(corrPhases,'AutoUpdate','off');
 title("Compartment by Phase");
 allTable = allTable(~arrayfun(@ismissing,allTable.Corr),:);
-for g = 1:length(groupLabels)
-    groupInds = arrayfun(@str2num, allTable.Pair1)  <= min(numChannels,11*g) & ...
-        arrayfun(@str2num, allTable.Pair1)  > 11*(g-1);
-    f=swarmchart(g+(cell2mat(groupColors.values(cellstr(string([allTable{groupInds,'Phase'}]))))),...
-        [arrayfun(@str2num,allTable{groupInds,'Corr'})],'.','XJitter','Density','XJitterWidth',.9);
-    arrayfun(@(m,x) plot([x-.5 x+.5], repmat(mean([arrayfun(@str2num,allTable{strcmp(string(allTable{:,'Phase'}),m)& groupInds,'Corr'})],...
-        'omitnan'),1,2), 'k','LineWidth',2), corrPhases,cell2mat(groupColors.values)+g);
-    f = f(1).Parent;
-end
-legend(flipud(f.Children(arrayfun(@(a) strcmpi(a.Type,"Scatter"),f.Children))),groupLabels);
-xlim([1 (length(groupLabels)*length(corrPhases))+sp]);
-xticks(round(length(groupLabels)/2)+sort(cell2mat(groupColors.values)));
-xticklabels(corrPhases);
-ylim(cLim./1);
+[~,~,phaseLabels] = unique(cellstr(string([allTable{:,'Phase'}])));
+phaseLabels(phaseLabels==2)=4;phaseLabels(phaseLabels==3)=2;phaseLabels=min(phaseLabels,3);
+f=swarmchart(phaseLabels+(floor(arrayfun(@str2num,allTable.Pair1)./11).*sp),...
+    [arrayfun(@str2num,allTable{:,'Corr'})],[],groupColors(phaseLabels,:),'.','XJitter','Density','XJitterWidth',.9);
 
+groupCenter = ([diff(unique(f.XData)),2]>1).*unique(f.XData);
+groupCenter = groupCenter(groupCenter~=0)-1;
+arrayfun(@(x) plot([x-.5 x+.5], repmat(mean(f.YData.*((f.XData==x)./(f.XData==x)),'omitnan'),1,2),'k','LineWidth',2), unique(f.XData));
+xlim([0 (length(compartments)*length(corrPhases))+(sp-1)]);
+xticks(groupCenter);
+xticklabels(compartments);
+ylim(cLim./1);
+%%
 uniqueCombs = [1 2 3]; %bsxfun(@minus, nchoosek(1:3+2-1, 2), 0:2-1);
-groupNames = cellfun(@(h) string(strcat(h{:})), num2cell(groupLabels(uniqueCombs)',2));
+groupNames = cellfun(@(h) string(strcat(h{:})), num2cell(compartments(uniqueCombs)',2));
 corrGroups = cell(length(conditions)-1,length(uniqueCombs));
 figure(); tiledlayout(1,length(conditions)-1);
 for c = 1:length(conditions)-1
@@ -258,7 +257,7 @@ for c = 1:length(conditions)
         plot([u-.5 u+.5], [repmat(mean(cg{u},1,'omitnan'),1,2)], 'k','LineWidth',2);
     end
     xticks(1:length(uniqueCombs));
-    xticklabels(groupLabels);
+    xticklabels(compartments);
     condGroups{c} = cell2mat(cellfun(@(l) [l;NaN(max(cellfun(@length,cg))-length(l),size(l,2))],cg,'UniformOutput',false));
 end
 if(saveFig)
@@ -327,13 +326,13 @@ for c =1:length(conditions)-2
         %num2cell(NaN(maxPhases-height(allPhases),length(groupNames)))],'VariableNames',allPhases.Properties.VariableNames)];
 end
 
-siteMasks = repmat({},1,height(siteDateMap));
+siteMasks = repmat({},1,length(goodSess));
 mm = MotorMapping(35);
 mRefMask = vMask{1};
-[verticies, vCells] = voronoin(fliplr([siteDateMap{:,'x'},siteDateMap{:,'y'}; ...
+[verticies, vCells] = voronoin(fliplr([siteDateMap{goodSess,'x'},siteDateMap{goodSess,'y'}; ...
     [0 size(mRefMask,2); size(mRefMask,1) 0; 0 0;size(mRefMask,1) size(mRefMask,2)]]));
-for i = 1:height(siteDateMap)
-    currSite = [siteDateMap{i,'x'},siteDateMap{i,'y'}];
+for i = 1:length(goodSess)
+    currSite = [siteDateMap{goodSess(i),'x'},siteDateMap{goodSess(i),'y'}];
     tempCircle = zeros(size(mRefMask)+2*mm.tileBuffer);
     tempCircle((currSite(2)-mm.siteRadius+mm.tileBuffer):(currSite(2)+...
         mm.siteRadius+mm.tileBuffer),(currSite(1)-mm.siteRadius+mm.tileBuffer):...
@@ -350,7 +349,7 @@ figure(); tiledlayout(1,length(conditions));
 for c = 1:length(conditions)
     nexttile; hold on; title(conditions(c));
     vals = squeeze(mean(signalMatrix{c},[1 2],'omitnan'));
-    im = mapUnitVals(vM,siteMasks(goodSess),vals,[],false,255,cLim/.75); %setdiff(1:height(siteDateMap),goodSess)
+    im = mapUnitVals(vM,siteMasks,vals,[],false,255,cLim/.75); %setdiff(1:height(siteDateMap),goodSess)
     imshow(im);
     if(c<length(conditions))
         colorbar off;
@@ -363,7 +362,7 @@ im = {}; in = 1;
 for c = 1:length(conditions)-2
     for p = 1:length(corrPhases)
         vals = squeeze(mean(noiseCorrsConds{c}{p},[1 2],'omitnan'));
-        im{in} = mapUnitVals(vM,siteMasks(goodSess),vals,[],false,255,cLim./1.5);
+        im{in} = mapUnitVals(vM,siteMasks,vals,[],false,255,cLim./1.5);
         in = in+1;
     end
 end

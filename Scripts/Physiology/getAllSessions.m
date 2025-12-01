@@ -40,7 +40,7 @@ if(~parRun)
 else
     hbar = parforProgress(numSites);
 end
-for  i = 1:numSites
+parfor  i = 1:numSites
     currSession = siteDateMap(i,:);
     if(strcmpi(currSession.Monkey,"Gilligan"))
         dateFormat = 'MM_dd_uuuu';

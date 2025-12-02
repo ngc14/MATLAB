@@ -242,7 +242,7 @@ end
 %%
 conditions(5) = "Average";
 signalMatrix{5} = avgMoveSig;
-noiseCorrConds{4} = mean(cell2mat(cat(4,noiseCorrsConds{1:3})),4,'omitnan');
+noiseCorrsConds{4} = mean(cell2mat(cat(4,noiseCorrsConds{1:3})),4,'omitnan');
 figure(); tiledlayout(1,length(conditions));
 for c = 1:length(conditions)
     t=nexttile;

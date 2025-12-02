@@ -8,7 +8,7 @@ phaseWinSz = .2;
 phaseWindows = repmat({{[-phaseWinSz, 0],[0, phaseWinSz],[-phaseWinSz*(3/4),phaseWinSz*(1/4)],[-phaseWinSz, 0]}},1,length(conditions));
 taskAlign = containers.Map(conditions,{{["GoSignal" "StartHold"]},{["GoSignal","StartHold"]},{["GoSignal","StartHold"]}});
 condPhaseAlign = containers.Map(conditions,cellfun(@num2cell,phaseAlignmentPoints,'UniformOutput',false));
-params = PhysRecording(string(conditions),.01,.15,-6,15,containers.Map(conditions,{"StartReach","StartReach","StartReach"}));
+params = PhysRecording(string(conditions),.001,.001,-1,2,containers.Map(conditions,{"StartReach","StartReach","StartReach"}));
 MIN_BLOCKS_FOR_UNIT = 13;
 close all;
 %%
@@ -74,15 +74,21 @@ for c = 1:length(conditions)
     condTable.Y = mapSites2Units(condUnitMapping,siteDateMap.y);
     condTable.Condition = categorical(repmat({params.condAbbrev(conditions{c})},length(mLabs),1));
     condTable.TaskUnits =  logical(tUnits);
-    condTable.PSTH = num2cell(cell2mat(cellfun(@(m) mean(m,3,'omitnan'), allPSTHS{c},'UniformOutput',false)),2);
+    condTable.PSTH = num2cell(cell2mat(cellfun(@(m) mean(m,3,'omitnan'), condPSTHS{c},'UniformOutput',false)),2);
     tPhys = [tPhys;condTable];
 end
 plotNames = arrayfun(@(p) arrayfun(@(c) p+"_"+c{1}(1), conditions, 'UniformOutput', true), phaseNames, 'UniformOutput', false);
 plotNames = [plotNames{:}];
 tPhys = unstack(tPhys,condTable.Properties.VariableNames(find(strcmp(condTable.Properties.VariableNames,"Condition"))+1:end),"Condition");
-allTaskPSTHS = tPhys(tPhys.TaskUnits_ESS | tPhys.TaskUnits_LS | tPhys.TaskUnits_P,["PSTH_ESS";"PSTH_LS";"PSTH_P"]);
+allTaskPSTHS = tPhys(:,["PSTH_ESS";"PSTH_LS";"PSTH_P"]);
 %%
-dHiStruct = struct('data',cellfun(@(c) cell2mat(cellfun(@(t) t(:,100:1001),c,'UniformOutput',false)),...
-    num2cell([allTaskPSTHS{:,:}],1)','UniformOutput',false)','traj','traj','epochStarts',1,'epochColors',...
-    num2cell(distinguishable_colors(length(conditions)),2)','condition',arrayfun(@char,conditions,'UniformOutput',false));
+siteCondSegs = cell2mat(cellfun(@(c) cell2mat(cellfun(@(m) mean(m,1,'omitnan'),c,'UniformOutput',false)),sumSegs,'UniformOutput',false)');
+plotJointPSTHS(params,{cell2mat(cellfun(@(m) mean(m,3,'omitnan'),vertcat(condPSTHS{:})','UniformOutput',false)')},{siteCondSegs},...
+repmat(cellfun(@(s,t) s(find(t==min(t),1)),siteDateMap.SiteRep,siteDateMap.Thresh),length(conditions),1),...
+true(length(conditions)*height(siteDateMap),1),[],{[min(params.bins),max(params.bins)]},[0 5],...
+cell2struct(num2cell(distinguishable_colors(length(unique(cell2mat(siteDateMap.SiteRep')))),2),unique(cell2mat(siteDateMap.SiteRep'))));
+%%
+dHiStruct = struct('data',cellfun(@(c) cell2mat(cellfun(@(t) t(:,1:end)>0,c,'UniformOutput',false)),...
+    num2cell([allTaskPSTHS{:,:}],1)','UniformOutput',false),'traj','traj','epochStarts',1,'epochColors',...
+    num2cell(distinguishable_colors(length(conditions)),2),'condition',conditions');
 DataHigh(dHiStruct,'DimReduce');

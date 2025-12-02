@@ -36,7 +36,7 @@ PSTH =  cellfun(@(t,w) t(:,(fix(w(1)/binSize)+zeroBinInd):...
     fix((w(end)/binSize)+zeroBinInd)),PSTH,PSTHDisplayLimits,'UniformOutput',false);
 g = groot;
 figHandle = g.CurrentFigure;
-reuseAxes = ~isempty(figHandle.Children);
+reuseAxes = ~isempty(figHandle);
 if(reuseAxes)
     pos = cell2mat(arrayfun(@(n) get(n,'Position'), get(figHandle,'Children'), 'UniformOutput', false));
     wrapPlots = numel(unique(pos(:,1)));

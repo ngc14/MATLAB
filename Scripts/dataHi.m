@@ -80,14 +80,14 @@ end
 plotNames = arrayfun(@(p) arrayfun(@(c) p+"_"+c{1}(1), conditions, 'UniformOutput', true), phaseNames, 'UniformOutput', false);
 plotNames = [plotNames{:}];
 tPhys = unstack(tPhys,condTable.Properties.VariableNames(find(strcmp(condTable.Properties.VariableNames,"Condition"))+1:end),"Condition");
-allTaskPSTHS = tPhys(:,["PSTH_ESS";"PSTH_LS";"PSTH_P"]);
-%%
 siteCondSegs = cell2mat(cellfun(@(c) cell2mat(cellfun(@(m) mean(m,1,'omitnan'),c,'UniformOutput',false)),sumSegs,'UniformOutput',false)');
+%%
 plotJointPSTHS(params,{cell2mat(cellfun(@(m) mean(m,3,'omitnan'),vertcat(condPSTHS{:})','UniformOutput',false)')},{siteCondSegs},...
 repmat(cellfun(@(s,t) s(find(t==min(t),1)),siteDateMap.SiteRep,siteDateMap.Thresh),length(conditions),1),...
 true(length(conditions)*height(siteDateMap),1),[],{[min(params.bins),max(params.bins)]},[0 5],...
 cell2struct(num2cell(distinguishable_colors(length(unique(cell2mat(siteDateMap.SiteRep')))),2),unique(cell2mat(siteDateMap.SiteRep'))));
 %%
+allTaskPSTHS = tPhys(strcmp(string([tPhys.Somatotopy]),"Hand"),["PSTH_ESS";"PSTH_LS";"PSTH_P"]);
 dHiStruct = struct('data',cellfun(@(c) cell2mat(cellfun(@(t) t(:,1:end)>0,c,'UniformOutput',false)),...
     num2cell([allTaskPSTHS{:,:}],1)','UniformOutput',false),'traj','traj','epochStarts',1,'epochColors',...
     num2cell(distinguishable_colors(length(conditions)),2),'condition',conditions');

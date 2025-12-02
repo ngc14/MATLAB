@@ -10,7 +10,7 @@
 %  Detailed instructions can be found in the User Guide and the website.
 
 cd ..
-load('C:/Users/ngc14/MATLAB Drive/Scripts/DataHigh1.3/data/ex3_trialavgtrajs.mat');
+load('./data/ex3_trialavgtrajs.mat');
 DataHigh(D);
 % D(icond).data : (num_latents x num_timebins)
 cd ./examples

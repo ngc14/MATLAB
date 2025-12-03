@@ -186,6 +186,19 @@ xlim([0 (length(compartments)*length(corrPhases))+(sp-1)]);
 xticks(groupCenter);
 xticklabels(compartments);
 ylim(cLim./1);
+
+figure(); hold on;
+title("Compartment");
+mapCats = containers.Map(corrPhases,[1 2 3]);
+xVals = ceil(arrayfun(@str2num,allTable{arrayfun(@(s) ~isnan(str2double(s)),allTable.Corr),'Pair1'})./11);% arrayfun(@(s) mapCats(char(s)),string(allTable{arrayfun(@(s) ~isnan(str2double(s)),allTable.Corr),'Phase'}));
+f = swarmchart(xVals,cell2mat(arrayfun(@str2num,allTable.Corr,'UniformOutput',false)),36,groupColors(xVals,:),'.','XJitter','Density','XJitterWidth',.9);
+arrayfun(@(x) plot([x-.5 x+.5], repmat(mean(f.YData.*((f.XData==x)./(f.XData==x)),'omitnan'),1,2),'k','LineWidth',2), unique(f.XData));
+s = cellfun(@(c) scatter(NaN,NaN,36,c,'filled'),num2cell(groupColors,2));
+xticks(unique(f.XData));
+ylim(cLim./1);
+legend(s,compartments,'AutoUpdate','off');
+xlim([0 length(compartments)+1]);
+xticklabels(compartments);
 %%
 uniqueCombs = [1 2 3]; %bsxfun(@minus, nchoosek(1:3+2-1, 2), 0:2-1);
 groupNames = cellfun(@(h) string(strcat(h{:})), num2cell(compartments(uniqueCombs)',2));
@@ -308,7 +321,6 @@ sigCorrTables.Group = categorical(groupNames(sigCorrTables.Group));
 sigCorrTables = sigCorrTables(~any(isnan(sigCorrTables{:,2:end}),2),:);
 
 allCondPhases=cell(1,length(conditions)-1);
-maxPhases = max(cellfun(@(n) max(sum(~isnan(n),1)), corrGroups),[],'all');
 for c =1:length(conditions)-2
     phaseCorrs = cellfun(@(l) [l;NaN(max(cellfun(@(s) size(s,1),corrGroups(c,:)))-size(l,1),size(l,2))],corrGroups(c,:),'UniformOutput',false);
     phaseGroups = cellfun(@(m) cell2mat(cellfun(@(l) [l(~isnan(l));NaN(max(...

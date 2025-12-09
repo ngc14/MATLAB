@@ -41,7 +41,7 @@ psthBaselineMask = cellfun(@(pp) cellfun(@(p) max(ones(size(p,1),2),...
 % create equivalent sized start and end points in the baseline window
 % for each (1) PSTH for each (2) phase AUC for each (1) PSTH for each tested phase
 if(~keepTrials)
-    psths = cellfun(@(t) mean(t,3,'omitnan'), psths, 'UniformOutput',false);
+    psths = cellfun(@(t) mean(t{1},3,'omitnan'), psths, 'UniformOutput',false);
 end
 if(AUCCalc)
     condPhases = cellfun(@(udh,u) cellfun(@(ps) cellfun(@(p)...

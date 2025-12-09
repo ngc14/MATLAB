@@ -11,7 +11,10 @@ classdef BehavioralTask
             ["StartTrial","GoSignal","StartReplaceHold","StartReplaceSuccess","StartReward","EndTrial"]});
     end
     properties (GetAccess = 'public', SetAccess = 'private')
-        condNames,segNames,condAbbrev,condSegMap;
+        condNames,condAbbrev,condSegMap;
+    end
+    properties (GetAccess = 'private', SetAccess ='private')
+        segNames;
     end
     methods
         function obj = BehavioralTask(varargin)

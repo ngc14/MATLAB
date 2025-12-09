@@ -6,7 +6,6 @@ rawSpikes = [];
 drivePath = "S:\Lab\";
 monkeys = ["Gilligan", "Skipper"];
 excludeRep = "Face";
-condWindows = [0 0 0 .5];
 % PSTH parameters: bin sizes, smoothing kernel, seconds prior to zero
 % alignment,seconds after zero alignment, alignment point(s) for each
 % condition (default value)
@@ -15,6 +14,9 @@ conditions = cellstr(params.condNames);
 siteDateMap = table();
 allActivityMaps = containers.Map();
 vMask = containers.Map();
+allSegs = params.condSegMap.values;
+[~,maxSegL]= max(cellfun(@length,allSegs));
+maxSegL = allSegs{maxSegL};
 for m = 1:length(monkeys)
     [monkeyTable, monkeyMask, monkeyActivityMaps] = getMonkeyInfo(drivePath,...
         monkeys(m),domain,true);
@@ -71,7 +73,7 @@ parfor  i = 1:numSites
             labelSingleUnits(currSession.Date,char(currSession.Monkey));
         end
     end
-    [spikes,times,weights,currTrials,sessionConds,channels,~,~,chMap] =...
+    [spikes,times,weights,currTrials,sessionConds,channels,eventNames,~,chMap] =...
         getAllTrials(physDir,singleOrAllUnits,true);
     if(~isempty(spikes))
         [currSeg,currTrialPSTHS,currActive,trialHists,alignedSpikes] = deal(repmat({[]},1,length(conditions)));
@@ -88,9 +90,6 @@ parfor  i = 1:numSites
             condParamInd = cellfun(@(a) contains(a,conditions{c}),sessionConds);
             condInds = cellfun(@(a) contains(a,conditions{c}),currTrials(:,1));
             condWeights = weights(:, condParamInd);
-            condEvents = params.condSegMap(currCond);
-            condAlign = cellfun(@(a) find(strcmp(condEvents,a)),...
-                params.PSTHAlignments(currCond),'UniformOutput', false);
             monkeyImFile = strcat(currSession.Monkey,...
                 string(values(params.condAbbrev,{currCond})));
             if(allActivityMaps.isKey(monkeyImFile))
@@ -101,12 +100,15 @@ parfor  i = 1:numSites
             end
             % generate and smooth PSTHS  from current session
             if(any(condInds) && ~isempty(spikes))
+                condEvents = eventNames(currCond);
+                condAlign = cellfun(@(a) find(strcmp(condEvents,a)),...
+                    params.PSTHAlignments(currCond),'UniformOutput', false);
                 % {alignedPSTHS}{units,trials}
                 alignedSpikes(c) = cellfun(@(ap) cellfun(@(st) cellfun(@(s,t) ...
-                    s-(t(ap)+condWindows(c)),st(condInds),times(condInds),'UniformOutput',false),...
+                    s-t(ap),st(condInds),times(condInds),'UniformOutput',false),...
                     spikes,'UniformOutput',false),condAlign,'UniformOutput',false);
-                alignedTimes = cellfun(@(ap) cell2mat(cellfun(@(t)[t(1:end-1)-(t(ap)+condWindows(c)), ...
-                    NaN(1,length(condEvents)-length(t)),t(end)-(t(ap)+condWindows(c))], times(condInds),...
+                alignedTimes = cellfun(@(ap) cell2mat(cellfun(@(t)[t(1:end-1)-t(ap), ...
+                    NaN(1,length(condEvents)-length(t)),t(end)-t(ap)], times(condInds),...
                     'UniformOutput', false)'), condAlign, 'UniformOutput', false);
                 trialHists{c} = cellfun(@(ac) cellfun(@(a) histcounts(vertcat(a(:)),...
                     [bins(1)-(params.sigmaSize/2):params.binSize:bins(end)+...
@@ -118,15 +120,21 @@ parfor  i = 1:numSites
                 %{alignedPSTHS}{units,bins,trials}
                 unitTrialPSTH = cellfun(@(s) ... %condWeights.*
                     cat(3,s{:}),smoothHists,'UniformOutput', false);
+                for l=1:length(alignedTimes)
+                    currAlignment = alignedTimes{l};
+                    alignedTimes{l} =  NaN(size(alignedTimes{l},1),length(maxSegL));
+                    alignedTimes{l}(:,cellfun(@(f) find(contains(maxSegL,f)), condEvents)) = currAlignment;
+                end
                 % aligned trial times for the session for each (1) PSTH
                 currSeg{c} = alignedTimes;
                 % PSTH(units X bins X trials) for each alignment
                 currTrialPSTHS{c} = cat(1,unitTrialPSTH{:});
             else
                 % pad stored info with empty arrays and NaN pad indicies for missing conditions
-                currSeg{c} = repmat({NaN(size(params.condSegMap(currCond)))},1,length(condAlign));
-                currTrialPSTHS{c} = repmat(NaN(numUnits,length(bins),1),1,length(condAlign));
-                alignedSpikes{c} = repmat(NaN(numUnits,1),1,length(condAlign));
+                alignments = mode(cellfun(@length,params.PSTHAlignments.values));
+                currSeg{c} = repmat({NaN(size(params.condSegMap(currCond)))},1,alignments);
+                currTrialPSTHS{c} = repmat(NaN(numUnits,length(bins),1),1,alignments);
+                alignedSpikes{c} = repmat(NaN(numUnits,1),1,alignments);
             end
         end
         % get current session joint label

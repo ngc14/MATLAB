@@ -91,7 +91,7 @@ for j = 1:length(jointName)
             d = patch(xP,yP,1);
             set(d,'edgecolor','none','facealpha',.15,'facecolor',plotColors.(jointName{j}));
             if(~isempty(yP))
-                groupMax = max(FRLim(end),FRLim(end)*ceil(max(yP)/FRLim(end)));
+                groupMax = max(FRLim(end),FRLim(end)*ceil(quantile(yP,.8)/FRLim(end)));
             end
             avgSegs = nanmean(currSegs,1);
             if(sum(~isnan(avgSegs))==6)

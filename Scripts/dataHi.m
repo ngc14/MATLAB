@@ -10,7 +10,7 @@ taskAlign = containers.Map(conditions,{{["GoSignal" "StartHold"]},{["GoSignal","
 condPhaseAlign = containers.Map(conditions,cellfun(@num2cell,phaseAlignmentPoints,'UniformOutput',false));
 params = PhysRecording(string(conditions),.001,.001,-1,2,containers.Map(conditions,{"StartReach","StartReach","StartReach"}));
 MIN_BLOCKS_FOR_UNIT = 13;
-savePath = "S:\Lab\ngc14\Working\DataHi\Conditions\";
+savePath = "S:\Lab\ngc14\Working\DataHi\Somatotopy\";
 allSegs = params.condSegMap.values;
 [~,maxSegL]= max(cellfun(@length,allSegs));
 maxSegL = allSegs{maxSegL};
@@ -77,62 +77,61 @@ for c = 1:length(conditions)
     condTable.Condition = categorical(repmat({params.condAbbrev(conditions{c})},length(mLabs),1));
     condTable.TaskUnits =  logical(tUnits);
     condTable.PSTH = num2cell(cell2mat(cellfun(@(m) mean(m{1},3,'omitnan'), normPSTH{c},'UniformOutput',false)),2);
+    nanSegs = find(isnan(mean(cell2mat(sumSegs{c}),1,'omitnan'))); 
+    nanSegs= nanSegs(nanSegs~=length(maxSegL));
+    for a = 1:length(nanSegs)
+        for n = 1:length(sumSegs{c})
+            nextSeg = intersect(setdiff(1:size(sumSegs{c}{n},2),nanSegs),nanSegs(a)+1:size(sumSegs{c}{n},2));
+            sumSegs{c}{n}(:,nanSegs(a)) = sumSegs{c}{n}(:,nextSeg(1));
+        end
+    end
+    condTable.Segs = mapSites2Units(condUnitMapping,sumSegs{c});
     tPhys = [tPhys;condTable];
 end
 plotNames = arrayfun(@(p) arrayfun(@(c) p+"_"+c{1}(1), conditions, 'UniformOutput', true), phaseNames, 'UniformOutput', false);
 plotNames = [plotNames{:}];
 tPhys = unstack(tPhys,condTable.Properties.VariableNames(find(strcmp(condTable.Properties.VariableNames,"Condition"))+1:end),"Condition");
-siteCondSegs = cell2mat(cellfun(@(c) cell2mat(cellfun(@(m) mean(m,1,'omitnan'),c,'UniformOutput',false)),sumSegs,'UniformOutput',false)');
 %%
+siteCondSegs = cell2mat(cellfun(@(c) cell2mat(cellfun(@(m) mean(m,1,'omitnan'),c,'UniformOutput',false)),sumSegs,'UniformOutput',false)');
 plotJointPSTHS(params,{cell2mat(cellfun(@(m) mean(m,3,'omitnan'),cellfun(@(n) n{1}, vertcat(normPSTH{:}), 'UniformOutput',false),'UniformOutput',false))},{siteCondSegs},...
 repmat(cellfun(@(s,t) s(find(t==min(t),1)),siteDateMap.SiteRep,siteDateMap.Thresh),length(conditions),1),...
 true(length(conditions)*height(siteDateMap),1),[],{[min(params.bins),max(params.bins)]},[0 10],...
 cell2struct(num2cell(distinguishable_colors(length(unique(cell2mat(siteDateMap.SiteRep')))),2),unique(cell2mat(siteDateMap.SiteRep'))));
 %%
-allSegs = cellfun(@(s) mean(cell2mat(s),1,'omitnan'), sumSegs, 'UniformOutput',false);
-for c = 1:length(allSegs)
-    currSegs = allSegs{c};
-    nanSegs = find(isnan(currSegs));
-    if(any(nanSegs))
-        for a = 1:length(nanSegs)
-            if(nanSegs(a)==length(currSegs))
-                currSegs = currSegs(1:end-1);
-            else
-                currSegs(nanSegs(a)) = currSegs(find(~isnan(currSegs) & 1:length(currSegs)>nanSegs(a),1));
-            end
-        end
-    allSegs{c} = currSegs;
-    end
-end
-%%
-model = "Hand";
+model = "Arm";
 colors = [[1 0 0]; [1 .75 0]; [0 .25 1]];
-allTaskPSTHS = tPhys(strcmp(string([tPhys.Somatotopy]),model),["PSTH_ESS";"PSTH_LS";"PSTH_P"]);
-dColors = cellfun(@(c) cell2mat(cellfun(@(m) min(1,max(0,c-repmat(.05.*m,size(c,1),1))),...
-    num2cell(1:length(conditions)+1),'UniformOutput',false)'),num2cell(colors,2),'UniformOutput',false);
-dHiStruct = struct('data',cellfun(@(c) cell2mat(cellfun(@(t) t(:,1:end),c,'UniformOutput',false)),...
-    num2cell([allTaskPSTHS{:,:}],1)','UniformOutput',false),'traj','traj','epochStarts',...
-    cellfun(@(n) [1,n([2,3,6])], cellfun(@(a) findBins(a,params.bins),allSegs,'UniformOutput',false),'UniformOutput',false)',...
-    'condition',conditions','epochColors',dColors);
+%colors = [[.75 .75 .75]; [.3 .3 .3]; [.5 .35 0]];
+saveFig = true;
+somatotopicReps = categorical(model); %unique(tPhys.Somatotopy)
+somatotopicReps(somatotopicReps==categorical("Trunk")) = [];
+allSegs= arrayfun(@(s) tPhys{tPhys.Somatotopy==s,contains(tPhys.Properties.VariableNames,"Segs_")}, somatotopicReps, 'UniformOutput',false);
+allSegs= cellfun(@(c) mean(cell2mat(c),1,'omitnan'),num2cell([allSegs{:,:}],1), 'UniformOutput',false)';
+taskPSTHD= arrayfun(@(a) tPhys{tPhys.Somatotopy==a,contains(tPhys.Properties.VariableNames,"PSTH_")},somatotopicReps,'UniformOutput',false);
+taskPSTHD= cellfun(@(a) vertcat(a,repmat({NaN(size(a{1}))},max(cellfun(@length,num2cell([taskPSTHD{:,:}],1)))-length(a),1)),...
+    num2cell([taskPSTHD{:,:}],1)', 'UniformOutput',false);
+
+dHiStruct = struct('data',cellfun(@(c) cell2mat(cellfun(@(t) t(:,1:end),c,'UniformOutput',false)),taskPSTHD,'UniformOutput',false),...
+    'traj','traj','epochStarts',cellfun(@(n) [1,n([2,3,6])], cellfun(@(a) findBins(a,params.bins),allSegs,'UniformOutput',false),'UniformOutput',false),...
+    'condition',cellstr(conditions'),'epochColors',cellfun(@(c) cell2mat(cellfun(@(m) min(1,max(0,c-repmat(.15.*(m-1),size(c,1),1))),...
+    num2cell(1:length(phaseNames)),'UniformOutput',false)'),num2cell(colors,2),'UniformOutput',false));
 DataHigh(dHiStruct,'DimReduce');
-%model somatotopy as conditions for datahigh
 %%
+num_dims=4;
 all_h = findall(groot,'Type','Figure');
 guiFigs = all_h(arrayfun(@(s) strcmp(s.Name,'DataHigh'),all_h));
 handles = guihandles(guiFigs);
 data = guidata(guiFigs);
 D = data.D;
 Dtraj = D(ismember({D.type}, 'traj'));
-num_dims=8;
-% compute the maximum value
-figure(); tax=tiledlayout(2,4);
 conds = unique({Dtraj.condition});
-ylimT = [min([Dtraj.data],[],'all'),max([Dtraj.data],[],'all')];
-for icond = 1:length({D.condition}) % for selected conds
-    for idim = 1:num_dims  % for each single dim
-        for itrial = find(ismember({Dtraj.condition}, conds{icond}))  % for each trial
+figure(); tax=tiledlayout(1,num_dims);
+ylimT = [min(arrayfun(@(m) min(m.data,[],'all'),Dtraj)),max(arrayfun(@(m) max(m.data,[],'all'),Dtraj))]-...
+    [0,min(arrayfun(@(s) min(mean(s.data(1:num_dims,1:10),2,'omitnan')),Dtraj))];
+for icond = 1:length(conds)
+    for idim = 1:num_dims 
+        for itrial = find(ismember({Dtraj.condition}, conds{icond}))
             epochs = [Dtraj(itrial).epochStarts size(Dtraj(itrial).data,2)];
-            [r,c] = tilerowcol(tax,idim); nexttile(idim); hold on;
+            nexttile(idim); hold on; ylim(ylimT);
             for iepoch = 1:length(epochs)-1
                 indices = epochs(iepoch):(epochs(iepoch+1));
                 plot(indices,Dtraj(itrial).data(idim,indices),'Color',colors(icond,:),'LineWidth',2);
@@ -149,30 +148,35 @@ for icond = 1:length({D.condition}) % for selected conds
         end
     end
 end
-saveFigures(gcf,savePath,model+"_DimXConds",[]);
-%%
-figure(); tax=tiledlayout(1,3);
-conds = unique({Dtraj.condition});
-for icond = 1:length({D.condition}) % for selected conds
-    currColor = rgb2hsv(colors(icond,:));
-    currColor(end) = .8;
-    for idim = 1:num_dims  % for each single dim
+if(saveFig)
+    saveFigures(gcf,savePath,model+"_DimXConds",[]);
+end
+figure(); tax=tiledlayout(1,length(conds));
+for icond = 1:length(conds)
+    currColor = rgb2hsv(colors(icond,:));%([1 0 0]);
+    currColor(2) = 1;
+    currColor(end) = .4;
+    for idim = 1:num_dims 
         if(idim>num_dims/2)
-            currColor(2) = max(0,1 - (.1*(idim-1)));            
+            currColor(end) = 1;
+            currColor(2) = max(.25,currColor(2) - (.25*(idim-(num_dims/2))));            
         else
-            currColor(end) = min(1,.5 + (.15*(idim-1)));
+            currColor(end) = min(1,currColor(end) + (.4*(idim-1)));
         end
-        for itrial = find(ismember({Dtraj.condition}, conds{icond}))  % for each trial
+        for itrial = find(ismember({Dtraj.condition}, conds{icond}))
             epochs = [Dtraj(itrial).epochStarts size(Dtraj(itrial).data,2)];
-             nexttile(icond); hold on; title(conditions{icond});
+            nexttile(icond); hold on; title(string(conds(icond))); ylim(ylimT);
             for iepoch = 1:length(epochs)-1
                 indices = epochs(iepoch):(epochs(iepoch+1));
-                plot(indices,Dtraj(itrial).data(idim,indices),'Color',hsv2rgb(currColor),'LineWidth',2);
+                plot(indices,Dtraj(itrial).data(idim,indices)-(mean(Dtraj(itrial).data(idim,1:10),'omitnan')),...
+                    'Color',hsv2rgb(currColor),'LineWidth',2);
                 if(iepoch>1)
-                        line([epochs(iepoch),epochs(iepoch)],ylimT,"LineStyle",'--','Color','k');
+                    line([epochs(iepoch),epochs(iepoch)],ylimT,"LineStyle",'--','Color','k');
                 end
             end
         end
     end
 end
-saveFigures(gcf,savePath,model+"_CondXDims",[]);
+if(saveFig)
+    saveFigures(gcf,savePath,model+"_CondXDims",[]);
+end

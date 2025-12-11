@@ -1,19 +1,12 @@
-varNames = ["Unit" "SiteNum" "Monkey" "Somatotopy" "Channel" "X" "Y" "Condition"...
-     "TaskUnits"];
 conditions = ["Extra Small Sphere"    "Large Sphere"    "Photocell"];
 phaseNames = ["Baseline", "Go", "Reach", "Hold"];
-phaseAlignmentPoints = {["GoSignal","GoSignal","StartReach","StartHold"],...
-    ["GoSignal","GoSignal","StartReach","StartHold"],["GoSignal","GoSignal","StartReach","StartHold"]};
-phaseWinSz = .2;
-phaseWindows = repmat({{[-phaseWinSz, 0],[0, phaseWinSz],[-phaseWinSz*(3/4),phaseWinSz*(1/4)],[-phaseWinSz, 0]}},1,length(conditions));
 taskAlign = containers.Map(conditions,{{["GoSignal" "StartHold"]},{["GoSignal","StartHold"]},{["GoSignal","StartHold"]}});
-condPhaseAlign = containers.Map(conditions,cellfun(@num2cell,phaseAlignmentPoints,'UniformOutput',false));
 params = PhysRecording(string(conditions),.001,.001,-1,2,containers.Map(conditions,{"StartReach","StartReach","StartReach"}));
 MIN_BLOCKS_FOR_UNIT = 13;
-savePath = "S:\Lab\ngc14\Working\DataHi\Somatotopy\";
 allSegs = params.condSegMap.values;
 [~,maxSegL]= max(cellfun(@length,allSegs));
 maxSegL = allSegs{maxSegL};
+savePath = "S:\Lab\ngc14\Working\DataHi\Somatotopy\";
 close all;
 %%
 [siteDateMap, siteSegs, siteTrialPSTHS, rawSpikes, siteChannels, siteActiveInd,...
@@ -43,19 +36,12 @@ normPSTH{1}(end-11:end) = cellfun(@(b) {NaN(size(b{1}))},normPSTH{2}(end-11:end)
 siteTrialPSTHS{1}(end-11:end) = cellfun(@(b) NaN(size(b)),siteTrialPSTHS{2}(end-11:end),'UniformOutput',false);
 trialCondInfo{1}(end-11:end) = cellfun(@(b) num2cell(NaN(size(b))),trialCondInfo{2}(end-11:end),'UniformOutput',false);
 goodUnits = cellfun(@(tn) cell2mat(cellfun(@(s)sum(s,2), tn,'UniformOutput',false)),num2cell(cat(2,goodFR{:}),2),'UniformOutput',false);
-normPSTH = normPSTH;     %cellfun(@(c) cellfun(@(cp) cell2mat(cp),c,'UniformOutput',false),siteTrialPSTHS,'UniformOutput',false);
+normPSTH = normPSTH; %cellfun(@(c) cellfun(@(cp) cell2mat(cp),c,'UniformOutput',false),siteTrialPSTHS,'UniformOutput',false);
 mappedChannels = cellfun(@(ch,l) ch{2}(l(~isnan(l))), chMaps,siteChannels, 'Uniformoutput', false)';
-avgSeg = cellfun(@(ct) cellfun(@(ca) cellfun(@(t) mean(t,1,'omitnan'), ca, 'UniformOutput',false),...
-    ct, 'UniformOutput',false),siteSegs, 'UniformOutput',false);
 sumSegs = cellfun(@(c) cellfun(@(n) [n{:}], c, 'UniformOutput',false), siteSegs,'UniformOutput',false);
 [taskBaseline,taskFR] = calculatePhases(params,taskAlign,repmat({{[0, 0]}},1,length(conditions)),siteSegs,siteTrialPSTHS,false,true);
-[~,avgPhase] =  calculatePhases(params,condPhaseAlign,phaseWindows,avgSeg,normPSTH,false,false);
 [~,tUnit] = cellfun(@(tb,tc) cellfun(@(b,cn) ttestTrials(b,cn,1,true,0.05),tb,tc,'UniformOutput',false),taskBaseline,taskFR,'UniformOutput', false);
-avgPhase = cellfun(@(c) cellfun(@(a) median(cell2mat(reshape(cellfun(@cell2mat,a,'UniformOutput',false),1,1,[])),3,'omitnan'),...
-    c, 'UniformOutput', false), avgPhase, 'UniformOutput',false);
 taskUnits = cellfun(@(a,b) cell2mat(a) & repmat(sum(b,2)>MIN_BLOCKS_FOR_UNIT*size(b,2),1,size(b,2)),num2cell(cat(2,tUnit{:}),2),goodUnits,'Uniformoutput',false);
-allPSTHS = cellfun(@(c,t) cellfun(@(r,n,i) permute(permute((any(i,2)./any(i,2)).*r{1},...
-    [3 2 1]).*~isnan(cellfun(@str2double,n(:,end-1))),[3 2 1]),c,t,taskUnits,'UniformOutput',false),normPSTH,trialCondInfo,'UniformOutput',false);
 %%
 tPhys = [];
 for c = 1:length(conditions)
@@ -93,10 +79,10 @@ plotNames = [plotNames{:}];
 tPhys = unstack(tPhys,condTable.Properties.VariableNames(find(strcmp(condTable.Properties.VariableNames,"Condition"))+1:end),"Condition");
 %%
 siteCondSegs = cell2mat(cellfun(@(c) cell2mat(cellfun(@(m) mean(m,1,'omitnan'),c,'UniformOutput',false)),sumSegs,'UniformOutput',false)');
-plotJointPSTHS(params,{cell2mat(cellfun(@(m) mean(m,3,'omitnan'),cellfun(@(n) n{1}, vertcat(normPSTH{:}), 'UniformOutput',false),'UniformOutput',false))},{siteCondSegs},...
-repmat(cellfun(@(s,t) s(find(t==min(t),1)),siteDateMap.SiteRep,siteDateMap.Thresh),length(conditions),1),...
-true(length(conditions)*height(siteDateMap),1),[],{[min(params.bins),max(params.bins)]},[0 10],...
-cell2struct(num2cell(distinguishable_colors(length(unique(cell2mat(siteDateMap.SiteRep')))),2),unique(cell2mat(siteDateMap.SiteRep'))));
+plotJointPSTHS(params,{cell2mat(cellfun(@(m) mean(m,3,'omitnan'),cellfun(@(n) n{1}, vertcat(normPSTH{:}), 'UniformOutput',false),'UniformOutput',false))},...
+    {siteCondSegs},repmat(cellfun(@(s,t) s(find(t==min(t),1)),siteDateMap.SiteRep,siteDateMap.Thresh),length(conditions),1),...
+    true(length(conditions)*height(siteDateMap),1),[],{[min(params.bins),max(params.bins)]},[0 10],...
+    cell2struct(num2cell(distinguishable_colors(length(unique(cell2mat(siteDateMap.SiteRep')))),2),unique(cell2mat(siteDateMap.SiteRep'))));
 %%
 model = "Arm";
 colors = [[1 0 0]; [1 .75 0]; [0 .25 1]];

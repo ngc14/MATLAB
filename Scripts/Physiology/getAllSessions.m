@@ -115,8 +115,8 @@ parfor  i = 1:numSites
                     (params.sigmaSize/2)]),ac,'UniformOutput',false),alignedSpikes{c},'UniformOutput', false);
                 %{alignedPSTHS}{units,trials}{bins}
                 smoothHists = cellfun(@(ac)  cellfun(@(a) conv(a,gausswin(params.sigma)/...
-                    sum(gausswin(params.sigma)),'valid')./params.binSize,ac,'UniformOutput', false),...
-                    trialHists{c},'UniformOutput',false);
+                    sum(gausswin(params.sigma)),'valid')./max(params.binSize,params.sigmaSize==params.binSize),...
+                    ac,'UniformOutput', false),trialHists{c},'UniformOutput',false);
                 %{alignedPSTHS}{units,bins,trials}
                 unitTrialPSTH = cellfun(@(s) ... %condWeights.*
                     cat(3,s{:}),smoothHists,'UniformOutput', false);

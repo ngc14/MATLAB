@@ -6,7 +6,7 @@ MIN_BLOCKS_FOR_UNIT = 20;
 allSegs = params.condSegMap.values;
 [~,maxSegL]= max(cellfun(@length,allSegs));
 maxSegL = allSegs{maxSegL};
-savePath = "S:\Lab\ngc14\Working\DataHi\Combined\";
+saveDir = "S:\Lab\ngc14\Working\DataHi\Combined\";
 close all;
 %%
 [siteDateMap, siteSegs, siteTrialPSTHS, ~, siteChannels, siteActiveInd,...
@@ -41,7 +41,7 @@ for c = 1:length(conditions)
     condTable.Y = mapSites2Units(condUnitMapping,siteDateMap.y);
     condTable.Condition = categorical(repmat({params.condAbbrev(conditions{c})},length(mLabs),1));
     PSTH = cellfun(@(m) num2cell(m{1},[2 3]), normPSTH{c},'UniformOutput',false);
-    nanSegs = find(isnan(mean(cell2mat(sumSegs{c}),1,'omitnan'))); 
+    nanSegs = find(isnan(mean(cell2mat(sumSegs{c}(~cellfun(@(a) all(isnan(a),'all'),sumSegs{c}))),1))); 
     nanSegs= nanSegs(nanSegs~=length(maxSegL));
     for a = 1:length(nanSegs)
         for n = 1:length(sumSegs{c})
@@ -73,46 +73,45 @@ plotJointPSTHS(params,{cell2mat(cellfun(@(m) mean(m,2,'omitnan').*10,reshape(tPh
 %%
 saveFig = true;
 sampleTrials = 30;
-model = "All";
+model = "Reach";
 type= 'Spike';
-savePath = savePath+type+"\";
-phases = cellfun(@(c,t) arrayfun(@(e) find(strcmp(c,e)),t),params.condSegMap.values(conditions),repmat({"StartHold"},1,length(conditions)),'UniformOutput',false);
+savePath = saveDir+type+"\";
+phases = cellfun(@(c,t) arrayfun(@(e) find(strcmp(c,e)),t),params.condSegMap.values(conditions),repmat({"StartReach"},1,length(conditions)),'UniformOutput',false);
 dimCond = reshape(["Arm", "Hand"]+ "_" +params.condAbbrev.values',1,[]);
 colors = [[1 0 0]; [1 .75 0]; [0 .25 1]; ...
     vertcat(cell2mat(cellfun(@(a) hsv2rgb((rgb2hsv(a).*[1 0 0])+[0 .85 .75]), {[1 0 0]; [1 .75 0]; [0 .25 1]}, 'UniformOutput',false)))];
 if(~exist(savePath,'dir')), mkdir(savePath); end
 if(strcmp(type,'Traj'))
-    allSegs= arrayfun(@(s) tPhys{tPhys.Somatotopy==model,contains(tPhys.Properties.VariableNames,"Segs_"+s)}, dimCond, 'UniformOutput',false);
+    allSegs= arrayfun(@(s) tPhys{tPhys.Somatotopy==extractBefore(s,"_"),contains(tPhys.Properties.VariableNames,"Segs_"+extractAfter(s,"_"))}, dimCond, 'UniformOutput',false);
     allSegs= cellfun(@(c) mean(cell2mat(c),1,'omitnan'),allSegs, 'UniformOutput',false);
-    taskPSTHD= arrayfun(@(a) tPhys{tPhys.Somatotopy==model,contains(tPhys.Properties.VariableNames,"PSTH_"+a)},dimCond,'UniformOutput',false);
+    taskPSTHD= arrayfun(@(a) tPhys{tPhys.Somatotopy==extractBefore(a,"_"),contains(tPhys.Properties.VariableNames,"PSTH_"+extractAfter(a,"_"))},dimCond,'UniformOutput',false);
     taskPSTHD= cellfun(@(a) vertcat(a,repmat({NaN(size(a{1}))},max(cellfun(@length,taskPSTHD))-length(a),1)),...
         (vertcat(taskPSTHD)), 'UniformOutput',false);
     dHiStruct = struct('data',cellfun(@(c) cell2mat(cellfun(@(t)  mean(t(:,1:2000,:),3,'omitnan'),c,'UniformOutput',false)),taskPSTHD,'UniformOutput',false)',...
         'traj', type,'epochStarts',cellfun(@(n) [1,n([2,3,6])], cellfun(@(a) findBins(a,params.bins),allSegs,'UniformOutput',false),'UniformOutput',false)',...
         'condition',cellstr(dimCond'),'epochColors',cellfun(@(c) cell2mat(cellfun(@(m) min(1,max(0,c-repmat(.15.*(m-1),size(c,1),1))),...
         num2cell(1:length(phaseNames)),'UniformOutput',false)'),num2cell(colors,2),'UniformOutput',false));
-    DataHigh(dHiStruct,'DimReduce');
 else
-    trialFR = cellfun(@(ct,cs,ta,tw) cellfun(@(a,b) cellfun(@(m,tt) repmat(m(max(1,tt+tw(1)):max(1,tt+tw(end))),(all(isnan(tt))*range(tw))+1,1),...,
+    trialFR = cellfun(@(ct,cs,ta,tw) cellfun(@(a,b) cellfun(@(m,tt) repmat(m(max(1,tt+tw(1)):max(range(tw)+1,tt+tw(end))),1,(all(isnan(tt))*range(tw))+1),...,
         num2cell(a,1)',arrayfun(@(bb) [find(isalmost(params.bins,bb,params.binSize/1.99),1),NaN(isnan(bb),1)],b(:,ta),'UniformOutput',false),...
         'UniformOutput',false)',ct,cs,'UniformOutput',false),num2cell(tPhys{:,contains(tPhys.Properties.VariableNames,"PSTH_")},1),...
-        num2cell(tPhys{:,contains(tPhys.Properties.VariableNames,"Segs_")},1),phases,repmat({[-200 0]},1, length(phases)),'UniformOutput',false);
-    numTrials = cellfun(@length, [trialFR{:}]);
-    trialFRMat = cellfun(@(m) cat(2,m{:}), [trialFR{:}], 'UniformOutput',false);
-    currD = cellfun(@(c)squeeze(num2cell(cell2mat(reshape(cellfun(@(t) t(:,randi(size(t,2),1,sampleTrials)),c,'UniformOutput',false),1,1,[])),[1,2])),...
+        num2cell(tPhys{:,contains(tPhys.Properties.VariableNames,"Segs_")},1),phases,repmat({[-100 100]},1, length(phases)),'UniformOutput',false);
+    trialFRMat = cellfun(@(m) cat(2,m{~cellfun(@isempty,m)}), [trialFR{:}], 'UniformOutput',false);
+    numTrials = cellfun(@(s) size(s,2), [trialFR{:}]);
+    currD = cellfun(@(c)squeeze(num2cell(permute(cell2mat(reshape(cellfun(@(t) t(:,randi(size(t,2),1,sampleTrials)),c,'UniformOutput',false),1,1,[])),[3 1 2]),[1 2])),...
         arrayfun(@(t) trialFRMat(all(numTrials>=MIN_BLOCKS_FOR_UNIT,2) & contains(string(tPhys.Somatotopy),extractBefore(t,"_")),...
         contains(params.condAbbrev.values,extractAfter(t,"_"))),dimCond,'UniformOutput',false),'UniformOutput',false);
-    numUnits = unique(cellfun(@(m) size(m,1),currD),"stable");
+    numUnits = unique(cellfun(@(m) size(m{1},1),currD),"stable");
     unitInds = arrayfun(@(u) repmat({randi(u,min(numUnits),1)},1,size(currD,2)/length(numUnits)), numUnits,'UniformOutput',false);%repmat({}',1,size(currD,2)/(length(numUnits)));
-    currD = cellfun(@(u,i) u(i,:), currD, [unitInds{:}],'UniformOutput',false);
+    currD = cellfun(@(u,i) cellfun(@(n) n(i,:),u,'UniformOutput',false), currD, [unitInds{:}],'UniformOutput',false);
     dHiStruct = struct('data',vertcat(currD{:}),'condition',cellstr(cell2mat(cellfun(@(r) repmat(string(r),size(currD{1},1),1),dimCond,'UniformOutput',false)')),...
         'epochStarts',1,'epochColors',num2cell(cell2mat(cellfun(@(r) repmat(r,size(currD{1},1),1),num2cell(colors,2),'UniformOutput',false)),2));
-    DataHigh(dHiStruct,'DimReduce');
 end
-save(savePath+"DStruct_"+model,'dHiStruct','-mat');
+DataHigh(dHiStruct,'DimReduce');
+save(savePath+"DStruct_"+model+".mat",'dHiStruct','-v7.3');
 %% spike bin analysis for 10 sessions (LDA extraction)
 % cumulative variance explained / ratio of variance explained.
-num_dims=8;
+num_dims=4;
 all_h = findall(groot,'Type','Figure');
 guiFigs = all_h(arrayfun(@(s) strcmp(s.Name,'DataHigh'),all_h));
 handles = guihandles(guiFigs);

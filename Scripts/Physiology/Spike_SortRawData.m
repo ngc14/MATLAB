@@ -1,6 +1,6 @@
 function Spike_SortRawData(date, monkeyName)
-sessionDate = '09_17_2019';
-monkey = 'Gilligan';
+sessionDate = '2021_12_07';
+monkey = 'Skipper';
 if(exist('date', 'var'))
     sessionDate = date;
 end
@@ -223,20 +223,19 @@ for f = 1:sum(spikeChannels)
         segmentTimes = cell(1,length(startEventIdx));
         for u = 1:length(sortedIDs)
             dataUnits = dataTime(ids==sortedIDs(u));
-            spikeTimes{u} = dataUnits;
-        end
-        for n = 1:length(startEventIdx) % step through each event time
-                % find index of event n
-                %[~, eventTimeInd] = min(abs(dataUnits-eventTimes_risingEdge(startEventIdx(n))));
-                %[~, eventTimeEndInd] = min(abs(dataUnits-eventTimes_risingEdge(endEventIdx(n))));
-                %if(dataUnits(eventTimeInd)<eventTimes_risingEdge(endEventIdx(n)) && ...
-                %        dataUnits(eventTimeEndInd)>eventTimes_risingEdge(startEventIdx(n)))
-                    %spikeTimes{u,n} = dataUnits(eventTimeInd:eventTimeEndInd);
-                    segmentTimes{n} = eventTimes_risingEdge(startEventIdx(n):endEventIdx(n));
-                %else
-                    %spikeTimes{u,n} = NaN;
-                    %segmentTimes{u,n} = NaN(1,length(startEventIdx(n):endEventIdx(n)));
-                %end
+            %spikeTimes{u} = dataUnits;
+            for n = 1:length(startEventIdx)
+                [~, eventTimeInd] = min(abs(dataUnits-eventTimes_risingEdge(startEventIdx(n))));
+                [~, eventTimeEndInd] = min(abs(dataUnits-eventTimes_risingEdge(endEventIdx(n))));
+                if(dataUnits(eventTimeInd)<eventTimes_risingEdge(endEventIdx(n)) && ...
+                        dataUnits(eventTimeEndInd)>eventTimes_risingEdge(startEventIdx(n)))
+                    spikeTimes{u,n} = dataUnits(eventTimeInd:eventTimeEndInd);
+                    segmentTimes{u,n} = eventTimes_risingEdge(startEventIdx(n):endEventIdx(n));
+                else
+                    spikeTimes{u,n} = NaN;
+                    segmentTimes{u,n} = NaN(1,length(startEventIdx(n):endEventIdx(n)));
+                end
+            end
         end
         %% EXTRACT INFORMATION FROM ARDUINO OUTPUT FILE
         if(~exist(['S:\Lab\', monkey, '\All Data\', monkey,'_', ...

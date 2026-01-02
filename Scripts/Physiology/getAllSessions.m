@@ -58,18 +58,19 @@ parfor  i = 1:numSites
     physDir = strcat(physDir,"Results");
     if(isempty(dir(physDir+"\*.mat")))
         if(~ismember(currSession.Date,{'05_02_2019','11_11_2019','2021_09_20','2022_06_22','2022_06_28','2022_07_11','2022_07_12'}))
-            disp(['Sorting and labeling session...']);
+            disp(['Parsing and labeling session: ',currSession.Date,'...']);
             Spike_SortRawData(currSession.Date,char(currSession.Monkey));
             labelSingleUnits(currSession.Date,char(currSession.Monkey));
         else
             disp(['Bad session: ', currSession.Date]);
         end
     end
-    if(~isempty(dir(physDir+"\*.mat")))
-        dirChannels = dir(physDir+"\*.mat");
+    dirChannels = dir(physDir+"\*.mat");
+    if(~isempty(dirChannels))
         firstChannel = load([strcat(physDir,'\',dirChannels(1).name)]);
-        if(~isfield(firstChannel,'label') && ~contains(fieldnames(firstChannel,'-full'),'label'))
-            disp(['Labeling session...']);
+        if(~isfield(firstChannel,'label') && ~contains(fieldnames(firstChannel,'-full'),'label') ...
+                && ~ismember(currSession.Date,{'04_05_2019','04_09_2019'}))
+            disp(['Labeling session: ',currSession.Date,'...']);
             labelSingleUnits(currSession.Date,char(currSession.Monkey));
         end
     end
@@ -77,7 +78,7 @@ parfor  i = 1:numSites
         getAllTrials(physDir,singleOrAllUnits,true);
     if(~isempty(spikes))
         [currSeg,currTrialPSTHS,currActive,trialHists,alignedSpikes] = deal(repmat({[]},1,length(conditions)));
-        numUnits = size(spikes,1);
+        numUnits = size(spikes,2);
         NaNGraspInd = repmat({false},size(currTrials,1),1);
         NaNGraspInd(ismember(currTrials(:,1),conditions)) = cellfun(@(s,t) sum(isnan(t))==1 & isnan(t(strcmp(params.condSegMap(s),"StartGrasp"))), ...
             currTrials(ismember(currTrials(:,1),conditions),1),times(ismember(currTrials(:,1),conditions))','UniformOutput',false);
@@ -134,7 +135,7 @@ parfor  i = 1:numSites
                 alignments = mode(cellfun(@length,params.PSTHAlignments.values));
                 currSeg{c} = repmat({NaN(size(params.condSegMap(currCond)))},1,alignments);
                 currTrialPSTHS{c} = repmat(NaN(numUnits,length(bins),1),1,alignments);
-                alignedSpikes{c} = repmat(NaN(numUnits,1),1,alignments);
+                alignedSpikes{c} = repmat({NaN},numUnits,1,alignments);
             end
         end
         % get current session joint label

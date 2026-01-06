@@ -73,7 +73,7 @@ phases = {"StartReach","StartHold"};
 phaseWindows = {[-100 100], [-200 0]};
 type = 'Spike';
 savePath = saveDir+type+"\";
-colors = repmat([repmat([.8 .8 .8],sum(contains(dimCond,"Arm")),1);repmat([.2 .2 .2],sum(contains(dimCond,"Hand")),1)],length(phases),1);
+colors =containers.Map(["ESS","LS","P"],{[1 0 0];[1 .85 0];[0 0 1]});
 if(~exist(savePath,'dir')), mkdir(savePath); end
 if(strcmp(type,'Traj'))
     allSegs= arrayfun(@(s) tPhys{tPhys.Somatotopy==extractBefore(s,"_"),contains(tPhys.Properties.VariableNames,"Segs_"+extractAfter(s,"_"))}, dimCond, 'UniformOutput',false);
@@ -85,7 +85,7 @@ if(strcmp(type,'Traj'))
         'condition',cellstr(dimCond'),'epochColors',cellfun(@(c) cell2mat(cellfun(@(m) min(1,max(0,c-repmat(.15.*(m-1),size(c,1),1))),...
         num2cell(1:length(phaseNames)),'UniformOutput',false)'),num2cell(colors,2),'UniformOutput',false));
 else
-    tPhysTable = tPhys;%(tPhys.Monkey==categorical("Gilligan"),:);
+    tPhysTable = tPhys(tPhys.Monkey=="Gilligan",:);
     for p = 1:length(phases)
         phaseConds = cellfun(@(t) find(strcmp(phases{p},t)), params.condSegMap.values(conditions),'UniformOutput',false);
         trialFR = cellfun(@(ct,cs,ta,tw) cellfun(@(a,b) cellfun(@(m,tt) m(max(1,tt+tw(1)):max(range(tw)+1,tt+tw(end))),...,
@@ -94,7 +94,6 @@ else
             num2cell(tPhysTable{:,contains(tPhysTable.Properties.VariableNames,"Segs_")},1),phaseConds,repmat({phaseWindows{p}},1,length(phaseConds)),'UniformOutput',false);
         trialFRMat{p} = cellfun(@(m) cat(2,m{~cellfun(@isempty,m)}), [trialFR{:}], 'UniformOutput',false);
     end
-    %%
     currD = cellfun(@(m,n)cellfun(@(c)squeeze(num2cell(permute(cell2mat(reshape(cellfun(@(r) ...
         downsampleTrials(r,sTrials),c,'UniformOutput',false),1,1,[])),[3 1 2]),[1 2])),arrayfun(@(t) ...
         m(n(:,contains(params.condAbbrev.values,extractAfter(t,"_")))>=sTrials & contains(string(tPhysTable.Somatotopy),...
@@ -105,34 +104,53 @@ else
     currD = cellfun(@(u,i) cellfun(@(n) n(i,:),u,'UniformOutput',false), [currD{:}], repmat([unitInds{:}],1,length(phases)),'UniformOutput',false);
     dHiStruct = struct('data',vertcat(currD{:}),'condition',cellstr(cell2mat(cellfun(@(r) repmat(string(r),size(currD{1},1),1),...
         cell2mat(cellfun(@(s) dimCond+"-"+extractAfter(s,'Start'),phases,'UniformOutput',false)),'UniformOutput',false)')),...
-        'epochStarts',1,'epochColors',num2cell(cell2mat(cellfun(@(r) repmat(r,size(currD{1},1),1),num2cell(colors,2),'UniformOutput',false)),2));
+        'epochStarts',1,'epochColors',{[0 0 0]});
+    for i = 1:length(dHiStruct)
+        dHiStruct(i).epochColors = cell2mat(colors.values(params.condAbbrev.values(conditions(...
+            cellfun(@(c) contains(dHiStruct(i).condition,c),colors.keys)))));
+    end
 end
 DataHigh(dHiStruct,'DimReduce');
 save(savePath+"DStruct_"+model+".mat",'dHiStruct','-v7.3');
-% spike bin analysis for 10 sessions (LDA extraction)
-% cumulative variance explained / ratio of variance explained.
+%%
+splitGroup = "Somatotopy";
 num_dims=4;
 all_h = findall(groot,'Type','Figure');
-guiFigs = all_h(arrayfun(@(s) strcmp(s.Name,'DataHigh'),all_h));
-handles = guihandles(guiFigs);
-data = guidata(guiFigs);
-D = data.D;
+D = guidata(all_h(arrayfun(@(s) strcmp(s.Name,'DataHigh'),all_h)));%handles = guihandles(guiFigs);
+D = D.D;
 plotType = unique(string({D.type}));
 Ddata = D(ismember({D.type}, plotType));
-condInds = cellfun(@(c) contains(c,'S-'), {Ddata.condition});
-condInds = condInds + cellfun(@(c) contains(c,'_E'), {Ddata.condition});
-for u = 1:length(condInds)
-    if(condInds(u)==0)
-        Ddata(u).epochColors = [0 0 .8];
-    elseif(condInds(u)==1)
-        Ddata(u).epochColors = [1 .8 0];
-    else
-        Ddata(u).epochColors = [1 0 0];
+switch(splitGroup)
+    case "Somatotopy"
+    condInds = cellfun(@(c) contains(c,'Arm'), {Ddata.condition});
+    for u = 1:length(condInds)
+        if(condInds(u)==0),Ddata(u).epochColors = [.8 .8 .8];
+        else,Ddata(u).epochColors = [.2 .2 .2];end
+    end
+    case  "Condition"
+    condInds = cellfun(@(c) contains(c,'S-'), {Ddata.condition});
+    condInds = condInds + cellfun(@(c) contains(c,'_E'), {Ddata.condition});
+    for u = 1:length(condInds)
+        if(condInds(u)==0),Ddata(u).epochColors = [0 0 1];
+        elseif(condInds(u)==1),Ddata(u).epochColors = [1 .85 0];
+        else,Ddata(u).epochColors = [1 0 0];end
+    end
+    case "Phase"
+    condInds = cellfun(@(c) contains(c,'Reach'), {Ddata.condition});
+    for u = 1:length(condInds)
+        if(condInds(u)==0),Ddata(u).epochColors = [1 0 1];
+        else,Ddata(u).epochColors = [0 1 1];end
+    end
+    case "Monkey"
+    condInds = cellfun(@(c) contains(c,'Gilligan'), {Ddata.condition});
+    for u = 1:length(condInds)
+        if(condInds(u)==0),Ddata(u).epochColors = [.8 .4 0];
+        else,Ddata(u).epochColors = [0 .5 0];end
     end
 end
 conds = unique({Ddata.condition});
-figure(); tax=tiledlayout(max(1,num_dims/4),num_dims);
-ylimT = [0 .5];[min(arrayfun(@(m) min(m.data,[],'all'),Ddata)),max(arrayfun(@(m) max(m.data,[],'all'),Ddata))]-[0,min(arrayfun(@(s) min(mean(s.data(1:num_dims,1:10),2,'omitnan')),Ddata))];
+figure(); tax=tiledlayout(max(1,num_dims/2),2);
+ylimT = [0 .5];%[min(arrayfun(@(m) min(m.data,[],'all'),Ddata)),max(arrayfun(@(m) max(m.data,[],'all'),Ddata))]-[0,min(arrayfun(@(s) min(mean(s.data(1:num_dims,1:10),2,'omitnan')),Ddata))];
 for icond = 1:length(conds)
     for idim = 1:num_dims 
         for itrial = find(ismember({Ddata.condition}, conds{icond}))
@@ -165,7 +183,7 @@ for icond = 1:length(conds)
     end
 end
 if(saveFig)
-    saveFigures(gcf,savePath,model+"_DimXConds",[]);
+    saveFigures(gcf,savePath,model+"_"+splitGroup,[]);
 end
 if(strcmp(plotType,'traj'))
     figure(); tax=tiledlayout(1,length(conds));
@@ -201,16 +219,8 @@ end
 
 function arr = downsampleTrials(r,sTrials)
 sz = size(r,2)-mod(size(r,2),2);
-trials = (floor(sz/sTrials)*mod(sz,sTrials))+mod(sz,sTrials);
-segments = [sz-trials,trials];
-if(mod(floor(sz/sTrials),2))
-    nPairs = min(segments);
-    trials = max(segments);
-else
-    nPairs = max(segments);
-    trials = min(segments);
-end
-disp(sz);
-arr=[mean(reshape(r(:,max(1,sz-trials):sz-uint8(nPairs~=0)),size(r,1),min(sTrials,trials),[]),3,'omitnan'),...
-    mean(reshape(r(:,1:nPairs),size(r,1),[],ceil(sz/sTrials)),3,'omitnan')];
+trials = uint8(mod(sz,sTrials)~=0)*(sTrials-mod(sz,sTrials));
+nPairs = round(sz/sTrials)*(sTrials-trials);
+arr=[mean(reshape(r(:,max(1,sz-trials+uint8(trials~=0)):sz-uint8(trials==0)),size(r,1),trials,[]),3,'omitnan'),...
+    mean(reshape(r(:,1:nPairs),size(r,1),[],round(sz/sTrials)),3,'omitnan')];
 end

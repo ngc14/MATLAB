@@ -6,7 +6,6 @@ allSegs = params.condSegMap.values;
 [~,maxSegL]= max(cellfun(@length,allSegs));
 maxSegL = allSegs{maxSegL};
 saveDir = "S:\Lab\ngc14\Working\DataHi\Combined\";
-close all;
 %%
 [siteDateMap, siteSegs, siteTrialPSTHS, ~, siteChannels, siteActiveInd,...
     siteRep,siteLocation,~,monkeys,vMask,conditions,chMaps,siteTrialInfo] = getAllSessions(params,"Single","M1");
@@ -65,27 +64,33 @@ plotJointPSTHS(params,{cell2mat(cellfun(@(m) mean(m,2,'omitnan').*10,reshape(tPh
 %     colors = [[.75 .75 .75]; [.3 .3 .3]]; dimCond = ["Arm", "Hand"];
 % end
 %%
-dimCond = reshape(["Arm", "Hand"]+ "_" +params.condAbbrev.values',1,[]);
 saveFig = true;
 sTrials = 30;
-model = "Gilligan";
+model = "All";
+dimCond = reshape(["Hand"]+"_"+params.condAbbrev.values',1,[]);
+type = 'Traj';
 phases = {"StartReach","StartHold"};
 phaseWindows = {[-100 100], [-200 0]};
-type = 'Spike';
-savePath = saveDir+type+"\";
-colors =containers.Map(["ESS","LS","P"],{[1 0 0];[1 .85 0];[0 0 1]});
+savePath = saveDir+type+"\"; % +extractBefore(model,"_")+"\"+extractAfter(model,"_")+"\";
+colors =containers.Map(dimCond,{[1 0 0];[1 .85 0];[0 0 1];[1 0 .85];[.85 .5 0];[0 1 1]});
 if(~exist(savePath,'dir')), mkdir(savePath); end
 if(strcmp(type,'Traj'))
-    allSegs= arrayfun(@(s) tPhys{tPhys.Somatotopy==extractBefore(s,"_"),contains(tPhys.Properties.VariableNames,"Segs_"+extractAfter(s,"_"))}, dimCond, 'UniformOutput',false);
+    tPhysTable = tPhys(tPhys.Monkey=="Gilligan" & tPhys.Somatotopy=="Hand",:);
+    allSegs= arrayfun(@(s) tPhysTable{tPhysTable.Somatotopy==extractBefore(s,"_"),contains(tPhysTable.Properties.VariableNames,"Segs_"+extractAfter(s,"_"))}, dimCond, 'UniformOutput',false);
     allSegs= cellfun(@(c) mean(cell2mat(c),1,'omitnan'),allSegs, 'UniformOutput',false);
-    taskPSTHD= arrayfun(@(a) tPhys{tPhys.Somatotopy==extractBefore(a,"_"),contains(tPhys.Properties.VariableNames,"PSTH_"+extractAfter(a,"_"))},dimCond,'UniformOutput',false);
-    taskPSTHD= cellfun(@(a) vertcat(a,repmat({NaN(size(a{1}))},max(cellfun(@length,taskPSTHD))-length(a),1)),(vertcat(taskPSTHD)), 'UniformOutput',false);
-    dHiStruct = struct('data',cellfun(@(c) cell2mat(cellfun(@(t)  mean(t(:,1:2000,:),3,'omitnan'),c,'UniformOutput',false)),taskPSTHD,'UniformOutput',false)',...
-        'traj', type,'epochStarts',cellfun(@(n) [1,n([2,3,6])], cellfun(@(a) findBins(a,params.bins),allSegs,'UniformOutput',false),'UniformOutput',false)',...
-        'condition',cellstr(dimCond'),'epochColors',cellfun(@(c) cell2mat(cellfun(@(m) min(1,max(0,c-repmat(.15.*(m-1),size(c,1),1))),...
-        num2cell(1:length(phaseNames)),'UniformOutput',false)'),num2cell(colors,2),'UniformOutput',false));
+    taskPSTHD= arrayfun(@(a) tPhysTable{tPhysTable.Somatotopy==extractBefore(a,"_"),contains(tPhysTable.Properties.VariableNames,"PSTH_"+extractAfter(a,"_"))},dimCond,'UniformOutput',false);
+    taskPSTHD= cellfun(@(a) squeeze(num2cell(permute(cell2mat(reshape(cellfun(@(d) downsampleTrials(d,sTrials),...
+        a(cellfun(@(s)size(s,2)>=sTrials,a)),'Uniformoutput',false),1,1,[])),[3 1 2]),[1,2])),vertcat(taskPSTHD), 'UniformOutput',false);
+    numUnits = arrayfun(@(s) min(cellfun(@(m) size(m{1},1),taskPSTHD(contains(dimCond,s)))), unique(arrayfun(@(t) extractBefore(t,"_"),dimCond)));
+    unitInds = arrayfun(@(u) repmat({randi(u,min(numUnits),1)},1,size(dimCond,2)/length(numUnits)), numUnits,'UniformOutput',false);%repmat({}',1,size(currD,2)/(length(numUnits)));
+    taskPSTHD = cellfun(@(u,i) cellfun(@(n) n(i,:),u,'UniformOutput',false), taskPSTHD, [unitInds{:}],'UniformOutput',false);
+    dHiStruct = struct('data',vertcat(taskPSTHD{:}),'epochStarts',reshape(cellfun(@(n) [1,n([2,3,6])], ...
+        repmat(cellfun(@(a) findBins(a,params.bins),allSegs,'UniformOutput',false),sTrials,1),'UniformOutput',false),[],1),...
+        'condition',repmat(cellstr(dimCond'),sTrials,1),'epochColors',cellfun(@hsv2rgb,cellfun(@(l) ...
+        flipud([linspace(l(1),l(1),4);linspace(1,.5,4);linspace(.85,1,4)]'),cellfun(@rgb2hsv,....
+        repmat(colors.values',sTrials,1),'UniformOutput',false),'UniformOutput',false),'UniformOutput',false));
 else
-    tPhysTable = tPhys(tPhys.Monkey=="Gilligan",:);
+    tPhysTable = tPhys(tPhys.Monkey=="Gilligan" & tPhys.Somatotopy=="Hand",:);
     for p = 1:length(phases)
         phaseConds = cellfun(@(t) find(strcmp(phases{p},t)), params.condSegMap.values(conditions),'UniformOutput',false);
         trialFR = cellfun(@(ct,cs,ta,tw) cellfun(@(a,b) cellfun(@(m,tt) m(max(1,tt+tw(1)):max(range(tw)+1,tt+tw(end))),...,
@@ -113,13 +118,12 @@ end
 DataHigh(dHiStruct,'DimReduce');
 save(savePath+"DStruct_"+model+".mat",'dHiStruct','-v7.3');
 %%
-splitGroup = "Somatotopy";
+splitGroup = "Condition";
 num_dims=4;
 all_h = findall(groot,'Type','Figure');
 D = guidata(all_h(arrayfun(@(s) strcmp(s.Name,'DataHigh'),all_h)));%handles = guihandles(guiFigs);
-D = D.D;
-plotType = unique(string({D.type}));
-Ddata = D(ismember({D.type}, plotType));
+plotType = unique(string({D.D.type}));
+Ddata = D.D(ismember({D.D.type}, plotType));
 switch(splitGroup)
     case "Somatotopy"
     condInds = cellfun(@(c) contains(c,'Arm'), {Ddata.condition});

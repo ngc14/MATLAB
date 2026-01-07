@@ -68,7 +68,7 @@ function Projection3D_OpeningFcn(hObject, eventdata, handles, varargin)
     
    	set(hObject, 'toolbar', 'figure');
     % handles.mainAxes is the main display for big_traj_3d
-    rotate3d(handles.mainAxes);  % matlab function that enables 3d rotation of axes
+%    rotate3d(handles.mainAxes);  % matlab function that enables 3d rotation of axes
     
     
     set(handles.mainAxes, 'NextPlot', 'replacechildren');
@@ -313,7 +313,7 @@ function pop_figure_Callback(hObject, eventdata, handles)
     
     figure;
     a = axes;
-    rotate3d(a);
+%    rotate3d(a);
     set(a, 'NextPlot', 'replacechildren');
     set(a, 'XTick', []);
     set(a, 'YTick', []);

@@ -32,8 +32,8 @@ zeroBinInd = find(params.bins==0);
 binSize = params.binSize;
 alignmentGap = alignmentGap/binSize;
 
-PSTH =  cellfun(@(t,w) t(:,(fix(w(1)/binSize)+zeroBinInd):...
-    fix((w(end)/binSize)+zeroBinInd)),PSTH,PSTHDisplayLimits,'UniformOutput',false);
+PSTH =  cellfun(@(t) t(:,(fix(PSTHDisplayLimits(1)/binSize)+zeroBinInd):...
+    fix((PSTHDisplayLimits(end)/binSize)+zeroBinInd)),PSTH,'UniformOutput',false);
 g = groot;
 figHandle = g.CurrentFigure;
 reuseAxes = ~isempty(figHandle);
@@ -43,7 +43,7 @@ if(reuseAxes)
     nrows = numel(unique(pos(:,2)));
 else
     figHandle = gcf;
-    wrapPlots = min(length(jointName),5);
+    wrapPlots = min(length(jointName),15);
     nrows = ceil(length(jointName)/wrapPlots);
 end
 xAlignTicks = {};
@@ -103,11 +103,11 @@ for j = 1:length(jointName)
                 plotted = false(1,size(currSegs,2));
                 maxSegNames=maxSegL;
                 patches = cellfun(@(i,w) findBins(avgSegs(find(contains(maxSegNames,i),1))+w,...
-                     PSTHDisplayLimits{a}(1):binSize:PSTHDisplayLimits{a}(end)), pa,pw,'UniformOutput',false);
+                     PSTHDisplayLimits(1):binSize:PSTHDisplayLimits(end)), pa,pw,'UniformOutput',false);
             end
             for s = 1:length(avgSegs)
-                if(avgSegs(s)>=PSTHDisplayLimits{a}(1) && ...
-                        avgSegs(s)<=PSTHDisplayLimits{a}(end) && ...
+                if(avgSegs(s)>=PSTHDisplayLimits(1) && ...
+                        avgSegs(s)<=PSTHDisplayLimits(end) && ...
                         (~plotted(s) ||avgSegs(s)==plotStart))
                     if(avgSegs(s)==0)
                         plotColor = segColors{1};
@@ -115,20 +115,20 @@ for j = 1:length(jointName)
                         plotColor = segColors{end};
                     end
                     %plotted(s) = true;
-                    pSeg = find(isalmost(PSTHDisplayLimits{a}(1):binSize:...
-                        PSTHDisplayLimits{a}(end),avgSegs(s),binSize/1.99),1);
+                    pSeg = find(isalmost(PSTHDisplayLimits(1):binSize:...
+                        PSTHDisplayLimits(end),avgSegs(s),binSize/1.99),1);
                     plot([xAlignTicks{a}(pSeg) xAlignTicks{a}(pSeg)],[FRLim(1) groupMax],...
                         'Color',plotColor,'LineStyle','--');
                 end
             end
             if(a==size(jointPSTH,2))
-                allXTicks = cellfun(@(ta,pd) [find(mod(pd(1):.01:pd(end),1)==0),...
-                    length(ta)],xAlignTicks,PSTHDisplayLimits,'UniformOutput',false);
+                allXTicks = cellfun(@(ta) [find(mod(PSTHDisplayLimits(1):.01:PSTHDisplayLimits(end),1)==0),...
+                    length(ta)],xAlignTicks,'UniformOutput',false);
                 allXTicks = unique(cell2mat(allXTicks),'stable');
                 xticks(allXTicks(1:1:end));
                 allLabels = arrayfun(@(pd)num2str(pd,'%.2f'),...
-                    unique([PSTHDisplayLimits{a}(1),ceil(PSTHDisplayLimits{a}(1)):1:...
-                    floor(PSTHDisplayLimits{a}(end)),PSTHDisplayLimits{a}(end)]), 'UniformOutput', false);
+                    unique([PSTHDisplayLimits(1),ceil(PSTHDisplayLimits(1)):1:...
+                    floor(PSTHDisplayLimits(end)),PSTHDisplayLimits(end)]), 'UniformOutput', false);
                 xticklabels(allLabels);
             end
             plotStart = plotStart + size(currJointAlign,2) + alignmentGap;

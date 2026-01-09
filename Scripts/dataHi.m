@@ -66,16 +66,17 @@ plotJointPSTHS(params,{cell2mat(cellfun(@(m) mean(m,2,'omitnan').*10,reshape(tPh
 %%
 saveFig = true;
 sTrials = 30;
-model = "All";
-dimCond = reshape(["Hand"]+"_"+params.condAbbrev.values',1,[]);
+model = "GilliganSkipper_ArmHand";
 type = 'Traj';
 phases = {"StartReach","StartHold"};
 phaseWindows = {[-100 100], [-200 0]};
-savePath = saveDir+type+"\"; % +extractBefore(model,"_")+"\"+extractAfter(model,"_")+"\";
-colors =containers.Map(dimCond,{[1 0 0];[1 .85 0];[0 0 1];[1 0 .85];[.85 .5 0];[0 1 1]});
+dimCond = reshape(regexp(extractAfter(model,"_"),'[A-Z]+[^A-Z]+','match')+"_"+params.condAbbrev.values',1,[]);
+colors =containers.Map(dimCond,num2cell(distinguishable_colors(length(dimCond),{'r','g','b'}),2));%{[1 0 0];[1 .85 0];[0 0 1]});
+savePath = saveDir+type+"\"+extractBefore(model,"_")+"\"+extractAfter(model,"_")+"\";
 if(~exist(savePath,'dir')), mkdir(savePath); end
+tPhysTable = tPhys(contains(string(tPhys.Monkey),[regexp(extractBefore(model,"_"),'[A-Z]+[^A-Z]+','match')]) & contains(string(tPhys.Somatotopy),...
+    [regexp(extractAfter(model,"_"),'[A-Z]+[^A-Z]+','match')]),:);
 if(strcmp(type,'Traj'))
-    tPhysTable = tPhys(tPhys.Monkey=="Gilligan" & tPhys.Somatotopy=="Hand",:);
     allSegs= arrayfun(@(s) tPhysTable{tPhysTable.Somatotopy==extractBefore(s,"_"),contains(tPhysTable.Properties.VariableNames,"Segs_"+extractAfter(s,"_"))}, dimCond, 'UniformOutput',false);
     allSegs= cellfun(@(c) mean(cell2mat(c),1,'omitnan'),allSegs, 'UniformOutput',false);
     taskPSTHD= arrayfun(@(a) tPhysTable{tPhysTable.Somatotopy==extractBefore(a,"_"),contains(tPhysTable.Properties.VariableNames,"PSTH_"+extractAfter(a,"_"))},dimCond,'UniformOutput',false);
@@ -83,14 +84,14 @@ if(strcmp(type,'Traj'))
         a(cellfun(@(s)size(s,2)>=sTrials,a)),'Uniformoutput',false),1,1,[])),[3 1 2]),[1,2])),vertcat(taskPSTHD), 'UniformOutput',false);
     numUnits = arrayfun(@(s) min(cellfun(@(m) size(m{1},1),taskPSTHD(contains(dimCond,s)))), unique(arrayfun(@(t) extractBefore(t,"_"),dimCond)));
     unitInds = arrayfun(@(u) repmat({randi(u,min(numUnits),1)},1,size(dimCond,2)/length(numUnits)), numUnits,'UniformOutput',false);%repmat({}',1,size(currD,2)/(length(numUnits)));
-    taskPSTHD = cellfun(@(u,i) cellfun(@(n) n(i,:),u,'UniformOutput',false), taskPSTHD, [unitInds{:}],'UniformOutput',false);
+    taskPSTHD = cellfun(@(u,i) cellfun(@(n) n(i,1:2000),u,'UniformOutput',false), taskPSTHD, [unitInds{:}],'UniformOutput',false);
+    cls = cellfun(@(r) repmat({r},sTrials,1),cellfun(@hsv2rgb,cellfun(@(l) flipud([linspace(l(1),l(1),4);...
+        linspace(1,.25,4);linspace(.85,1,4)]'),cellfun(@rgb2hsv,colors.values','UniformOutput',false),'UniformOutput',false),'UniformOutput',false),'UniformOutput',false);
     dHiStruct = struct('data',vertcat(taskPSTHD{:}),'epochStarts',reshape(cellfun(@(n) [1,n([2,3,6])], ...
         repmat(cellfun(@(a) findBins(a,params.bins),allSegs,'UniformOutput',false),sTrials,1),'UniformOutput',false),[],1),...
-        'condition',repmat(cellstr(dimCond'),sTrials,1),'epochColors',cellfun(@hsv2rgb,cellfun(@(l) ...
-        flipud([linspace(l(1),l(1),4);linspace(1,.5,4);linspace(.85,1,4)]'),cellfun(@rgb2hsv,....
-        repmat(colors.values',sTrials,1),'UniformOutput',false),'UniformOutput',false),'UniformOutput',false));
+        'condition',cellstr(cell2mat(cellfun(@(d) repmat(string(d),sTrials,1),cellstr(dimCond),'UniformOutput',false)')),'epochColors',...
+        vertcat(cls{:}));
 else
-    tPhysTable = tPhys(tPhys.Monkey=="Gilligan" & tPhys.Somatotopy=="Hand",:);
     for p = 1:length(phases)
         phaseConds = cellfun(@(t) find(strcmp(phases{p},t)), params.condSegMap.values(conditions),'UniformOutput',false);
         trialFR = cellfun(@(ct,cs,ta,tw) cellfun(@(a,b) cellfun(@(m,tt) m(max(1,tt+tw(1)):max(range(tw)+1,tt+tw(end))),...,
@@ -123,54 +124,54 @@ num_dims=4;
 all_h = findall(groot,'Type','Figure');
 D = guidata(all_h(arrayfun(@(s) strcmp(s.Name,'DataHigh'),all_h)));%handles = guihandles(guiFigs);
 plotType = unique(string({D.D.type}));
-Ddata = D.D(ismember({D.D.type}, plotType));
+D = D.D(ismember({D.D.type}, plotType));
 switch(splitGroup)
     case "Somatotopy"
-    condInds = cellfun(@(c) contains(c,'Arm'), {Ddata.condition});
+    condInds = cellfun(@(c) contains(c,'Arm'), {D.condition});
     for u = 1:length(condInds)
-        if(condInds(u)==0),Ddata(u).epochColors = [.8 .8 .8];
-        else,Ddata(u).epochColors = [.2 .2 .2];end
+        if(condInds(u)==0),D(u).epochColors = [.8 .8 .8];
+        else,D(u).epochColors = [.2 .2 .2];end
     end
     case  "Condition"
-    condInds = cellfun(@(c) contains(c,'S-'), {Ddata.condition});
-    condInds = condInds + cellfun(@(c) contains(c,'_E'), {Ddata.condition});
+    condInds = cellfun(@(c) contains(c,'S-'), {D.condition});
+    condInds = condInds + cellfun(@(c) contains(c,'_E'), {D.condition});
     for u = 1:length(condInds)
-        if(condInds(u)==0),Ddata(u).epochColors = [0 0 1];
-        elseif(condInds(u)==1),Ddata(u).epochColors = [1 .85 0];
-        else,Ddata(u).epochColors = [1 0 0];end
+        if(condInds(u)==0),D(u).epochColors = [0 0 1];
+        elseif(condInds(u)==1),D(u).epochColors = [1 .85 0];
+        else,D(u).epochColors = [1 0 0];end
     end
     case "Phase"
-    condInds = cellfun(@(c) contains(c,'Reach'), {Ddata.condition});
+    condInds = cellfun(@(c) contains(c,'Reach'), {D.condition});
     for u = 1:length(condInds)
-        if(condInds(u)==0),Ddata(u).epochColors = [1 0 1];
-        else,Ddata(u).epochColors = [0 1 1];end
+        if(condInds(u)==0),D(u).epochColors = [1 0 1];
+        else,D(u).epochColors = [0 1 1];end
     end
     case "Monkey"
-    condInds = cellfun(@(c) contains(c,'Gilligan'), {Ddata.condition});
+    condInds = cellfun(@(c) contains(c,'Gilligan'), {D.condition});
     for u = 1:length(condInds)
-        if(condInds(u)==0),Ddata(u).epochColors = [.8 .4 0];
-        else,Ddata(u).epochColors = [0 .5 0];end
+        if(condInds(u)==0),D(u).epochColors = [.8 .4 0];
+        else,D(u).epochColors = [0 .5 0];end
     end
 end
-conds = unique({Ddata.condition});
+conds = unique({D.condition});
 figure(); tax=tiledlayout(max(1,num_dims/2),2);
-ylimT = [0 .5];%[min(arrayfun(@(m) min(m.data,[],'all'),Ddata)),max(arrayfun(@(m) max(m.data,[],'all'),Ddata))]-[0,min(arrayfun(@(s) min(mean(s.data(1:num_dims,1:10),2,'omitnan')),Ddata))];
+ylimT = [min(arrayfun(@(m) min(m.data,[],'all'),D)),max(arrayfun(@(m) max(m.data,[],'all'),D))]-[0,min(arrayfun(@(s) min(mean(s.data(1:num_dims,1:10),2,'omitnan')),D))];
 for icond = 1:length(conds)
     for idim = 1:num_dims 
-        for itrial = find(ismember({Ddata.condition}, conds{icond}))
+        for itrial = find(ismember({D.condition}, conds{icond}))
             if(strcmp(plotType,'traj'))
-                epochs = [Ddata(itrial).epochStarts size(Ddata(itrial).data,2)];
+                epochs = [D(itrial).epochStarts size(D(itrial).data,2)];
             else
-                epochs = [find(ismember({Ddata.condition}, conds)),NaN];
+                epochs = [find(ismember({D.condition}, conds)),NaN];
             end
-            nexttile(idim); hold on; ylim(ylimT);
+            nexttile(idim); hold on; title(idim); ylim(ylimT);
             for iepoch = 1:length(epochs)-1
                 if(strcmp(plotType,'traj'))
                     indices = epochs(iepoch):(epochs(iepoch+1));
-                    plot(indices,Ddata(itrial).data(idim,indices),'Color',Ddata(icond).epochColors(1,:),'LineWidth',2);
+                    plot(indices,D(itrial).data(idim,indices),'Color',cell2mat(colors.values(cellstr(dimCond(icond)))),'LineWidth',2);
                 if(iepoch>1)
                     if(iepoch==length(epochs)-1)
-                        line([epochs(iepoch),epochs(iepoch)],ylimT,"LineStyle",':','Color',Ddata(icond).epochColors(1,:)./1.5,'LineWidth',2);
+                        line([epochs(iepoch),epochs(iepoch)],ylimT,"LineStyle",':','Color',cell2mat(colors.values(cellstr(dimCond(icond))))./1.5,'LineWidth',2);
                     else
                         if(icond==1)
                             line([epochs(iepoch),epochs(iepoch)],ylimT,"LineStyle",'--','Color','k');
@@ -178,21 +179,25 @@ for icond = 1:length(conds)
                     end
                 end
                 else
-                    [bins centers] = hist(Ddata(iepoch).data(idim,:));
+                    [bins centers] = hist(D(iepoch).data(idim,:));
                     bins = bins ./ sum(bins);
-                    bar(centers, bins, 'FaceColor',Ddata(iepoch).epochColors);
+                    bar(centers, bins, 'FaceColor',cell2mat(colors.values(cellstr(dimCond(icond)))));
                 end
             end
         end
+    end
+    if(icond==length(conds))
+        l = arrayfun(@(d) plot(NaN(length(dimCond),1),'Color',cell2mat(colors.values(cellstr(d)))),dimCond);
+        legend(l,dimCond,'Autoupdate','off');
     end
 end
 if(saveFig)
     saveFigures(gcf,savePath,model+"_"+splitGroup,[]);
 end
 if(strcmp(plotType,'traj'))
-    figure(); tax=tiledlayout(1,length(conds));
+    figure(); tax=tiledlayout(1,length(conds)); legendColors= {};
     for icond = 1:length(conds)
-        currColor = rgb2hsv(colors(icond,:));%([1 0 0]);
+        currColor = rgb2hsv(cell2mat(colors.values(cellstr(dimCond(icond)))));%([1 0 0]);
         currColor(2) = 1;
         currColor(end) = .4;
         for idim = 1:num_dims
@@ -202,17 +207,22 @@ if(strcmp(plotType,'traj'))
             else
                 currColor(end) = min(1,currColor(end) + (.4*(idim-1)));
             end
-            for itrial = find(ismember({Ddata.condition}, conds{icond}))
-                epochs = [Ddata(itrial).epochStarts size(Ddata(itrial).data,2)];
+            for itrial = find(ismember({D.condition}, conds{icond}))
+                epochs = [D(itrial).epochStarts size(D(itrial).data,2)];
                 nexttile(icond); hold on; title(string(conds(icond))); ylim(ylimT);
                 for iepoch = 1:length(epochs)-1
                     indices = epochs(iepoch):(epochs(iepoch+1));
-                    plot(indices,Ddata(itrial).data(idim,indices),...-(mean(Ddata(itrial).data(idim,1:10),'omitnan')),...
+                    plot(indices,D(itrial).data(idim,indices),...-(mean(Ddata(itrial).data(idim,1:10),'omitnan')),...
                         'Color',hsv2rgb(currColor),'LineWidth',2);
                     if(iepoch>1)
                         line([epochs(iepoch),epochs(iepoch)],ylimT,"LineStyle",'--','Color','k');
                     end
                 end
+            end
+            legendColors{idim} = currColors;
+            if(idim==length(num_dims))
+                l = arrayfun(@(d) plot(NaN(length(num_dims),1),'Color',cell2mat(legendColors)));
+                legend(l,1:num_dims,'Autoupdate','off');
             end
         end
     end

@@ -158,6 +158,8 @@ parfor  i = 1:numSites
 end
 if(~parRun)
     close(hbar);
+else
+    delete(gcp('nocreate'));
 end
 %% remove sessions that had no trial information
 emptyInds = cellfun(@isempty, siteLocation);

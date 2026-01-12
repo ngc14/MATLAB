@@ -59,26 +59,58 @@ plotJointPSTHS(params,{cell2mat(cellfun(@(m) mean(m,2,'omitnan').*10,reshape(tPh
     true(length(conditions)*height(siteDateMap),1),[],{[min(params.bins),max(params.bins)]},[0 1],...
     cell2struct(num2cell(distinguishable_colors(length(unique(cell2mat(siteDateMap.SiteRep')))),2),unique(cell2mat(siteDateMap.SiteRep'))));
 %%
-saveFig = true;
-sTrials = 30;
 model = "GilliganSkipper_ArmHand";
-type = 'Traj';
-phases = {"StartReach","StartHold"};
+type = 'Spike';
+num_dims=4;
+sTrials = 30;
 plotTrials = 0;
+saveFig = true;
+phases = {"StartReach","StartHold"};
 phaseWindows = {[-100 100], [-200 0]};
 dimCond = reshape(regexp(extractAfter(model,"_"),'[A-Z]+[^A-Z]+','match')+"_"+params.condAbbrev.values',1,[]);
-colors =containers.Map(dimCond,{[1 0 0]; [1 .5 0]; [0 0 1];[1 0 .85]; [.85 .9 0]; [0 1 1]});
+%"-"+regexp(s,'(?<=Start)\w*','match'),phases,'UniformOutput',false)),1,[]); 
 if(~plotTrials)
     type = type+"_Avg";
 end
 savePath = saveDir+type+"\"+extractBefore(model,"_")+"\"+extractAfter(model,"_")+"\";
 if(~exist(savePath,'dir')), mkdir(savePath); end
+splitGroup = "Somatotopy";
+colors = {};
+switch(splitGroup)
+    case "Somatotopy"
+        condInds = arrayfun(@(c) contains(c,'Arm'), dimCond);
+        for u = 1:length(condInds)
+            if(condInds(u)==0),colors{u} = [.8 .8 .8];
+            else,colors{u} = [.2 .2 .2];end
+        end
+    case  "Condition"
+        condInds = arrayfun(@(c) contains(c,'S-'), dimCond);
+        condInds = condInds + arrayfun(@(c) contains(c,'_E'), dimCond);
+        for u = 1:length(condInds)
+            if(condInds(u)==0),colors{u} = [0 0 1];
+            elseif(condInds(u)==1),colors{u} = [1 .85 0];
+            else,colors{u} = [1 0 0];end
+        end
+    case "Phase"
+        condInds = arrayfun(@(c) contains(c,'Reach'), dimConds);
+        for u = 1:length(condInds)
+            if(condInds(u)==0),colors{u} = [1 0 1];
+            else,colors{u} = [0 1 1];end
+        end
+    case "Monkey"
+        condInds = arrayfun(@(c) contains(c,'Gilligan'), dimConds);
+        for u = 1:length(condInds)
+            if(condInds(u)==0),colors{u} = [.8 .4 0];
+            else,colors{u} = [0 .5 0];end
+        end
+end
+colors =containers.Map(dimCond,colors);
 tPhysTable = tPhys(contains(string(tPhys.Monkey),[regexp(extractBefore(model,"_"),'[A-Z]+[^A-Z]+','match')]) & contains(string(tPhys.Somatotopy),...
     [regexp(extractAfter(model,"_"),'[A-Z]+[^A-Z]+','match')]),:);
 if(contains(type,'Traj'))
-    allSegs= arrayfun(@(s) tPhysTable{tPhysTable.Somatotopy==extractBefore(s,"_"),contains(tPhysTable.Properties.VariableNames,"Segs_"+extractAfter(s,"_"))}, dimCond, 'UniformOutput',false);
+    allSegs= arrayfun(@(s) tPhysTable{tPhysTable.Somatotopy==extractBefore(s,"_"),contains(tPhysTable.Properties.VariableNames,"Segs_"+extractBefore(s,"_"))}, dimCond, 'UniformOutput',false);
     allSegs= cellfun(@(c) mean(cell2mat(c),1,'omitnan'),allSegs, 'UniformOutput',false);
-    taskPSTHD= arrayfun(@(a) tPhysTable{tPhysTable.Somatotopy==extractBefore(a,"_"),contains(tPhysTable.Properties.VariableNames,"PSTH_"+extractAfter(a,"_"))},dimCond,'UniformOutput',false);
+    taskPSTHD= arrayfun(@(a) tPhysTable{tPhysTable.Somatotopy==extractBefore(a,"_"),contains(tPhysTable.Properties.VariableNames,"PSTH_"+extractBefore(s,"_"))},dimCond,'UniformOutput',false);
     if(~plotTrials)
         taskPSTHD = cellfun(@(n) {cell2mat(cellfun(@(m) mean(m,2,'omitnan')',n,'UniformOutput',false))}, taskPSTHD, 'UniformOutput',false);
     else
@@ -115,51 +147,18 @@ else
         cell2mat(cellfun(@(s) dimCond+"-"+extractAfter(s,'Start'),phases,'UniformOutput',false)),'UniformOutput',false)')),...
         'epochStarts',1,'epochColors',{[0 0 0]});
     for i = 1:length(dHiStruct)
-        dHiStruct(i).epochColors = cell2mat(colors.values(params.condAbbrev.values(conditions(...
-            cellfun(@(c) contains(dHiStruct(i).condition,c),colors.keys)))));
+        dHiStruct(i).epochColors = cell2mat(colors.values({extractBefore(dHiStruct(i).condition,"-")}));
     end
 end
 DataHigh(dHiStruct,'DimReduce');
 save(savePath+"DStruct_"+model+".mat",'dHiStruct','-v7.3');
 %%
-splitGroup = "All";
-num_dims=4;
 all_h = findall(groot,'Type','Figure');
 D = guidata(all_h(arrayfun(@(s) strcmp(s.Name,'DataHigh'),all_h)));%handles = guihandles(guiFigs);
-plotType = unique(string({D.D.type}));
+D = D.D(ismember({D.D.type}, plotType));
+plotType = unique(string({D.type}));
 if(length(D)<sTrials)
     plotTrials = 0;
-end
-D = D.D(ismember({D.D.type}, plotType));
-if(contains(type,'spike'))
-    switch(splitGroup)
-        case "Somatotopy"
-            condInds = cellfun(@(c) contains(c,'Arm'), {D.condition});
-            for u = 1:length(condInds)
-                if(condInds(u)==0),D(u).epochColors = [.8 .8 .8];
-                else,D(u).epochColors = [.2 .2 .2];end
-            end
-        case  "Condition"
-            condInds = cellfun(@(c) contains(c,'S-'), {D.condition});
-            condInds = condInds + cellfun(@(c) contains(c,'_E'), {D.condition});
-            for u = 1:length(condInds)
-                if(condInds(u)==0),D(u).epochColors = [0 0 1];
-                elseif(condInds(u)==1),D(u).epochColors = [1 .85 0];
-                else,D(u).epochColors = [1 0 0];end
-            end
-        case "Phase"
-            condInds = cellfun(@(c) contains(c,'Reach'), {D.condition});
-            for u = 1:length(condInds)
-                if(condInds(u)==0),D(u).epochColors = [1 0 1];
-                else,D(u).epochColors = [0 1 1];end
-            end
-        case "Monkey"
-            condInds = cellfun(@(c) contains(c,'Gilligan'), {D.condition});
-            for u = 1:length(condInds)
-                if(condInds(u)==0),D(u).epochColors = [.8 .4 0];
-                else,D(u).epochColors = [0 .5 0];end
-            end
-    end
 end
 conds = unique({D.condition});
 figure(); tax=tiledlayout(max(1,num_dims/2),2);

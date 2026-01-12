@@ -127,6 +127,9 @@ num_dims=4;
 all_h = findall(groot,'Type','Figure');
 D = guidata(all_h(arrayfun(@(s) strcmp(s.Name,'DataHigh'),all_h)));%handles = guihandles(guiFigs);
 plotType = unique(string({D.D.type}));
+if(length(D)<sTrials)
+    plotTrials = 0;
+end
 D = D.D(ismember({D.D.type}, plotType));
 if(contains(type,'spike'))
     switch(splitGroup)

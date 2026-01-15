@@ -1,15 +1,14 @@
-function tPhys = unitTable(conditions)
-if(varargin==0)
+function tPhys = unitTable(conditions,params)
+if(~exist("conditions",'var'))
     conditions = ["Extra Small Sphere","Large Sphere","Photocell"];
 end
-params = PhysRecording(string(conditions),.001,.001,-1,3,containers.Map(conditions,{"StartReach","StartReach","StartReach"}));
 allSegs = params.condSegMap.values;
 [~,maxSegL]= max(cellfun(@length,allSegs));
 maxSegL = allSegs{maxSegL};
 plotPSTHS = false;
 %%
-[siteDateMap, siteSegs, siteTrialPSTHS, ~, siteChannels, siteActiveInd,...
-    siteRep,siteLocation,~,monkeys,vMask,conditions,chMaps,siteTrialInfo] = getAllSessions(params,"Single","M1");
+[siteDateMap, siteSegs, siteTrialPSTHS, ~, siteChannels, ~,...
+    siteRep,siteLocation,~,monkeys,~,conditions,chMaps,siteTrialInfo] = getAllSessions(params,"Single","M1");
 %%
 mappedChannels = cellfun(@(ch,l) ch{2}(l(~isnan(l))), chMaps,siteChannels, 'Uniformoutput', false)';
 sumSegs = cellfun(@(c) cellfun(@(n) [n{:}], c, 'UniformOutput',false), siteSegs,'UniformOutput',false);

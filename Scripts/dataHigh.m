@@ -1,20 +1,23 @@
+conditions = ["Extra Small Sphere","Large Sphere","Photocell"];
+params = PhysRecording(string(conditions),.001,.001,-1,3,containers.Map(conditions,{"StartReach","StartReach","StartReach"}));
+tPhys = unitTable(conditions,params);
+%%
 model = "GilliganSkipper_ArmHand";
 type = 'State';
+saveDir = "S:\Lab\ngc14\Working\DataHi\Combined\";
+saveFig = false;
 num_dims=4;
 sTrials = 30;
 plotTrials = 0;
-saveFig = false;
 phases = {"StartReach","StartHold"};
 phaseWindows = {[-100 100], [-200 0]};
 dimCond = reshape(regexp(extractAfter(model,"_"),'[A-Z]+[^A-Z]+','match')+"_"+params.condAbbrev.values',1,[]);%"-"+regexp(s,'(?<=Start)\w*','match'),phases,'UniformOutput',false)),1,[]);
 splitGroup = "Condition";
-saveDir = "S:\Lab\ngc14\Working\DataHi\Combined\";
 if(~plotTrials & strcmp(type,"Traj"))
     type = type+"_Avg";
 end
 savePath = saveDir+type+"\"+extractBefore(model,"_")+"\"+extractAfter(model,"_")+"\";
 if(~exist(savePath,'dir')), mkdir(savePath); end
-tPhys = unitTable(["Extra Small Sphere","Large Sphere","Photocell"]); 
 colors = {};
 switch(splitGroup)
     case "Somatotopy"
@@ -68,7 +71,7 @@ if(contains(type,'Traj'))
         vertcat(cls{:}));
 else
     for p = 1:length(phases)
-        phaseConds = cellfun(@(t) find(strcmp(phases{p},t)), params.condSegMap.values(conditions),'UniformOutput',false);
+        phaseConds = cellfun(@(t) find(strcmp(phases{p},t)), params.condSegMap.values(params.condSegMap.keys),'UniformOutput',false);
         trialFR = cellfun(@(ct,cs,ta,tw) cellfun(@(a,b) cellfun(@(m,tt) m(max(1,tt+tw(1)):max(range(tw)+1,tt+tw(end))),...,
             num2cell(a,1)',arrayfun(@(bb) [find(isalmost(params.bins,bb,params.binSize/1.99),1),NaN(isnan(bb),1)],b(:,ta),'UniformOutput',false),...
             'UniformOutput',false)',ct,cs,'UniformOutput',false),num2cell(tPhysTable{:,contains(tPhysTable.Properties.VariableNames,"PSTH_")},1),...
@@ -94,16 +97,15 @@ DataHigh(dHiStruct,'DimReduce');
 if(saveFig)
     save(savePath+"DStruct_"+model+".mat",'dHiStruct','-v7.3');
 end
-
+%%
 all_h = findall(groot,'Type','Figure');
 D = guidata(all_h(arrayfun(@(s) strcmp(s.Name,'DataHigh'),all_h)));
+handles = guihandles(all_h(arrayfun(@(s) strcmp(s.Name,'DataHigh'),all_h)));
 D = D.D(strcmpi({D.D.type}, type));
 conds = unique({D.condition});
 if(length(D)<sTrials)
     plotTrials = 0;
 end
-
-
 figure(); tax=tiledlayout(max(1,num_dims/2),2);
 ylimT = [min(arrayfun(@(m) min(m.data,[],'all'),D)),max(arrayfun(@(m) max(m.data,[],'all'),D))]-[0,min(arrayfun(@(s) min(mean(s.data(1:num_dims,1:10),2,'omitnan')),D))];
 for icond = 1:length(conds)

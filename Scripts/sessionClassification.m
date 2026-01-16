@@ -88,6 +88,10 @@ for i = 1:length(unique([tPhys.SiteNum]))
     end
 end
 weights = projMat(~cellfun(@isempty,projMat));
+[~,ui,~] = unique(tPhys.SiteNum);
+siteSomatotopy = tPhys.Somatotopy(ui);
+reps = unique(siteSomatotopy);
+%%
 figure(); tiledlayout();
 for d =1:num_dims
     nexttile;hold on;title(['Factor ',num2str(d)]);
@@ -105,22 +109,47 @@ for d =1:num_dims
         xlabel('Neuron number');
     end
 end
-nexttile([1 2]);hold on;title("Variance Explained")
+nexttile();hold on;title("Variance Explained")
 varEx = cell2mat(cellfun(@(r) resize(r',max(cellfun(@length,lat)),FillValue=NaN),lat(~cellfun(@isempty,lat)),'UniformOutput',false)');
 plot(varEx','k-');
 plot(1:size(varEx,2),repmat(0.9,1,size(varEx,2)),'c--','LineWidth',2);
 ylim([0 1]);
-xlim([1 max(cellfun(@length,lat))]);
+xlim([.5 max(cellfun(@length,lat))]);
 ylabel("%");
 xlabel("Latent Factor");
-nexttile([1 2]); hold on;title("Discriminant Analysis");
+nexttile(); hold on;title("Discriminant Analysis");
 colororder(["r","m"]);
-plot(condC(all(~isnan(condC),2),:));
-legend(["Conditions","Phases"]);
+plot(condC(all(~isnan(condC),2),:),'LineWidth',1);
 ylabel("Accuracy");
 xlabel("Session");
 ylim([0 1]);
-xlim([1 length(weights)]);
+yyaxis('right');
+ylabel("# of units");
+plot(cellfun(@length,projMat(~cellfun(@isempty,projMat))),'k-' );
+ax = gca();
+ax.YAxis(1).Color = 'r';
+ax.YAxis(2).Color = 'k';
+ylim([0 50]);
+xlim([1 max(sum(~isnan(condC),1))]);
+legend(["Conditions","Phases","# of units"],'Location','southeast');
+nexttile(); hold on;
+for s = 1:length(reps)
+    plotAcc{s} = condC(siteSomatotopy==reps(s),:);
+end
+boxplotGroup(plotAcc,'groupLabelType','both','primaryLabels',string(reps),'secondaryLabels',phases,'Notch','on');
+ylim([0 1]);
+ylabel("Accuracy");
+title("Accuracy by Phase");
+nexttile(); hold on; plotAcc = {};
+for s = 1:size(condC,2)
+    currGroup = arrayfun(@(a) condC(siteSomatotopy==a,s),reps,'UniformOutput',false);
+    plotAcc{s} = cell2mat(cellfun(@(r) resize(r,max(cellfun(@length,currGroup)),'FillValue',NaN),currGroup, 'UniformOutput',false)');
+end
+boxplotGroup(plotAcc,'groupLabelType','both','primaryLabels',phases,'SecondaryLabels',string(reps),'Notch','on');
+ylim([0 1]);
+ylabel("Accuracy")
+title("Accuracy by Somatotopy");
+
 %mus = cellfun(@(m) mean(m,1,'omitnan'),trData,'UniformOutput',false);
 %cv =  vertcat(trData{:})-cell2mat(cellfun(@(m,g) repmat(m,size(g,1),1),mus,trData,'UniformOutput',false)');
 %LDA=makecdiscr(cell2mat(mus'),cv'*(cv/(size(cv,1)-length(gm))),'ClassNames',conditions);

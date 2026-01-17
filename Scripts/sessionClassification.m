@@ -5,6 +5,7 @@ phases = ["StartReach","StartHold"];
 phaseWindows = {[-100 100], [-200 0]};
 tPhys = unitTable(cnds,params);
 MIN_NUM_TRIALS = 20;
+plotSessionDiscriminants = true;
 for p = 1:length(phases)
     phaseConds = cellfun(@(t) find(strcmp(phases(p),t)), params.condSegMap.values(params.condSegMap.keys),'UniformOutput',false);
     trialFR = cellfun(@(ct,cs,ta,tw) cellfun(@(a,b) cellfun(@(m,tt) m(max(1,tt+tw(1)):max(range(tw)+1,tt+tw(end))),...,
@@ -19,8 +20,8 @@ close all;
 [newD,projMat,lat] = deal({}); condC = NaN(max(tPhys.SiteNum),2);
 goodUnits = all(cell2mat(cellfun(@(p) all(cellfun(@(s) size(s,2),p)>=MIN_NUM_TRIALS,2),trialFRMat,'UniformOutput',false)),2);
 conditions = cell2mat(arrayfun(@(r) string(params.condAbbrev.values)+ "-" + r, phases,'UniformOutput',false));
-colors = containers.Map(params.condAbbrev.values,{[1 0 0],[1 .8 0 ],[0 0 1]});
-colorCondKeys = colors.keys;
+condColors = containers.Map(params.condAbbrev.values,{[1 0 0],[1 .8 0 ],[0 0 1]});
+condColorKeys = condColors.keys;
 mks = {'square','pentagram'};
 mksz = [70,120];
 for i = 1:length(unique([tPhys.SiteNum]))
@@ -42,8 +43,7 @@ for i = 1:length(unique([tPhys.SiteNum]))
         lat{i} = {};
     end
     projD = newD{i}; [gm,dist]= deal({});
-    if(size(projD,1)>=3)
-        figure(); hold on;
+    if(size(projD,1)>(1+plotSessionDiscriminants))
         for icond = 1:length(conditions)
             for idim = 1:min(num_dims,size(projD,1))
                 dist{icond,idim} = squeeze(projD(idim,icond,:));
@@ -55,12 +55,15 @@ for i = 1:length(unique([tPhys.SiteNum]))
         tsIdx = test(cvIdx);
         trData = cellfun(@(m) m(trIdx,:),gm,'UniformOutput',false);
         tsData = cellfun(@(m) m(tsIdx,:),gm,'UniformOutput',false);
-        h1 = cellfun(@(s,n) scatter3(s(:,1),s(:,2),s(:,3),mksz(strcmp(extractAfter(n,"-"),phases)),'MarkerFaceColor',cell2mat(colors.values(cellstr(...
-            extractBefore(n,"-")))),'MarkerEdgeColor','none','Marker',mks(strcmp(extractAfter(n,"-"),phases))),trData,conditions);
+        if(plotSessionDiscriminants)
+            figure(); hold on;
+            h1 = cellfun(@(s,n) scatter3(s(:,1),s(:,2),s(:,3),mksz(strcmp(extractAfter(n,"-"),phases)),'MarkerFaceColor',cell2mat(condColors.values(cellstr(...
+                extractBefore(n,"-")))),'MarkerEdgeColor','none','Marker',mks(strcmp(extractAfter(n,"-"),phases))),trData,conditions);
+        end
         for s = 1:2
             if(s==1)
-                nPairs = nchoosek(1:length(colorCondKeys),2);
-                condInds = cellfun(@(d) contains(conditions,d), colorCondKeys, 'Uniformoutput',false);
+                nPairs = nchoosek(1:length(condColorKeys),2);
+                condInds = cellfun(@(d) contains(conditions,d), condColorKeys, 'Uniformoutput',false);
             else
                 nPairs = nchoosek(1:length(phases),2);
                 condInds = cellfun(@(d) contains(conditions,d), phases, 'Uniformoutput',false);
@@ -70,16 +73,18 @@ for i = 1:length(unique([tPhys.SiteNum]))
                 gData{p} = vertcat(trData{condInds{p}});
                 gtData{p} = vertcat(tsData{condInds{p}});
             end
-            MdLinear=fitcdiscr(vertcat(gData{:}),cell2mat(cellfun(@(c) ...
-                repmat(string(c),1,size(gData{1},1)),cellfun(@(o) strcat(conditions{o}),condInds,'UniformOutput',false),'UniformOutput',false)));
-            for p = 1:size(nPairs,1)
-                K=MdLinear.Coeffs(nPairs(p,1),nPairs(p,2)).Const;
-                L=MdLinear.Coeffs(nPairs(p,1),nPairs(p,2)).Linear;
-                f=@(x1,x2,x3) K+L(1)*x1+L(2)*x2+L(3)*x3;
-                fs=fimplicit3(f);
-                fs.FaceColor=[.7,0.8,0.8].*[s==1,s==2,s==2];
-                fs.EdgeColor='none';
-                fs.FaceAlpha=0.15;
+            MdLinear=fitcdiscr(vertcat(gData{:}),cell2mat(cellfun(@(c) repmat(string(c),1,size(gData{1},1)),...
+                cellfun(@(o) strcat(conditions{o}),condInds,'UniformOutput',false),'UniformOutput',false)));
+            if(plotSessionDiscriminants)
+                for p = 1:size(nPairs,1)
+                    K=MdLinear.Coeffs(nPairs(p,1),nPairs(p,2)).Const;
+                    L=MdLinear.Coeffs(nPairs(p,1),nPairs(p,2)).Linear;
+                    f=@(x1,x2,x3) K+L(1)*x1+L(2)*x2+L(3)*x3;
+                    fs=fimplicit3(f);
+                    fs.FaceColor=[.7,0.8,0.8].*[s==1,s==2,s==2];
+                    fs.EdgeColor='none';
+                    fs.FaceAlpha=0.15;
+                end
             end
             CM = confusionmat(cellstr(cell2mat(cellfun(@(c) repmat(string(c),1,size(gtData{1},1)),cellfun(@(o) ...
                  strcat(conditions{o}),condInds,'UniformOutput',false),'UniformOutput',false))),MdLinear.predict(cell2mat(gtData')));
@@ -87,38 +92,60 @@ for i = 1:length(unique([tPhys.SiteNum]))
         end
     end
 end
-weights = projMat(~cellfun(@isempty,projMat));
+nonEmptySessions = ~cellfun(@isempty,projMat);
+weights = projMat(nonEmptySessions);
 [~,ui,~] = unique(tPhys.SiteNum);
 siteSomatotopy = tPhys.Somatotopy(ui);
+siteSomatotopy = siteSomatotopy(nonEmptySessions);
+monkeys = tPhys.Monkey(ui);
+monkeys = monkeys(nonEmptySessions);
+lat = lat(nonEmptySessions);
 reps = unique(siteSomatotopy);
-%%
+somatotopyColors = containers.Map(string(reps),{[.75 .3 .75],[1 .85 0],[0 0 1]});
+reps = reps(reps~="Trunk");
 figure(); tiledlayout();
 for d =1:num_dims
     nexttile;hold on;title(['Factor ',num2str(d)]);
     for k = 1:length(weights)
-        sessionW = cell2mat(weights(k)); w=[];
-        for n = 1:length(sessionW)
-            w(n,1) = abs(sessionW(n,min(size(sessionW,2),d)));
+        if(siteSomatotopy(k)~="Trunk")
+            sessionW = cell2mat(weights(k)); w=[];
+            for n = 1:length(sessionW)
+                w(n,1) = abs(sessionW(n,min(size(sessionW,2),d)));
+            end
+            plot(1:length(sessionW),sort(w,'descend'),'color',[cell2mat(somatotopyColors.values({string(siteSomatotopy(k))})) 0.65],'LineWidth',0.25);
         end
-        plot(1:length(sessionW),sort(w,'descend'),'color',[0 0 0 0.25],'LineWidth',0.25);
+        ylim([0 1]);
+        xlim([1 max(cellfun(@length,weights))]);
+        if(d==1)
+            ylabel("Abs value of projection weights");
+            xlabel('Neuron number');
+        end
+        if(d==1)
+            l1 = arrayfun(@(p) plot(NaN,NaN,'Color',cell2mat(somatotopyColors.values({char(p)}))),reps);
+            legend(l1,string(reps),'AutoUpdate','off');
+        end
     end
-    ylim([0 1]);
-    xlim([1 max(cellfun(@length,weights))]);
-    if(d==1)
-        ylabel("Abs value of projection weights");
-        xlabel('Neuron number');
-    end
+    allLines = get(gca,'Children');
+    groupInds = cellfun(@(u) strcmp(cellfun(@num2str,{allLines.Color},'UniformOutput',false),u),unique(cellfun(@num2str,{allLines.Color},'UniformOutput',false)),'UniformOutput',false);
+    cellfun(@(a) plot(mean(cell2mat(cellfun(@(r) resize(r,[1,max(cellfun(@length,{allLines.YData}))],'FillValue',NaN),...
+        {allLines(a).YData}','UniformOutput',false)),1,'omitnan'),'Color',max([0 0 0],allLines(find(a,1)).Color-[.2 .4 .2]),'LineWidth',2.5,'LineStyle','-.'),groupInds,'UniformOutput',false);
 end
 nexttile();hold on;title("Variance Explained")
-varEx = cell2mat(cellfun(@(r) resize(r',max(cellfun(@length,lat)),FillValue=NaN),lat(~cellfun(@isempty,lat)),'UniformOutput',false)');
-plot(varEx','k-');
-plot(1:size(varEx,2),repmat(0.9,1,size(varEx,2)),'c--','LineWidth',2);
+varEx = cell2mat(cellfun(@(r) resize(r',max(cellfun(@length,lat)),FillValue=NaN),lat(siteSomatotopy~="Trunk"),'UniformOutput',false)');
+cellfun(@(v,c) plot(v,'LineWidth',1,'Color',[cell2mat(somatotopyColors.values({c})),.5]),num2cell(varEx,2),cellstr(string(siteSomatotopy(siteSomatotopy~="Trunk"))));
+allLines = get(gca,'Children');
+groupInds = cellfun(@(u) strcmp(cellfun(@num2str,{allLines.Color},'UniformOutput',false),u),unique(cellfun(@num2str,{allLines.Color},'UniformOutput',false)),'UniformOutput',false);
+cellfun(@(a) plot(mean(cell2mat({allLines(a).YData}'),1,'omitnan'),'Color',...
+    max([0 0 0],allLines(find(a,1)).Color-[.2 .4 .2]),'LineWidth',2.5,'LineStyle','-.'),groupInds,'UniformOutput',false);
+l1 = cellfun(@(p) plot(NaN,NaN,'Color',p),somatotopyColors.values);
+legend(l1,string(reps),'AutoUpdate','off','Location','southeast');
+plot(1:size(varEx,2),repmat(0.9,1,size(varEx,2)),'k:','LineWidth',2);
 ylim([0 1]);
 xlim([.5 max(cellfun(@length,lat))]);
 ylabel("%");
 xlabel("Latent Factor");
 nexttile(); hold on;title("Discriminant Analysis");
-colororder(["r","m"]);
+colororder(["g","b"]);
 plot(condC(all(~isnan(condC),2),:),'LineWidth',1);
 ylabel("Accuracy");
 xlabel("Session");
@@ -127,28 +154,32 @@ yyaxis('right');
 ylabel("# of units");
 plot(cellfun(@length,projMat(~cellfun(@isempty,projMat))),'k-' );
 ax = gca();
-ax.YAxis(1).Color = 'r';
+ax.YAxis(1).Color = 'b';
 ax.YAxis(2).Color = 'k';
-ylim([0 50]);
+ylim([0 35]);
 xlim([1 max(sum(~isnan(condC),1))]);
-legend(["Conditions","Phases","# of units"],'Location','southeast');
+legend(["Conditions","Phases","# of units"],'Location','southwest');
 nexttile(); hold on;
 for s = 1:length(reps)
     plotAcc{s} = condC(siteSomatotopy==reps(s),:);
 end
-boxplotGroup(plotAcc,'groupLabelType','both','primaryLabels',string(reps),'secondaryLabels',phases,'Notch','on');
+[~,sig]= arrayfun(@(c) cellfun(@(a) ttest2(a(:,1),a(:,2)),{cell2mat(cellfun(@(r) resize(r,[length(siteSomatotopy),1],'FillValue',NaN),...
+    arrayfun(@(r) condC(siteSomatotopy==r,c),reps,'UniformOutput',false),'UniformOutput',false)')}),1:size(condC,2));
+arrayfun(@(a) text(2*(find(sig==a)-1)+1.5,.15,"p= "+num2str(a,3)),sig);
+boxplotGroup(plotAcc,'groupLabelType','both','primaryLabels',string(reps),'secondaryLabels',["Conditions","Phases"],'Notch','on');
 ylim([0 1]);
 ylabel("Accuracy");
-title("Accuracy by Phase");
+title("Accuracy by Somatotopy");
 nexttile(); hold on; plotAcc = {};
 for s = 1:size(condC,2)
     currGroup = arrayfun(@(a) condC(siteSomatotopy==a,s),reps,'UniformOutput',false);
     plotAcc{s} = cell2mat(cellfun(@(r) resize(r,max(cellfun(@length,currGroup)),'FillValue',NaN),currGroup, 'UniformOutput',false)');
 end
-boxplotGroup(plotAcc,'groupLabelType','both','primaryLabels',phases,'SecondaryLabels',string(reps),'Notch','on');
+boxplotGroup(plotAcc,'groupLabelType','both','primaryLabels',["Conditions","Phases"],'SecondaryLabels',string(reps),'Notch','on');
 ylim([0 1]);
 ylabel("Accuracy")
-title("Accuracy by Somatotopy");
+title("Accuracy by Classifier");
+
 
 %mus = cellfun(@(m) mean(m,1,'omitnan'),trData,'UniformOutput',false);
 %cv =  vertcat(trData{:})-cell2mat(cellfun(@(m,g) repmat(m,size(g,1),1),mus,trData,'UniformOutput',false)');

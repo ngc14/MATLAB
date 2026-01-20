@@ -27,7 +27,7 @@ condColorKeys = condColors.keys;
 mks = {'square','pentagram'};
 mksz = [70,120];
 for i = 1:length(unique([tPhys.SiteNum]))
-    if(any(goodUnits(tPhys.SiteNum==i)))
+    if(sum(goodUnits(tPhys.SiteNum==i))>2)
         sTrials = min(cellfun(@(n) min(n(tPhys.SiteNum==i & goodUnits,:),[],'all'),cellfun(@(p) cellfun(@(s) size(s,2),p), trialFRMat,'UniformOutput',false)));
         currD = cellfun(@(m,n)cellfun(@(c)squeeze(num2cell(permute(cell2mat(reshape(cellfun(@(r) ...
             downsampleTrials(r,sTrials),c,'UniformOutput',false),1,1,[])),[3 1 2]),[1 2])),...
@@ -110,6 +110,7 @@ lat = lat(nonEmptySessions);
 reps = unique(siteSomatotopy);
 somatotopyColors = containers.Map(string(reps),{[.75 .3 .75],[1 .85 0],[0 0 1]});
 reps = reps(reps~="Trunk");
+%%
 figure(); tiledlayout();
 for d =1:num_dims
     nexttile;hold on;title(['Factor ',num2str(d)]);
@@ -119,10 +120,10 @@ for d =1:num_dims
             for n = 1:length(sessionW)
                 w(n,1) = abs(sessionW(n,min(size(sessionW,2),d)));
             end
-            plot(1:length(sessionW),sort(w,'descend'),'color',[cell2mat(somatotopyColors.values({string(siteSomatotopy(k))})) 0.65],'LineWidth',0.25);
+            plot(1:length(sessionW),sort(w,'descend'),'color',[cell2mat(somatotopyColors.values({string(siteSomatotopy(k))})) 0.35],'LineWidth',0.15);
         end
         ylim([0 1]);
-        xlim([1 max(cellfun(@length,weights))]);
+        xlim([.5 max(cellfun(@length,weights))]);
         if(d==1)
             ylabel("Abs value of projection weights");
             xlabel('Neuron number');
@@ -134,16 +135,17 @@ for d =1:num_dims
     end
     allLines = get(gca,'Children');
     groupInds = cellfun(@(u) strcmp(cellfun(@num2str,{allLines.Color},'UniformOutput',false),u),unique(cellfun(@num2str,{allLines.Color},'UniformOutput',false)),'UniformOutput',false);
-    cellfun(@(a) plot(mean(cell2mat(cellfun(@(r) resize(r,[1,max(cellfun(@length,{allLines.YData}))],'FillValue',NaN),...
-        {allLines(a).YData}','UniformOutput',false)),1,'omitnan'),'Color',max([0 0 0],allLines(find(a,1)).Color-[.2 .4 .2]),'LineWidth',2.5,'LineStyle','-.'),groupInds,'UniformOutput',false);
+    cellfun(@(a) scatter(1:max([allLines.XData]),mean(cell2mat(cellfun(@(r) resize(r,[1,max(cellfun(@length,{allLines.YData}))]),...
+        {allLines(a).YData}','UniformOutput',false)),1,'omitnan'),'MarkerFaceColor',max([0 0 0],allLines(find(a,1)).Color-[.2 .4 .2]),...
+        'Marker','o','MarkerEdgeColor','none','SizeData',35),groupInds,'UniformOutput',false);
 end
 nexttile();hold on;title("Variance Explained")
 varEx = cell2mat(cellfun(@(r) resize(r',max(cellfun(@length,lat)),FillValue=NaN),lat(siteSomatotopy~="Trunk"),'UniformOutput',false)');
 cellfun(@(v,c) plot(v,'LineWidth',1,'Color',[cell2mat(somatotopyColors.values({c})),.5]),num2cell(varEx,2),cellstr(string(siteSomatotopy(siteSomatotopy~="Trunk"))));
 allLines = get(gca,'Children');
 groupInds = cellfun(@(u) strcmp(cellfun(@num2str,{allLines.Color},'UniformOutput',false),u),unique(cellfun(@num2str,{allLines.Color},'UniformOutput',false)),'UniformOutput',false);
-cellfun(@(a) plot(mean(cell2mat({allLines(a).YData}'),1,'omitnan'),'Color',...
-    max([0 0 0],allLines(find(a,1)).Color-[.2 .4 .2]),'LineWidth',2.5,'LineStyle','-.'),groupInds,'UniformOutput',false);
+cellfun(@(a) scatter(1:max([allLines.XData]),mean(cell2mat({allLines(a).YData}'),1,'omitnan'),'SizeData',35,...
+    'MarkerFaceColor',max([0 0 0],allLines(find(a,1)).Color-[.2 .4 .2]),'Marker','o','MarkerEdgeColor','none'),groupInds,'UniformOutput',false);
 l1 = cellfun(@(p) plot(NaN,NaN,'Color',p),somatotopyColors.values);
 legend(l1,string(reps),'AutoUpdate','off','Location','southeast');
 plot(1:size(varEx,2),repmat(0.9,1,size(varEx,2)),'k:','LineWidth',2);
@@ -151,10 +153,11 @@ ylim([0 1]);
 xlim([.5 max(cellfun(@length,lat))]);
 ylabel("%");
 xlabel("Latent Factor");
-nexttile(); hold on;title("Discriminant Analysis");
+nexttile([1,2]); hold on;title("Discriminant Analysis");
 colororder([[0 .5 0];[0 0 .75]]);
-e=errorbar(condC(all(~isnan(condC),2),:),err(all(~isnan(condC),2),:)./2,'LineWidth',1,'LineStyle',':');
-arrayfun(@(ee) set(ee,'CapSize',0),e);
+e=errorbar(repmat([1:sum(all(~isnan(condC),2))]',1,2)+[-0 0],condC(all(~isnan(condC),2),:),...
+    err(all(~isnan(condC),2),:),'o','LineStyle','none','LineWidth',1.5,'MarkerEdgeColor','none');
+arrayfun(@(ee) set(ee,'CapSize',0,'MarkerFaceColor',ee.Color),e);
 ylabel("Accuracy");
 xlabel("Session");
 ylim([0 1]);
@@ -164,9 +167,10 @@ plot(cellfun(@length,projMat(~cellfun(@isempty,projMat))),'k-' );
 ax = gca();
 ax.YAxis(1).Color = 'b';
 ax.YAxis(2).Color = 'k';
-ylim([0 35]);
+ylim([3 35]);
 xlim([1 max(sum(~isnan(condC),1))]);
-legend(["Conditions","Phases","# of units"],'Location','southwest');
+legend(["Conditions","Phases","# of units"],'Location','southwest','AutoUpdate','off');
+plot([1 max(sum(~isnan(condC),1))],repmat(mean(cellfun(@length,projMat(~cellfun(@isempty,projMat)))),1,2),'Color',[.5 .5 .5],'LineStyle',':','LineWidth',.5);
 nexttile(); hold on;
 for s = 1:length(reps)
     plotAcc{s} = condC(siteSomatotopy==reps(s),:);
@@ -178,15 +182,15 @@ boxplotGroup(plotAcc,'groupLabelType','both','primaryLabels',string(reps),'secon
 ylim([0 1]);
 ylabel("Accuracy");
 title("Accuracy by Somatotopy");
-nexttile(); hold on; plotAcc = {};
-for s = 1:size(condC,2)
-    currGroup = arrayfun(@(a) condC(siteSomatotopy==a,s),reps,'UniformOutput',false);
-    plotAcc{s} = cell2mat(cellfun(@(r) resize(r,max(cellfun(@length,currGroup)),'FillValue',NaN),currGroup, 'UniformOutput',false)');
-end
-boxplotGroup(plotAcc,'groupLabelType','both','primaryLabels',["Conditions","Phases"],'SecondaryLabels',string(reps),'Notch','on');
-ylim([0 1]);
-ylabel("Accuracy")
-title("Accuracy by Classifier");
+% nexttile(); hold on; plotAcc = {};
+% for s = 1:size(condC,2)
+%     currGroup = arrayfun(@(a) condC(siteSomatotopy==a,s),reps,'UniformOutput',false);
+%     plotAcc{s} = cell2mat(cellfun(@(r) resize(r,max(cellfun(@length,currGroup)),'FillValue',NaN),currGroup, 'UniformOutput',false)');
+% end
+% boxplotGroup(plotAcc,'groupLabelType','both','primaryLabels',["Conditions","Phases"],'SecondaryLabels',string(reps),'Notch','on');
+% ylim([0 1]);
+% ylabel("Accuracy")
+% title("Accuracy by Classifier");
 saveFigures(gcf,saveDir+"\Site_Classifiers\","Summary",[]);
 %mus = cellfun(@(m) mean(m,1,'omitnan'),trData,'UniformOutput',false);
 %cv =  vertcat(trData{:})-cell2mat(cellfun(@(m,g) repmat(m,size(g,1),1),mus,trData,'UniformOutput',false)');

@@ -3,7 +3,7 @@ params = PhysRecording(string(conditions),.001,.001,-1,3,containers.Map(conditio
 tPhys = unitTable(conditions,params);
 %%
 model = "GilliganSkipper_ArmHand";
-type = 'State';
+type = 'Traj';
 saveDir = "S:\Lab\ngc14\Working\DataHi\Combined\";
 saveFig = false;
 num_dims=4;
@@ -16,48 +16,52 @@ splitGroup = "Condition";
 if(~plotTrials & strcmp(type,"Traj"))
     type = type+"_Avg";
 end
-savePath = saveDir+type+"\"+extractBefore(model,"_")+"\"+extractAfter(model,"_")+"\";
+savePath = saveDir+type+"\";
 if(~exist(savePath,'dir')), mkdir(savePath); end
-colors = {};
-switch(splitGroup)
-    case "Somatotopy"
-        condInds = arrayfun(@(c) contains(c,'Arm'), dimCond);
-        for u = 1:length(condInds)
-            if(condInds(u)==0),colors{u} = [.8 .8 .8];
-            else,colors{u} = [.2 .2 .2];end
-        end
-    case  "Condition"
-        condInds = arrayfun(@(c) contains(c,'S'), dimCond);
-        condInds = condInds + arrayfun(@(c) contains(c,'_E'), dimCond);
-        for u = 1:length(condInds)
-            if(condInds(u)==0),colors{u} = [0 0 1];
-            elseif(condInds(u)==1),colors{u} = [1 .85 0];
-            else,colors{u} = [1 0 0];end
-        end
-    case "Phase"
-        condInds = arrayfun(@(c) contains(c,'Reach'), dimConds);
-        for u = 1:length(condInds)
-            if(condInds(u)==0),colors{u} = [1 0 1];
-            else,colors{u} = [0 1 1];end
-        end
-    case "Monkey"
-        condInds = arrayfun(@(c) contains(c,'Gilligan'), dimConds);
-        for u = 1:length(condInds)
-            if(condInds(u)==0),colors{u} = [.8 .4 0];
-            else,colors{u} = [0 .5 0];end
-        end
+colors = containers.Map(dimCond,{[.7 0 0],[1 .65 0 ],[0 0 .75],[1 0 .3],[1 1 0],[0 .6 1]}');
+if(~contains(type,'Traj'))
+    switch(splitGroup)
+        case "Somatotopy"
+            condInds = arrayfun(@(c) contains(c,'Arm'), dimCond);
+            for u = 1:length(condInds)
+                if(condInds(u)==0),colors{u} = [.8 .8 .8];
+                else,colors{u} = [.2 .2 .2];end
+            end
+        case  "Condition"
+            condInds = arrayfun(@(c) contains(c,'S'), dimCond);
+            condInds = condInds + arrayfun(@(c) contains(c,'_E'), dimCond);
+            for u = 1:length(condInds)
+                if(condInds(u)==0),colors{u} = [0 0 1];
+                elseif(condInds(u)==1),colors{u} = [1 .85 0];
+                else,colors{u} = [1 0 0];end
+            end
+        case "Phase"
+            condInds = arrayfun(@(c) contains(c,'Reach'), dimConds);
+            for u = 1:length(condInds)
+                if(condInds(u)==0),colors{u} = [1 0 1];
+                else,colors{u} = [0 1 1];end
+            end
+        case "Monkey"
+            condInds = arrayfun(@(c) contains(c,'Gilligan'), dimConds);
+            for u = 1:length(condInds)
+                if(condInds(u)==0),colors{u} = [.8 .4 0];
+                else,colors{u} = [0 .5 0];end
+            end
+    end
+    colors =containers.Map(dimCond,colors);
 end
-colors =containers.Map(dimCond,colors);
 tPhysTable = tPhys(contains(string(tPhys.Monkey),[regexp(extractBefore(model,"_"),'[A-Z]+[^A-Z]+','match')]) & contains(string(tPhys.Somatotopy),...
     [regexp(extractAfter(model,"_"),'[A-Z]+[^A-Z]+','match')]),:);
 if(contains(type,'Traj'))
-    allSegs= arrayfun(@(s) tPhysTable{tPhysTable.Somatotopy==extractBefore(s,"_"),contains(tPhysTable.Properties.VariableNames,"Segs_"+extractBefore(s,"_"))}, dimCond, 'UniformOutput',false);
+    allSegs= arrayfun(@(s) tPhysTable{contains(string(tPhysTable.Somatotopy),(extractBefore(string(s),"_"))),contains(tPhysTable.Properties.VariableNames,"Segs_"+extractAfter(s,"_"))}, dimCond, 'UniformOutput',false);
     allSegs= cellfun(@(c) mean(cell2mat(c),1,'omitnan'),allSegs, 'UniformOutput',false);
-    taskPSTHD= arrayfun(@(a) tPhysTable{tPhysTable.Somatotopy==extractBefore(a,"_"),contains(tPhysTable.Properties.VariableNames,"PSTH_"+extractBefore(s,"_"))},dimCond,'UniformOutput',false);
+    taskPSTHD= arrayfun(@(a) tPhysTable{contains(string(tPhysTable.Somatotopy),(extractBefore(string(a),"_"))),contains(tPhysTable.Properties.VariableNames,"PSTH_"+extractAfter(a,"_"))},dimCond,'UniformOutput',false);
+    avgTrace = mean(cell2mat(vertcat(taskPSTHD{:})'),2,'omitnan');
+    avgTrace = zeros(size(avgTrace,1),size(avgTrace,2));
     if(~plotTrials)
-        taskPSTHD = cellfun(@(n) {cell2mat(cellfun(@(m) mean(m,2,'omitnan')',n,'UniformOutput',false))}, taskPSTHD, 'UniformOutput',false);
+        taskPSTHD = cellfun(@(n) {cell2mat(cellfun(@(m) mean(max(0,m-avgTrace),2,'omitnan')',n,'UniformOutput',false))}, taskPSTHD, 'UniformOutput',false);
     else
-        taskPSTHD= cellfun(@(a) squeeze(num2cell(permute(cell2mat(reshape(cellfun(@(d) downsampleTrials(d,sTrials),...
+        taskPSTHD= cellfun(@(a) squeeze(num2cell(permute(cell2mat(reshape(cellfun(@(d) downsampleTrials(max(0,d-avgTrace),sTrials),...
             a(cellfun(@(s)size(s,2)>=sTrials,a)),'Uniformoutput',false),1,1,[])),[3 1 2]),[1,2])),vertcat(taskPSTHD), 'UniformOutput',false);
     end
     numUnits = arrayfun(@(s) min(cellfun(@(m) size(m{1},1),taskPSTHD(contains(dimCond,s)))), unique(arrayfun(@(t) extractBefore(t,"_"),dimCond)));
@@ -101,29 +105,29 @@ end
 all_h = findall(groot,'Type','Figure');
 D = guidata(all_h(arrayfun(@(s) strcmp(s.Name,'DataHigh'),all_h)));
 handles = guihandles(all_h(arrayfun(@(s) strcmp(s.Name,'DataHigh'),all_h)));
-D = D.D(strcmpi({D.D.type}, type));
+D = D.D;
 conds = unique({D.condition});
 if(length(D)<sTrials)
     plotTrials = 0;
 end
-figure(); tax=tiledlayout(max(1,num_dims/2),2);
-ylimT = [min(arrayfun(@(m) min(m.data,[],'all'),D)),max(arrayfun(@(m) max(m.data,[],'all'),D))]-[0,min(arrayfun(@(s) min(mean(s.data(1:num_dims,1:10),2,'omitnan')),D))];
+figure(); tax=tiledlayout(1,max(1,num_dims/2)*2);
+ylimT = [min(arrayfun(@(m) min(m.data,[],'all'),D)),max(arrayfun(@(m) max(m.data,[],'all'),D))];
 for icond = 1:length(conds)
     for idim = 1:num_dims
-        if(strcmp(type,'traj'))
-            itrial = find(ismember({D.condition}, conds{icond}));
-            epochs = [mean(vertcat(D(itrial).epochStarts),1,'omitnan'),size(D(1).data,2)];
+        if(contains(type,'Traj'))
+            itrial = find(contains({D.condition}, extractAfter(conds{icond},"_")));
+            epochs = [round(mean(vertcat(D(itrial).epochStarts),1,'omitnan')),size(D(1).data,2)];
         else
             epochs = [find(ismember({D.condition}, conds)),NaN];
         end
         nexttile(idim); hold on; title(idim); ylim(ylimT);
-        dTrial = cat(3,(D(itrial).data));
+        dTrial = cat(3,(D(icond).data));
         for iepoch = 1:length(epochs)-1
-            if(strcmp(type,'traj'))
+            if(contains(type,'Traj'))
                 indices = epochs(iepoch):(epochs(iepoch+1));
                 cellfun(@(p) plot(indices,p,'Color', cell2mat(colors.values(cellstr(dimCond(icond)))),'LineWidth',2),...
                     num2cell(squeeze(mean(dTrial(idim,indices,:),max(~plotTrials*length(size(dTrial))+1,plotTrials),'omitnan')),1+~plotTrials));
-                if(iepoch>1)
+                if(iepoch>1 && icond<=length(conds)/2)
                     if(iepoch==length(epochs)-1)
                         line([epochs(iepoch),epochs(iepoch)],ylimT,"LineStyle",':','Color',cell2mat(colors.values(cellstr(dimCond(icond))))./1.5,'LineWidth',2);
                     else
@@ -147,7 +151,7 @@ end
 if(saveFig)
     saveFigures(gcf,savePath,model+"_"+splitGroup,[]);
 end
-if(strcmp(type,'traj'))
+if(contains(type,'Traj'))
     figure(); tax=tiledlayout(1,length(conds));
     for icond = 1:length(conds)
         legendColors= {};

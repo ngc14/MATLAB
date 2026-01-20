@@ -76,8 +76,9 @@ for j = 1:length(jointName)
             currSegs = jointSegs{a};
             currJointAlign = jointPSTH{a};
             xAlignTicks{a} = plotStart+(1:size(currJointAlign,2));
+            %p = plot(xAlignTicks{a},currJointAlign, 'LineWidth',.05,'Color',[plotColors.(jointName{j}),.07]);%; for pp = 1:length(p); p(pp).Color = [
             meanTrace = mean(currJointAlign,1,'omitnan');
-            plot(xAlignTicks{a},meanTrace, 'LineWidth',2,'Color', plotColors.(jointName{j}));
+            plot(xAlignTicks{a},meanTrace, 'LineWidth',2,'Color',plotColors.(jointName{j}));
             SEM = nanstd(currJointAlign,0,1);
             if(~trialSamples)
                 SEM = SEM/sqrt(sum(~all(isnan(currJointAlign),2)));
@@ -89,7 +90,7 @@ for j = 1:length(jointName)
             xP(isnan(yP))=[];
             yP(isnan(yP))=[];
             d = patch(xP,yP,1);
-            set(d,'edgecolor','none','facealpha',.15,'facecolor',plotColors.(jointName{j}));
+            set(d,'edgecolor','none','facealpha',.25,'facecolor',plotColors.(jointName{j}));
             if(~isempty(yP))
                 groupMax = max(FRLim(end),FRLim(end)*ceil(quantile(yP,.8)/FRLim(end)));
             end
@@ -122,8 +123,8 @@ for j = 1:length(jointName)
                 end
             end
             if(a==size(jointPSTH,2))
-                allXTicks = cellfun(@(ta) [find(mod(PSTHDisplayLimits(1):.01:PSTHDisplayLimits(end),1)==0),...
-                    length(ta)],xAlignTicks,'UniformOutput',false);
+                allXTicks = cellfun(@(ta) unique([1,find(mod(PSTHDisplayLimits(1):binSize:PSTHDisplayLimits(end),1)==0),...
+                    length(ta)],'stable'),xAlignTicks,'UniformOutput',false);
                 allXTicks = unique(cell2mat(allXTicks),'stable');
                 xticks(allXTicks(1:1:end));
                 allLabels = arrayfun(@(pd)num2str(pd,'%.2f'),...
@@ -137,7 +138,7 @@ for j = 1:length(jointName)
     set(gca,'XLim',[allXTicks(1), allXTicks(end)]);
     set(gca,'YLim',[FRLim(1),groupMax]);
     maxPlot = max(maxPlot,groupMax);
-    cellfun(@(cr) patch([cr,fliplr(cr)],[FRLim(1) FRLim(1) groupMax groupMax],[.5 .5 .5],'FaceAlpha',.25,'EdgeColor','none'),patches);
+    %cellfun(@(cr) patch([cr,fliplr(cr)],[FRLim(1) FRLim(1) groupMax groupMax],[.5 .5 .5],'FaceAlpha',.25,'EdgeColor','none'),patches);
 end
 %set(figHandle.Children,'YLim',[FRLim(1),maxPlot]);
 end

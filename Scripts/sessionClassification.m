@@ -5,7 +5,9 @@ phases = ["StartReach","StartHold"];
 phaseWindows = {[-100 100], [-200 0]};
 tPhys = unitTable(cnds,params);
 MIN_NUM_TRIALS = 20;
-plotSessionDiscriminants = true;
+plotSessionDiscriminants = false;
+saveDir = "S:\Lab\ngc14\Working\DataHi\Combined\";
+%%
 for p = 1:length(phases)
     phaseConds = cellfun(@(t) find(strcmp(phases(p),t)), params.condSegMap.values(params.condSegMap.keys),'UniformOutput',false);
     trialFR = cellfun(@(ct,cs,ta,tw) cellfun(@(a,b) cellfun(@(m,tt) m(max(1,tt+tw(1)):max(range(tw)+1,tt+tw(end))),...,
@@ -17,7 +19,7 @@ end
 clear trialFR;
 %%
 close all;
-[newD,projMat,lat] = deal({}); condC = NaN(max(tPhys.SiteNum),2);
+[newD,projMat,lat] = deal({}); condC = NaN(max(tPhys.SiteNum),2,100);
 goodUnits = all(cell2mat(cellfun(@(p) all(cellfun(@(s) size(s,2),p)>=MIN_NUM_TRIALS,2),trialFRMat,'UniformOutput',false)),2);
 conditions = cell2mat(arrayfun(@(r) string(params.condAbbrev.values)+ "-" + r, phases,'UniformOutput',false));
 condColors = containers.Map(params.condAbbrev.values,{[1 0 0],[1 .8 0 ],[0 0 1]});
@@ -50,48 +52,53 @@ for i = 1:length(unique([tPhys.SiteNum]))
             end
             gm{icond} = cell2mat(dist(icond,:));
         end
-        cvIdx=cvpartition(size(projD,3),'Holdout',0.2);
-        trIdx = training(cvIdx);
-        tsIdx = test(cvIdx);
-        trData = cellfun(@(m) m(trIdx,:),gm,'UniformOutput',false);
-        tsData = cellfun(@(m) m(tsIdx,:),gm,'UniformOutput',false);
-        if(plotSessionDiscriminants)
-            figure(); hold on;
-            h1 = cellfun(@(s,n) scatter3(s(:,1),s(:,2),s(:,3),mksz(strcmp(extractAfter(n,"-"),phases)),'MarkerFaceColor',cell2mat(condColors.values(cellstr(...
-                extractBefore(n,"-")))),'MarkerEdgeColor','none','Marker',mks(strcmp(extractAfter(n,"-"),phases))),trData,conditions);
-        end
-        for s = 1:2
-            if(s==1)
-                nPairs = nchoosek(1:length(condColorKeys),2);
-                condInds = cellfun(@(d) contains(conditions,d), condColorKeys, 'Uniformoutput',false);
-            else
-                nPairs = nchoosek(1:length(phases),2);
-                condInds = cellfun(@(d) contains(conditions,d), phases, 'Uniformoutput',false);
-            end
-            gData = {};gtData = {};
-            for p = 1:length(condInds)
-                gData{p} = vertcat(trData{condInds{p}});
-                gtData{p} = vertcat(tsData{condInds{p}});
-            end
-            MdLinear=fitcdiscr(vertcat(gData{:}),cell2mat(cellfun(@(c) repmat(string(c),1,size(gData{1},1)),...
-                cellfun(@(o) strcat(conditions{o}),condInds,'UniformOutput',false),'UniformOutput',false)));
+        parfor n=1:100
+            cvIdx=cvpartition(size(projD,3),'Holdout',0.2);
+            trIdx = training(cvIdx);
+            tsIdx = test(cvIdx);
+            trData = cellfun(@(m) m(trIdx,:),gm,'UniformOutput',false);
+            tsData = cellfun(@(m) m(tsIdx,:),gm,'UniformOutput',false);
             if(plotSessionDiscriminants)
-                for p = 1:size(nPairs,1)
-                    K=MdLinear.Coeffs(nPairs(p,1),nPairs(p,2)).Const;
-                    L=MdLinear.Coeffs(nPairs(p,1),nPairs(p,2)).Linear;
-                    f=@(x1,x2,x3) K+L(1)*x1+L(2)*x2+L(3)*x3;
-                    fs=fimplicit3(f);
-                    fs.FaceColor=[.7,0.8,0.8].*[s==1,s==2,s==2];
-                    fs.EdgeColor='none';
-                    fs.FaceAlpha=0.15;
-                end
+                figure(); hold on;
+                h1 = cellfun(@(s,n) scatter3(s(:,1),s(:,2),s(:,3),mksz(strcmp(extractAfter(n,"-"),phases)),'MarkerFaceColor',cell2mat(condColors.values(cellstr(...
+                    extractBefore(n,"-")))),'MarkerEdgeColor','none','Marker',mks(strcmp(extractAfter(n,"-"),phases))),trData,conditions);
             end
-            CM = confusionmat(cellstr(cell2mat(cellfun(@(c) repmat(string(c),1,size(gtData{1},1)),cellfun(@(o) ...
-                 strcat(conditions{o}),condInds,'UniformOutput',false),'UniformOutput',false))),MdLinear.predict(cell2mat(gtData')));
-            condC(i,s) = sum(CM.*(diag(ones(size(CM,1),1),0)==1),'all')./sum(CM,'all');
+            for s = 1:2
+                if(s==1)
+                    nPairs = nchoosek(1:length(condColorKeys),2);
+                    condInds = cellfun(@(d) contains(conditions,d), condColorKeys, 'Uniformoutput',false);
+                else
+                    nPairs = nchoosek(1:length(phases),2);
+                    condInds = cellfun(@(d) contains(conditions,d), phases, 'Uniformoutput',false);
+                end
+                gData = {};gtData = {};
+                for p = 1:length(condInds)
+                    gData{p} = vertcat(trData{condInds{p}});
+                    gtData{p} = vertcat(tsData{condInds{p}});
+                end
+                MdLinear=fitcdiscr(vertcat(gData{:}),cell2mat(cellfun(@(c) repmat(string(c),1,size(gData{1},1)),...
+                    cellfun(@(o) strcat(conditions{o}),condInds,'UniformOutput',false),'UniformOutput',false)));
+                if(plotSessionDiscriminants)
+                    for p = 1:size(nPairs,1)
+                        K=MdLinear.Coeffs(nPairs(p,1),nPairs(p,2)).Const;
+                        L=MdLinear.Coeffs(nPairs(p,1),nPairs(p,2)).Linear;
+                        f=@(x1,x2,x3) K+L(1)*x1+L(2)*x2+L(3)*x3;
+                        fs=fimplicit3(f);
+                        fs.FaceColor=[.7,0.8,0.8].*[s==1,s==2,s==2];
+                        fs.EdgeColor='none';
+                        fs.FaceAlpha=0.15;
+                    end
+                    saveFigures(gcf,saveDir+"\Site_Classifiers\Sessions\","Site_"+num2str(i),[]);
+                end
+                CM = confusionmat(cellstr(cell2mat(cellfun(@(c) repmat(string(c),1,size(gtData{1},1)),cellfun(@(o) ...
+                    strcat(conditions{o}),condInds,'UniformOutput',false),'UniformOutput',false))),MdLinear.predict(cell2mat(gtData')));
+                condC(i,s,n) = sum(CM.*(diag(ones(size(CM,1),1),0)==1),'all')./sum(CM,'all');
+            end
         end
     end
 end
+err = std(condC,0,3,'omitnan');
+condC = mean(condC,3,'omitnan');
 nonEmptySessions = ~cellfun(@isempty,projMat);
 weights = projMat(nonEmptySessions);
 [~,ui,~] = unique(tPhys.SiteNum);
@@ -145,8 +152,9 @@ xlim([.5 max(cellfun(@length,lat))]);
 ylabel("%");
 xlabel("Latent Factor");
 nexttile(); hold on;title("Discriminant Analysis");
-colororder(["g","b"]);
-plot(condC(all(~isnan(condC),2),:),'LineWidth',1);
+colororder([[0 .5 0];[0 0 .75]]);
+e=errorbar(condC(all(~isnan(condC),2),:),err(all(~isnan(condC),2),:)./2,'LineWidth',1,'LineStyle',':');
+arrayfun(@(ee) set(ee,'CapSize',0),e);
 ylabel("Accuracy");
 xlabel("Session");
 ylim([0 1]);
@@ -165,7 +173,7 @@ for s = 1:length(reps)
 end
 [~,sig]= arrayfun(@(c) cellfun(@(a) ttest2(a(:,1),a(:,2)),{cell2mat(cellfun(@(r) resize(r,[length(siteSomatotopy),1],'FillValue',NaN),...
     arrayfun(@(r) condC(siteSomatotopy==r,c),reps,'UniformOutput',false),'UniformOutput',false)')}),1:size(condC,2));
-arrayfun(@(a) text(2*(find(sig==a)-1)+1.5,.15,"p= "+num2str(a,3)),sig);
+arrayfun(@(a) text(((1+length(sig))*(find(sig==a)-1))+1.5,.15,"p= "+num2str(a,3),'HorizontalAlignment','center'),sig);
 boxplotGroup(plotAcc,'groupLabelType','both','primaryLabels',string(reps),'secondaryLabels',["Conditions","Phases"],'Notch','on');
 ylim([0 1]);
 ylabel("Accuracy");
@@ -179,8 +187,7 @@ boxplotGroup(plotAcc,'groupLabelType','both','primaryLabels',["Conditions","Phas
 ylim([0 1]);
 ylabel("Accuracy")
 title("Accuracy by Classifier");
-
-
+saveFigures(gcf,saveDir+"\Site_Classifiers\","Summary",[]);
 %mus = cellfun(@(m) mean(m,1,'omitnan'),trData,'UniformOutput',false);
 %cv =  vertcat(trData{:})-cell2mat(cellfun(@(m,g) repmat(m,size(g,1),1),mus,trData,'UniformOutput',false)');
 %LDA=makecdiscr(cell2mat(mus'),cv'*(cv/(size(cv,1)-length(gm))),'ClassNames',conditions);
@@ -188,7 +195,6 @@ title("Accuracy by Classifier");
 %pdf(fitdist(squeeze(projD(idim,icond,:)),'Normal'),xbins)
 %all_h = findall(groot,'Type','Figure');
 %D = guidata(all_h(arrayfun(@(s) strcmp(s.Name,'DataHigh'),all_h)));
-
 function arr = downsampleTrials(r,sTrials)
 if(sTrials>0)
     sz = size(r,2)-mod(size(r,2),2);

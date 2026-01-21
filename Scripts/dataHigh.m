@@ -5,10 +5,11 @@ tPhys = unitTable(conditions,params);
 model = "GilliganSkipper_ArmHand";
 type = 'Traj';
 saveDir = "S:\Lab\ngc14\Working\DataHi\Combined\";
-saveFig = false;
+saveFig = true;
 num_dims=4;
 sTrials = 30;
 plotTrials = 0;
+timeBins = [-.5, 2.5];
 phases = {"StartReach","StartHold"};
 phaseWindows = {[-100 100], [-200 0]};
 dimCond = reshape(regexp(extractAfter(model,"_"),'[A-Z]+[^A-Z]+','match')+"_"+params.condAbbrev.values',1,[]);%"-"+regexp(s,'(?<=Start)\w*','match'),phases,'UniformOutput',false)),1,[]);
@@ -66,13 +67,14 @@ if(contains(type,'Traj'))
     end
     numUnits = arrayfun(@(s) min(cellfun(@(m) size(m{1},1),taskPSTHD(contains(dimCond,s)))), unique(arrayfun(@(t) extractBefore(t,"_"),dimCond)));
     unitInds = arrayfun(@(u) repmat({randi(u,min(numUnits),1)},1,size(dimCond,2)/length(numUnits)), numUnits,'UniformOutput',false);%repmat({}',1,size(currD,2)/(length(numUnits)));
-    taskPSTHD = cellfun(@(u,i) cellfun(@(n) n(i,1:2000),u,'UniformOutput',false), taskPSTHD, [unitInds{:}],'UniformOutput',false);
-    cls = cellfun(@(r) repmat({r},max(plotTrials*sTrials,1),1),cellfun(@hsv2rgb,cellfun(@(l) flipud([linspace(l(1),l(1),4);...
-        linspace(1,.25,4);linspace(.85,1,4)]'),cellfun(@rgb2hsv,colors.values','UniformOutput',false),'UniformOutput',false),'UniformOutput',false),'UniformOutput',false);
-    dHiStruct = struct('data',vertcat(taskPSTHD{:}),'epochStarts',reshape(cellfun(@(n) [1,n([2,3,6])], ...
-        repmat(cellfun(@(a) findBins(a,params.bins),allSegs,'UniformOutput',false),max(plotTrials*sTrials,1),1),'UniformOutput',false),[],1),...
-        'condition',cellstr(cell2mat(cellfun(@(d) repmat(string(d),max(plotTrials*sTrials,1),1),cellstr(dimCond),'UniformOutput',false)')),'epochColors',...
-        vertcat(cls{:}));
+    taskPSTHD = cellfun(@(u,i) cellfun(@(n) n(i,findBins(timeBins(1),params.bins):findBins(timeBins(end),params.bins)),u,'UniformOutput',false),...
+        taskPSTHD, [unitInds{:}],'UniformOutput',false);
+    cls = cellfun(@(r) repmat({r},max(plotTrials*sTrials,1),1),cellfun(@hsv2rgb,cellfun(@(l) flipud([linspace(l(1),l(1),5);...
+        linspace(1,.25,5);linspace(.85,1,5)]'),cellfun(@rgb2hsv,colors.values','UniformOutput',false),'UniformOutput',false),'UniformOutput',false),'UniformOutput',false);
+    dHiStruct = struct('data',vertcat(taskPSTHD{:}),'epochStarts',reshape(cellfun(@(n) [1,n([2,3,6]),min(n(7),length(timeBins(1):params.binSize:timeBins(end))-1)], ...
+        repmat(cellfun(@(a) findBins(a,params.bins(findBins(timeBins(1),params.bins):findBins(timeBins(end),params.bins))),allSegs,'UniformOutput',false),...
+        max(plotTrials*sTrials,1),1),'UniformOutput',false),[],1),'condition',cellstr(cell2mat(cellfun(@(d) repmat(string(d),max(plotTrials*sTrials,1),1),cellstr(dimCond),'UniformOutput',false)')),...
+        'epochColors',vertcat(cls{:}));
 else
     for p = 1:length(phases)
         phaseConds = cellfun(@(t) find(strcmp(phases{p},t)), params.condSegMap.values(params.condSegMap.keys),'UniformOutput',false);

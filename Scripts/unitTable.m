@@ -35,7 +35,8 @@ for c = 1:length(conditions)
     condTable.Y = mapSites2Units(condUnitMapping,siteDateMap.y);
     condTable.Condition = categorical(repmat({params.condAbbrev(conditions{c})},length(mLabs),1));
     PSTH = cellfun(@(m) num2cell(m{1},[2 3]), normPSTH{c},'UniformOutput',false);
-    nanSegs = find(isnan(mean(cell2mat(sumSegs{c}(~cellfun(@(a) all(isnan(a),'all'),sumSegs{c}))),1)));
+    nanSegs = find(sum(isnan(cell2mat(sumSegs{c}(~cellfun(@(a) all(isnan(a),'all'),sumSegs{c})))),1)>=...
+        sum(cellfun(@(z) size(z,1),sumSegs{c}(~cellfun(@(a) all(isnan(a),'all'),sumSegs{c}))))/2);
     nanSegs= nanSegs(nanSegs~=length(maxSegL));
     for a = 1:length(nanSegs)
         for n = 1:length(sumSegs{c})

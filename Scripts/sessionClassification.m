@@ -6,7 +6,7 @@ phaseWindows = {[-100 100], [-200 0]};
 tPhys = unitTable(cnds,params);
 MIN_NUM_TRIALS = 20;
 plotSessionDiscriminants = false;
-saveDir = "S:\Lab\ngc14\Working\DataHi\Combined\";
+saveDir = "S:\Lab\ngc14\Working\DataHi\Sessions\";
 %%
 for p = 1:length(phases)
     phaseConds = cellfun(@(t) find(strcmp(phases(p),t)), params.condSegMap.values(params.condSegMap.keys),'UniformOutput',false);
@@ -34,7 +34,7 @@ for i = 1:length(unique([tPhys.SiteNum]))
             cellfun(@(t) m(tPhys.SiteNum==i & contains(params.condAbbrev.values,t) & goodUnits),...
             params.condAbbrev.values,'UniformOutput',false),'UniformOutput',false),trialFRMat,...
             cellfun(@(p) cellfun(@(s) size(s,2),p), trialFRMat,'UniformOutput',false),'UniformOutput',false);
-        currD = [cellfun(@(t) cell2mat(cellfun(@(s) sum(s,2),t,'UniformOutput',false)')',[currD{:}]', 'UniformOutput',false)];
+        currD = [cellfun(@(t) cell2mat(cellfun(@(s) sqrt(sum(s,2)),t,'UniformOutput',false)')',[currD{:}]', 'UniformOutput',false)];
         [pri,sci,eigi] = pca(vertcat(currD{:}));
         newD{i} = permute(reshape(sci(:,1:min(num_dims,size(sci,2))),sTrials,length(currD),min(num_dims,size(sci,2))),[3,2,1]);
         projMat{i} = pri;
@@ -182,6 +182,21 @@ boxplotGroup(plotAcc,'groupLabelType','both','primaryLabels',string(reps),'secon
 ylim([0 1]);
 ylabel("Accuracy");
 title("Accuracy by Somatotopy");
+%%
+figure(); tax=tiledlayout(1,max(1,num_dims/2)*2);
+for icond = 1:length(conds)
+    for idim = 1:num_dims
+        epochs = [find(ismember({D.condition}, conds)),NaN];
+        nexttile(idim); hold on; title(idim); ylim(ylimT);
+        dTrial = cat(3,(D(icond).data));
+        for iepoch = 1:length(epochs)-1
+            [bins centers] = hist(D(iepoch).data(idim,:));
+            bins = bins ./ sum(bins);
+            bar(centers, bins, 'FaceColor',cell2mat(colors.values(cellstr(dimCond(icond)))));
+        end
+    end
+end
+%%
 % nexttile(); hold on; plotAcc = {};
 % for s = 1:size(condC,2)
 %     currGroup = arrayfun(@(a) condC(siteSomatotopy==a,s),reps,'UniformOutput',false);

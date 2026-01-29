@@ -100,7 +100,7 @@ function [newD C lat] = reducedims(D,alg, dims, handles)
             D(i).data = smoother(D(i).data, get(handles.kern_slider,'Value'), handles.binWidth);
         end
     end
-
+    [D.savedD] = deal(D.data);
     lat = [];
     switch alg
         case 1

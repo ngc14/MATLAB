@@ -83,6 +83,7 @@ parfor  i = 1:numSites
         NaNGraspInd(ismember(currTrials(:,1),conditions)) = cellfun(@(s,t) sum(isnan(t))==1 & isnan(t(strcmp(params.condSegMap(s),"StartGrasp"))), ...
             currTrials(ismember(currTrials(:,1),conditions),1),times(ismember(currTrials(:,1),conditions))','UniformOutput',false);
         successfulInds = cellfun(@(b,t) ~isnan(str2double(b)) | isempty(b),currTrials(:,end-1));
+        NaNGraspInd(cellfun(@isempty,NaNGraspInd)) = {false};
         successfulTrials = successfulInds | cell2mat(NaNGraspInd);
         currTrials = currTrials(successfulTrials,:);
         times = times(successfulTrials);

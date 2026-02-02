@@ -10,53 +10,22 @@ num_dims=4;
 sTrials = 30;
 plotTrials = 0;
 timeBins = [-.5, 2.5];
-phases = {"StartReach","StartHold"};
-phaseWindows = {[-100 100], [-200 0]};
-dimCond = reshape(regexp(extractAfter(model,"_"),'[A-Z]+[^A-Z]+','match')+"_"+params.condAbbrev.values',1,[]);%"-"+regexp(s,'(?<=Start)\w*','match'),phases,'UniformOutput',false)),1,[]);
 splitGroup = "Condition";
+epochSegs = ["GoSignal","StartReach","StartHold","StartWithdraw"];
 if(~plotTrials & strcmp(type,"Traj"))
     type = type+"_Avg";
 end
 savePath = saveDir+type+"\Full_Population\";
-if(~exist(savePath,'dir')), mkdir(savePath); end
+dimCond = reshape(extractAfter(model,"_")+"_"+params.condAbbrev.values',1,[]);%regexp(model,'[A-Z]+[^A-Z]+','match')
 colors = {[.7 0 0],[1 .65 0 ],[0 0 .75],[1 0 .3],[1 1 0],[0 .6 1]}';
-switch(splitGroup)
-    case "Somatotopy"
-        condInds = arrayfun(@(c) contains(c,'Arm'), dimCond);
-        for u = 1:length(condInds)
-            if(condInds(u)==0),colors{u} = [.8 .8 .8];
-            else,colors{u} = [.2 .2 .2];end
-        end
-    case  "Condition"
-        condInds = arrayfun(@(c) contains(c,'S'), dimCond);
-        condInds = condInds + arrayfun(@(c) contains(c,'_E'), dimCond);
-        for u = 1:length(condInds)
-            if(condInds(u)==0),colors{u} = [0 0 1];
-            elseif(condInds(u)==1),colors{u} = [1 .85 0];
-            else,colors{u} = [1 0 0];end
-        end
-    case "Phase"
-        condInds = arrayfun(@(c) contains(c,'Reach'), dimConds);
-        for u = 1:length(condInds)
-            if(condInds(u)==0),colors{u} = [1 0 1];
-            else,colors{u} = [0 1 1];end
-        end
-    case "Monkey"
-        condInds = arrayfun(@(c) contains(c,'Gilligan'), dimConds);
-        for u = 1:length(condInds)
-            if(condInds(u)==0),colors{u} = [.8 .4 0];
-            else,colors{u} = [0 .5 0];end
-        end
-end
+if(~exist(savePath,'dir')), mkdir(savePath); end
+colors =containers.Map(dimCond,colors(1:length(dimCond)));
 allSegsL = params.condSegMap.values;
 [~,maxSegL]= max(cellfun(@length,allSegsL));
 maxSegL = allSegsL{maxSegL};
-colors =containers.Map(dimCond,colors);
 tableInds = contains(string(tPhys.Monkey),[regexp(extractBefore(model,"_"),'[A-Z]+[^A-Z]+','match')]) & contains(string(tPhys.Somatotopy),...
     [regexp(extractAfter(model,"_"),'[A-Z]+[^A-Z]+','match')]);
-epochSegs = ["GoSignal","StartReach","StartHold","StartWithdraw"]; %  & contains(string(tPhys.Somatotopy),extractBefore(s,"_"))
 allSegs= arrayfun(@(s) tPhys{tableInds,contains(tPhys.Properties.VariableNames,"Segs_"+extractAfter(s,"_"))},dimCond,'UniformOutput',false);%
-avgSegs= cellfun(@(c) mean(cell2mat(c),1,'omitnan'),allSegs, 'UniformOutput',false);
 taskPSTHD= arrayfun(@(a) tPhys{tableInds,contains(tPhys.Properties.VariableNames,"PSTH_"+extractAfter(a,"_"))},dimCond,'UniformOutput',false);
 avgTrace = mean(cell2mat(vertcat(taskPSTHD{:})'),2,'omitnan');
 avgTrace = zeros(size(avgTrace,1),size(avgTrace,2));
@@ -78,30 +47,27 @@ dHiStruct = struct('data',vertcat(taskPSTHD{:}),'epochStarts',cellfun(@(s) fix(m
     'UniformOutput',false)),allSegs,[unitInds{:}],'UniformOutput',false),'UniformOutput',false),'UniformOutput',false)',...
     'condition',cellstr(cell2mat(cellfun(@(d) repmat(string(d),max(plotTrials*sTrials,1),1),cellstr(dimCond),'UniformOutput',false)')),'epochColors',vertcat(cls{:}));
 %%
-somaLabs = tPhys{tableInds,"Somatotopy"};
-binWidth = 20;
-smoothWin = 50;
+binWidth = 10;smoothWin = 50;
 trialLength = floor(size(dHiStruct(1).data, 2) / binWidth);
-seq = struct();
 mv = mean([dHiStruct.data],2) * 1000;
 for n = 1:length(dHiStruct)
-    seq(n).y = NaN(sum(mv>0),trialLength);
+    smoothedData{n} = NaN(sum(mv>0),trialLength);
     for t = 1:trialLength
         iStart = binWidth * (t-1) + 1;
         iEnd   = binWidth *t;
-        seq(n).y(:,t) = (sum(dHiStruct(n).data(mv>0, iStart:iEnd), 2));
+        smoothedData{n}(:,t) = sum(dHiStruct(n).data(mv>0,iStart:iEnd),2);
     end
 end
-somaLabs = somaLabs(mv>0);
-smoothedData = arrayfun(@(s) sqrt(resize(conv2(s.y,transpose(gausswin(ceil(smoothWin/binWidth))./sum(gausswin(ceil(smoothWin/binWidth)))),'valid')...
-    ./(binWidth/1000),size(s.y),'Pattern','edge','Side','both')),seq,'UniformOutput',false);
-%smoothedData = cellfun(@(s) s(:,8+1:end-8),smoothedData, 'UniformOutput',false);
-% ormpdf(ceil(3*smoothWin/binWidth)*binWidth:binWidth:binWidth*ceil(3*smoothWin/binWidth),0,smoothWin)
+somaLabs = find(tableInds).*double(mv>0);
+somaLabs = tPhys{somaLabs(somaLabs>0),"Somatotopy"};
+smoothedData = cellfun(@(s) sqrt(resize(conv2(s,transpose(gausswin(ceil(smoothWin/binWidth))./sum(gausswin(ceil(smoothWin/binWidth)))),'valid')...
+    ./(binWidth/1000),size(s),'Pattern','edge','Side','both')),smoothedData,'UniformOutput',false);
+%smoothedData=cellfun(@(s)s(:,8+1:end-8),smoothedData,'UniformOutput',false);normpdf(ceil(3*smoothWin/binWidth)*binWidth:binWidth:binWidth*ceil(3*smoothWin/binWidth),0,smoothWin)
 [loadings, scores, eig] = pca([cell2mat(smoothedData)]','Economy',false,'Centered','off');
-index = 0;
-projectedData={};
+index = 0;D = dHiStruct;
 for i=1:length(smoothedData)
-    projectedData{i} = scores(index + (1:size(smoothedData{i},2)),:)';
+    D(i).data= scores(index + (1:size(smoothedData{i},2)),:)';
+    D(i).epochStarts = max(1,fix(D(i).epochStarts/binWidth));
     index = index + size(smoothedData{i},2);
 end
 %%
@@ -111,23 +77,20 @@ if(saveFig)
 end
 % all_h = findall(groot,'Type','Figure');
 % D = guidata(all_h(arrayfun(@(s) strcmp(s.Name,'DataHigh'),all_h)));
-% handles = guihandles(all_h(arrayfun(@(s) strcmp(s.Name,'DataHigh'),all_h)));
-% D = D.D;
+% handles = guihandles(all_h(arrayfun(@(s) strcmp(s.Name,'DataHigh'),all_h)));D= D.D; 
 %%
+somaReps = unique(somaLabs);
 if(length(D)<sTrials)
     plotTrials = 0;
 end
-somaReps = unique(somaLabs);
 somaProj = cellfun(@(d)cellfun(@(s,e) e(somaLabs==s,:),cellstr(unique(somaLabs)),repmat({loadings*d},length(somaReps),1),'UniformOutput',false),...
     smoothedData,'UniformOutput',false);somaProj = reshape([somaProj{:}]',[],1);
-groupedCond = reshape(cellstr(cell2mat(arrayfun(@(s) string(s)+"_"+params.condAbbrev.values,unique(somaLabs),'UniformOutput',false)))',[],1);
-conds = unique({D.condition});
 figure(); tiledlayout(2,1+num_dims);
 for n = 0:num_dims+1
     if(n>num_dims);nexttile([1,num_dims+1]); hold on;
     else;nexttile(); hold on;
     end
-    for i = 1:length(groupedCond)/length(somaReps)
+    for i = 1:length(dimCond)
         for s =1:length(somaReps)
             if(s==1)
                 if(n>0 && n<=num_dims);title("Dim " + num2str(n));
@@ -140,22 +103,23 @@ for n = 0:num_dims+1
             if(n==0)
                 weightedPSTHS = smoothedData{i}(somaLabs==somaReps(s),:)';
             elseif(n==num_dims+1)
-                weightedPSTHS = somaProj{i+(length(groupedCond)/length(somaReps)*(s-1))}';
+                weightedPSTHS = somaProj{i+(length(dimCond)*(s-1))}';
             else
                 weightedPSTHS = loadings(:,n).*[smoothedData{i}];
                 weightedPSTHS = weightedPSTHS(somaLabs==somaReps(s),:)';
             end
-            plot(mean(weightedPSTHS,2,'omitnan'),'LineWidth',s,'Color',cell2mat(colors.values(groupedCond(i))),'LineStyle',ls);
+            plot(mean(weightedPSTHS,2,'omitnan'),'LineWidth',s,'Color',cell2mat(colors.values(cellstr(dimCond(i)))),'LineStyle',ls);
         end
     end
 end
-l = arrayfun(@(d,l) plot(NaN(length(dimCond),1),'LineStyle',l,'Color',cell2mat(colors.values(cellstr(d)))),dimCond',cell2mat(reshape(arrayfun(@(s) ...
-    repmat(s,length(groupedCond)/length(somaReps),1),["-",":"],'UniformOutput',false),[],1)));
-legend(l,dimCond,'Autoupdate','off','FontSize',14,'Orientation','horizontal');
+%l = arrayfun(@(d) arrayfun(@(l) plot(NaN(1,1),'LineStyle',l,'Color',cell2mat(colors.values(cellstr(d))))',["-",":"]),dimCond,'UniformOutput',false);
+legend(reshape(cell2mat(arrayfun(@(a) a+"_"+(params.condAbbrev.values), string(somaReps), 'UniformOutput', false)),1,[]),...
+    'Autoupdate','off','FontSize',14,'Orientation','horizontal');
 if(saveFig)
-    saveFigures(gcf,savePath,"Projections_"+num2str(num_dims),[]);
+    saveFigures(gcf,savePath,"Projections_"+num2str(num_dims)+"_Bsz"+num2str(binWidth)+"_Sm"+num2str(smoothWin),[]);
 end
 %%
+conds = unique({D.condition});
 figure(); tax=tiledlayout(1,max(1,num_dims/2)*2);
 ylimT = [min(arrayfun(@(m) min(m.data,[],'all'),D)),max(arrayfun(@(m) max(m.data,[],'all'),D))];
 for icond = 1:length(conds)
@@ -177,9 +141,9 @@ for icond = 1:length(conds)
                     end
                 end
             end
-            if(icond==length(conds))
+            if(icond==length(conds) && idim==1)
                 l = arrayfun(@(d) plot(NaN(length(dimCond),1),'LineWidth',3,'Color',cell2mat(colors.values(cellstr(d)))),dimCond);
-                legend(l,dimCond,'Autoupdate','off','FontSize',14,'Orientation','horizontal');
+                legend(l,dimCond,'Autoupdate','off','FontSize',14,'Orientation','vertical');
             end
         end
     end
@@ -221,7 +185,35 @@ end
 if(saveFig)
     saveFigures(gcf,savePath,model+"_CondByDim",[]);
 end
-
+% %%
+% switch(splitGroup)
+%     case "Somatotopy"
+%         condInds = arrayfun(@(c) contains(c,'Arm'), dimCond);
+%         for u = 1:length(condInds)
+%             if(condInds(u)==0),colors{u} = [.8 .8 .8];
+%             else,colors{u} = [.2 .2 .2];end
+%         end
+%     case  "Condition"
+%         condInds = arrayfun(@(c) contains(c,'S'), dimCond);
+%         condInds = condInds + arrayfun(@(c) contains(c,'_E'), dimCond);
+%         for u = 1:length(condInds)
+%             if(condInds(u)==0),colors{u} = [0 0 1];
+%             elseif(condInds(u)==1),colors{u} = [1 .85 0];
+%             else,colors{u} = [1 0 0];end
+%         end
+%     case "Phase"
+%         condInds = arrayfun(@(c) contains(c,'Reach'), dimConds);
+%         for u = 1:length(condInds)
+%             if(condInds(u)==0),colors{u} = [1 0 1];
+%             else,colors{u} = [0 1 1];end
+%         end
+%     case "Monkey"
+%         condInds = arrayfun(@(c) contains(c,'Gilligan'), dimConds);
+%         for u = 1:length(condInds)
+%             if(condInds(u)==0),colors{u} = [.8 .4 0];
+%             else,colors{u} = [0 .5 0];end
+%         end
+% end
 function arr = downsampleTrials(r,sTrials)
 sz = size(r,2)-mod(size(r,2),2);
 trials = uint8(mod(sz,sTrials)~=0)*(sTrials-mod(sz,sTrials));

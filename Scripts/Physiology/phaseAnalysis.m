@@ -21,10 +21,11 @@ phaseAlignmentPoints = {["GoSignal","StartReach","StartHold","StartWithdraw"],..
     ["GoSignal","StartReach","StartHold","StartWithdraw"]};
 %%
 [siteDateMap, siteSegs, siteTrialPSTHS, rawSpikes, siteChannels, siteActiveInd,...
-    siteRep,siteLocation,siteMasks,monkeys,vMask,conditions] = getAllSessions(params,"Single","M1");
+    siteRep,siteLocation,siteMasks,monkeys,vMask,conditions,chMaps,siteTrialInfo] = getAllSessions(params,"Single","M1");
 taskAlign = containers.Map(conditions,taskAlignmentPoints);
 condPhaseAlign = containers.Map(conditions,cellfun(@num2cell,phaseAlignmentPoints,'UniformOutput',false));
 %%
+mappedChannels = cellfun(@(ch,l) ch{2}(l(~isnan(l))), chMaps,siteChannels, 'Uniformoutput', false)';
 allCondSegs = cellfun(@(c) cellfun(@(a) cell2mat(cellfun(@(t) findBins(t(:,2)-3,params.bins),a,'UniformOutput',false)),...
     c,'UniformOutput',false),siteSegs,'UniformOutput',false);
 avgSeg = cellfun(@(ct) cellfun(@(ca) cellfun(@(t) mean(t,1,'omitnan'), ca, 'UniformOutput',false),...
@@ -43,7 +44,7 @@ normPSTH = cellfun(@(cp,nb) num2cell(cellfun(@(p,b)p./repmat(b,[ones(1,length(si
 [avgBaseline,avgPhase] =  calculatePhases(params,condPhaseAlign,phaseWindows,avgSeg,normPSTH,false,false);
 avgBase = cellfun(@cell2mat,cellfun(@(c) cellfun(@(a) median(cell2mat(a{1}),2,'omitnan'),...
     c, 'UniformOutput', false), avgBaseline, 'UniformOutput',false),'UniformOutput',false);
-avgPhase = cellfun(@(c) cellfun(@(a) median(cell2mat(reshape(cellfun(@cell2mat,a(2),'UniformOutput',false),1,1,[])),3,'omitnan'),...
+avgPhase = cellfun(@(c) cellfun(@(a) median(cell2mat(reshape(cellfun(@cell2mat,a(1),'UniformOutput',false),1,1,[])),3,'omitnan'),...
     c, 'UniformOutput', false), avgPhase, 'UniformOutput',false);
 %%
 phaseLim = [0 4];
@@ -58,7 +59,7 @@ for c = 1:length(conditions)
     condDir = savePath+string(values(params.condAbbrev,{currCond}))+"\";
     condUnitMapping = cellfun(@(si) size(si,2),siteChannels{2})';
     condRep =  mapSites2Units(condUnitMapping,siteRep)';
-    unitLocation = mapSites2Units(condUnitMapping,siteLocation');
+    unitLocation = cell2mat(mapSites2Units(condUnitMapping,siteLocation'));
     activityInds = mapSites2Units(condUnitMapping,siteActiveInd{c}')';
     condPSTHS = num2cell(cellfun(@(m) mean(m,3,'omitnan'),vertcat(normPSTH{c}{:}),'UniformOutput',false),1);
     %% unit FR modulation per phase

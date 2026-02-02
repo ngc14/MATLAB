@@ -27,41 +27,65 @@ condSegMappedInds = cellfun(@(f) find(contains(maxSegL,f)), allSegs, 'UniformOut
     siteRep,siteLocation,siteMasks,monkeys,vMask,conditions,chMaps,siteTrialInfo] = getAllSessions(params,"Single","PMd");
 clear rawSpikes
 %%
-[taskBaseline,taskFR] = calculatePhases(params,taskAlign,taskWindow,siteSegs,siteTrialPSTHS,false,true);
-[~,tUnit] = cellfun(@(tb,tc) cellfun(@(b,cn) ttestTrials(b,cn,1,true,pVal),...
-    tb,tc,'UniformOutput',false),taskBaseline,taskFR,'UniformOutput', false);
-allCondSegs = cellfun(@(c) cellfun(@(a) cellfun(@(t) findBins(mean(t(:,1)+1,'omitnan'),params.bins),a),...
+allCondCue = cellfun(@(c) cellfun(@(a) cellfun(@(t) findBins(mean(t(:,2)+1,'omitnan'),params.bins),a),...
     c,'UniformOutput',false),siteSegs,'UniformOutput',false);
 normBaseline = cellfun(@(p,t) mean(cell2mat(cellfun(@(a,n) max(1,mean(...
     a(:,n(~isnan(n)):n(~isnan(n))+(3/params.binSize),:),[2,3],'omitnan')),...
-    p,t,'UniformOutput',false)),2,'omitnan'),num2cell([siteTrialPSTHS{:}],2),num2cell([allCondSegs{:}],2),"UniformOutput",false);
+    p,t,'UniformOutput',false)),2,'omitnan'),num2cell([siteTrialPSTHS{:}],2),num2cell([allCondCue{:}],2),"UniformOutput",false);
 normPSTH = cellfun(@(cp,nb) cellfun(@(p)p./repmat(nb,1,1,size(p,3)),...
     cp,'UniformOutput',false),num2cell([siteTrialPSTHS{:}],2),normBaseline,'Uniformoutput', false);
-normPSTH = vertcat(normPSTH{:});
-%normPSTH = horzcat(siteTrialPSTHS{:});
 %%
 trialInfo = cellfun(@(c) cellfun(@(t) t(strcmp(t(:,1),c),:),siteTrialInfo,'UniformOutput',false)',conditions,'UniformOutput',false);
-siteTrialSegs = cellfun(@(c) cellfun(@(n) NaN(size(n,1),length(maxSegL)), c, 'UniformOutput',false), trialInfo,'UniformOutput',false);
+sumSegs = cellfun(@(c) cellfun(@(n) NaN(size(n,1),length(maxSegL)), c, 'UniformOutput',false), trialInfo,'UniformOutput',false);
 trialInfo = cellfun(@(c) vertcat(c{:}),num2cell(horzcat(trialInfo{:}),2),'UniformOutput',false);
-for j = 1:size(siteTrialSegs,2)
-    for i = 1:length(siteTrialInfo)
-        siteTrialSegs{j}{i}(:,condSegMappedInds{j}) = siteSegs{j}{i}{1};
+sumSegs = cellfun(@(c) cellfun(@(n) [n{:}], c, 'UniformOutput',false), siteSegs,'UniformOutput',false);
+for c = 1:length(conditions)
+    nanSegs = find(sum(isnan(cell2mat(sumSegs{c}(~cellfun(@(a) all(isnan(a),'all'),sumSegs{c})))),1)>=...
+        sum(cellfun(@(z) size(z,1),sumSegs{c}(~cellfun(@(a) all(isnan(a),'all'),sumSegs{c}))))/2);
+    nanSegs= nanSegs(nanSegs~=length(maxSegL));
+    for a = 1:length(nanSegs)
+        for n = 1:length(sumSegs{c})
+            nextSeg = intersect(setdiff(1:size(sumSegs{c}{n},2),nanSegs),nanSegs(a)+1:size(sumSegs{c}{n},2));
+            sumSegs{c}{n}(:,nanSegs(a)) = sumSegs{c}{n}(:,nextSeg(1));
+        end
     end
 end
-siteTrialSegs=cellfun(@(v) vertcat(v{:}),num2cell(cat(2,siteTrialSegs{:}),2),'UniformOutput',false);
-allPSTHS = cellfun(@(r) cell2mat(reshape(r,1,1,[])),num2cell(normPSTH,2),'UniformOutput',false);
-for s = 1:length(trialInfo)
-    badTrials = all(isnan(siteTrialSegs{s}),2);
-    siteTrialSegs{s} = siteTrialSegs{s}(~badTrials,:);
-    trialInfo{s} = trialInfo{s}(~badTrials,:);
-    allPSTHS{s} = allPSTHS{s}(:,:,~badTrials);
+[taskBaseline,taskFR] = calculatePhases(params,taskAlign,taskWindow,cellfun(@(c) cellfun(@(n) {n},c,'UniformOutput',false),sumSegs,'Uniformoutput',false),siteTrialPSTHS,false,true);
+[~,tUnit] = cellfun(@(tb,tc) cellfun(@(b,cn) ttestTrials(b,cn,1,true,pVal),...
+    tb,tc,'UniformOutput',false),taskBaseline,taskFR,'UniformOutput', false);
+avgSeg = cellfun(@(ca) cellfun(@(t) mean(t,1,'omitnan'), ca, 'UniformOutput',false),sumSegs, 'UniformOutput',false);
+[~,avgPhase] =  calculatePhases(params,condPhaseAlign,phaseWindows,cellfun(@(c) cellfun(@(n) {n}, c,'UniformOutput',false),...
+    avgSeg,'UniformOutput',false),num2cell(cellfun(@(n) {n},vertcat(normPSTH{:}),'UniformOutput',false),1),false,false);
+condXphase = cellfun(@(pc) cell2mat(cellfun(@(v) [v{:}],cellfun(@(n) vertcat(n{:}),pc,'UniformOutput',false),'UniformOutput',false)),avgPhase,'UniformOutput',false);
+condXphase = cellfun(@(s) [s,NaN(size(s,1),length(phaseNames)-size(s,2))], condXphase, 'UniformOutput',false);
+tPhys = table();
+for c = 1:length(conditions)
+    condTable = table();
+    AUCVals = condXphase{c};
+    tUnits = cell2mat(tUnit{c});
+    tUnits(isnan(tUnits)) = 0;
+    condUnitMapping = cellfun(@(si) size(si,2),siteChannels)';    
+    allReps =  mapSites2Units(condUnitMapping,siteRep');
+    mLabs = mapSites2Units(condUnitMapping,siteDateMap.Monkey);
+    mInds= contains(mLabs,"Skipper");
+    unitLocation = mapSites2Units(condUnitMapping,num2cell([siteDateMap.x,siteDateMap.y],2));
+    condTable.Unit = [1:length(mLabs)]';
+    condTable.SiteNum = cell2mat(arrayfun(@(s,c) repmat(s,c,1), [1:length(condUnitMapping)]',condUnitMapping,'UniformOutput',false));
+    condTable.Monkey = categorical(mLabs);
+    condTable.Somatotopy = categorical(allReps);
+    condTable.Channel =  cell2mat(cellfun(@(ch,l) ch{2}(l(~isnan(l))), chMaps,siteChannels, 'Uniformoutput', false))';
+    condTable.X = mapSites2Units(condUnitMapping,siteDateMap.x);
+    condTable.Y = mapSites2Units(condUnitMapping,siteDateMap.y);
+    condTable.Condition = categorical(repmat({params.condAbbrev(conditions{c})},length(mLabs),1));
+    condTable.TaskUnits =  logical(tUnits);
+    for pn = 1:length(phaseNames)
+        condTable.(phaseNames(pn)) = AUCVals(:,pn);
+    end
+    tPhys = [tPhys;condTable];
 end
-infoTable = table();
-infoTable.SiteNo = "SiteNo" + table2array(siteDateMap(:,'Site'));
-infoTable.TaskModulated = cellfun(@(c) any(horzcat(c{:}),2), num2cell(cat(2,tUnit{:}),2), 'UniformOutput',false);
-infoTable.Condition = cellfun(@(t) string(t(:,1)), trialInfo,'UniformOutput',false);
-infoTable.SegTimes = siteTrialSegs;
-infoTable.PSTHS = cellfun(@(r,i)(i./i).*r,allPSTHS,infoTable.TaskModulated,'UniformOutput',false);
+plotNames = arrayfun(@(p) arrayfun(@(c) p+"_"+c{1}(1), conditions, 'UniformOutput', true), phaseNames, 'UniformOutput', false);
+plotNames = [plotNames{:}];
+tPhys = unstack(tPhys,condTable.Properties.VariableNames(find(strcmp(condTable.Properties.VariableNames,"Condition"))+1:end),"Condition");
 %%
 condPSTHS = cell(1,length(conditions)-1);
 segConds = cell(1,length(conditions)-1);

@@ -1,7 +1,7 @@
 monkeys = ["Gilligan","Skipper"];
-drive = "S:\Lab\"
-alignments = [{'GoSignal'},{'StartReach'},{'StartHold'},{'StartWithdraw'}];
-alignWindows = {[-.2 .2],[-.5 .15],[-.20 .20],[-.15 .5]};
+drive = "S:\Lab\";
+alignments = [{'StartReach'}];
+alignWindows = {[-.5 2.5]};
 phaseWindows = {[0 0.2],[-.15 .05],[-.2 0.0],[-.15 .05]};
 gap = .1;
 groupings = {{"Deltoid.mat","Biceps.mat","Triceps.mat"},...
@@ -10,6 +10,14 @@ muscles = string([groupings{:}]);
 groupInds = cellfun(@(g) contains(muscles,string(g)), groupings, 'UniformOutput',false);
 groupNames = cellfun(@(g) cellfun(@(s) string(s{1}(1:end-4)),g), groupings,'UniformOutput',false);
 condLabels = {'E', 'L', 'P'};
+events = containers.Map(condLabels, ...
+    {{'GoSignal','StartReach','StartGrasp','StartLift','StartHold',...
+    'StartWithdraw','StartReplaceHold','StartReplaceSuccess','StartReward'},...
+    {'GoSignal','StartReach','StartGrasp','StartLift','StartHold',...
+    'StartWithdraw','StartReplaceHold','StartReplaceSuccess','StartReward'},...
+    {'GoSignal','StartReach','StartGrasp','StartHold',...
+    'StartWithdraw','StartReplaceHold','StartReplaceSuccess','StartReward'}});
+
 saveFigs = true;
 savePath = "C:\Users\ngc14\Desktop\";
 if(saveFigs && ~exist(savePath,'dir'))
@@ -73,10 +81,11 @@ end
 allSessionSegs = horzcat(sessionSegs{:});
 %%
 [mTrials, mSigs, mDates, mSegs] = deal({});
-for c = 1:length(Conditions)
+for c = 1:length(condLabels)
     for a = 1:length(alignments)
         wind = alignWindows{a};
-        alignInd = find(strcmp(ConditionSegs{c},alignments{a}));
+        alignEvents = events.values(condLabels(c));
+        alignInd = find(strcmp(alignEvents{1},alignments{a}));
         alignedSig{c,a} = cellfun(@(s,t) cell2mat(cellfun(@(ts,ss) ts(...
             ss(alignInd)+wind(1):ss(alignInd)+wind(end)),vertcat(s(:))',t,'UniformOutput',false)'),...
             normTrials(c,:),allSessionSegs(c,:),'UniformOutput',false);
@@ -195,7 +204,7 @@ for c = 1:length(Conditions)
         xTicks{align} = plotStart+[wind(1) 0 wind(end)];
     end
 end
-yL = [-5 200];
+yL = [0 1];
 xlim([fx{:}],[xTicks{1}(1), xTicks{end}(end)]);
 ylim([fx{:}],yL);
 cellfun(@(a,s) title(a,s), fx, groupings);%num2cell(fNames)')%Conditions(1:end-1)');

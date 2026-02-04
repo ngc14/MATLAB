@@ -37,14 +37,15 @@ PSTH =  cellfun(@(t) t(:,(fix(PSTHDisplayLimits(1)/binSize)+zeroBinInd):...
 g = groot;
 figHandle = g.CurrentFigure;
 reuseAxes = ~isempty(figHandle);
-if(reuseAxes)
+emptyPlot = cell2mat(arrayfun(@(n) get(n,'Position'), get(figHandle,'Children'), 'UniformOutput', false));
+if(reuseAxes & ~emptyPlot)
     pos = cell2mat(arrayfun(@(n) get(n,'Position'), get(figHandle,'Children'), 'UniformOutput', false));
     wrapPlots = numel(unique(pos(:,1)));
     nrows = numel(unique(pos(:,2)));
 else
     figHandle = gcf;
-    wrapPlots = min(length(jointName),15);
-    nrows = ceil(length(jointName)/wrapPlots);
+    nrows = min(length(jointName),3);
+    wrapPlots = ceil(length(jointName)/nrows);
 end
 xAlignTicks = {};
 maxPlot = 0;
@@ -59,7 +60,7 @@ for j = 1:length(jointName)
         %% plot PSTHS
         subplot(nrows,wrapPlots,j);hold on;
         titleName = replace(jointName{j},"_", " ");
-        if(reuseAxes)
+        if(reuseAxes & ~emptyPlot)
             oldName = get(gca,'Title');
             oldName = oldName.String;
             titleName = strcat(titleName," (n= ",num2str(min(cellfun(@(s) str2num(s{1}),...

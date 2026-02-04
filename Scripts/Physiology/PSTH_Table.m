@@ -12,7 +12,6 @@ phaseWinSz = .2;
 phaseWindows = repmat({{[0, phaseWinSz],[-phaseWinSz*(3/4),phaseWinSz*(1/4)],...
     [-phaseWinSz, 0],[-phaseWinSz*(3/4),phaseWinSz*(1/4)]}},1,length(conditions));
 pVal=0.05;
-MIN_BLOCKS_FOR_UNIT = 13;
 plotSessions = false;
 savePath = "S:\Lab\ngc14\Working\PSTHS\";
 allSegs = params.condSegMap.values;
@@ -60,7 +59,7 @@ condXphase = cellfun(@(pc) cell2mat(cellfun(@(v) permute(mean(cat(3,v{:}),2,'omi
     cellfun(@(n) vertcat(n{:}),pc,'UniformOutput',false),'UniformOutput',false)),avgPhase,'UniformOutput',false);
 condXphase = cellfun(@(s) [s,NaN(size(s,1),length(phaseNames)-size(s,2))], condXphase, 'UniformOutput',false);
 chUnitMap = cellfun(@(m) m{end},chMaps','UniformOutput',false);
-chUnitMap(strcmp([siteDateMap.Monkey],"Gilligan")) = {[1:2:32,2:2:32]};chUnitMap(strcmp([siteDateMap.Monkey],"Skipper")) = {[32:-1:1]};chUnitMap(true(size(chUnitMap)))= {[1:32]};
+chUnitMap(strcmp([siteDateMap.Monkey],"Gilligan")) = {[1:2:32,2:2:32]};chUnitMap(strcmp([siteDateMap.Monkey],"Skipper")) = {[32:-1:1]};
 %%
 tPhys = table();
 for c = 1:length(conditions)
@@ -96,20 +95,21 @@ varNames = tPhys.Properties.VariableNames(any(cell2mat(arrayfun(@(p) contains(tP
 phaseVals = tPhys{:,varNames};
 condLabels = sum(cell2mat(cellfun(@(c,n) n.*contains(varNames,"_"+c),params.condAbbrev.values,num2cell(1:length(conditions)),'UniformOutput',false)'),1);
 phaseLabels = sum(cell2mat(cellfun(@(c,n) n.*contains(varNames,string(c)),cellstr(phaseNames),num2cell(1:length(phaseNames)),'UniformOutput',false)'),1);
-condIndex = any(tPhys{:,contains(tPhys.Properties.VariableNames,"Task") & ~contains(tPhys.Properties.VariableNames,"_R")},2);
+condIndex = any(tPhys{:,contains(tPhys.Properties.VariableNames,"Task") & ~contains(tPhys.Properties.VariableNames,"_R")},2) ...
+    %& tPhys.Channel>16;
 condPhases = phaseVals(condIndex,:);
 armPhases = condPhases(tPhys{condIndex,'Somatotopy'}=="Arm",:);
 handPhases = condPhases(tPhys{condIndex,'Somatotopy'}=="Hand",:);
-cl = distinguishable_colors(4);
+cl = [0 .5 0; .5 0 .5;;0 0 0];
 figure(); hold on;
 s=swarmchart(reshape([repmat(condLabels+[-.3 -.3 -.3 -.1 -.1 -.1 .1 .1 .1 .3 .3 .3],size(armPhases,1),1);repmat(condLabels...
     +[-.3 -.3 -.3 -.1 -.1 -.1 .1 .1 .1 .3 .3 .3]+.05,size(handPhases,1),1)],[],1),reshape([armPhases;handPhases],[],1),...
     [],cl(reshape([ones(size(armPhases));2*ones(size(handPhases))],1,[]),:),'filled');
 s.XJitter = 'rand';
 s.XJitterWidth = .02;
-[meanVals,gNames] = cellfun(@(c) groupsummary(cell2mat(arrayfun(@(v) tPhys.(string(v)),(varNames(contains(varNames,"_"+c))),'UniformOutput',false)),...
-    {tPhys.Somatotopy,any(tPhys{:,contains(tPhys.Properties.VariableNames,"TaskUnit")},2)},"mean"),params.condAbbrev.values,'UniformOutput',false);
-%bx=violin(condPhases,'x',4*(condLabels-1+repmat([-.3 -.1 .1 .3],1,3)),'facecolor',cm(phaseLabels,:));
+[meanVals,gNames] = cellfun(@(c) groupsummary(cell2mat(arrayfun(@(v) tPhys{condIndex,string(v)},(varNames(contains(varNames,"_"+c))),'UniformOutput',false)),...
+    {tPhys{condIndex,"Somatotopy"},any(tPhys{condIndex,contains(tPhys.Properties.VariableNames,"TaskUnit")},2)},"median"),params.condAbbrev.values,'UniformOutput',false);
+%bx=violin(condPhases,'x',length(phaseNames)*(condLabels-1+repmat([-.3 -.1 .1 .3],1,length(conditions))),'facecolor',cl(phaseLabels,:));
 ylim([0 8]);
 xa = gca();
 set(xa,'XTick',[1:1:length(conditions)]);
@@ -119,10 +119,11 @@ plotVals = cell2mat(cellfun(@(g,m) reshape(m((contains(g,"Arm") | contains(g,"Ha
 scatter(unique(get(xa,"Children").XData,'sorted'),plotVals,200,'black',"_",'LineWidth',3);
 saveFigures(gcf,savePath,"Normalized_Violins",[]);
 allSegs = cellfun(@(c,n) cellfun(@(s,t) repmat(mean([s{:}],1,'omitnan'),size(t,1),1), c,n, 'UniformOutput',false), sumSegs,normPSTH,'UniformOutput',false);
-psthLabs = arrayfun(@(c,s) repmat(c,size(cell2mat([s{:}]),1),1)+"_"+string(tPhys.Somatotopy)+"_"+string(tPhys.Channel>16),string(params.condAbbrev.values),allSegs,'UniformOutput',false);
+psthLabs = arrayfun(@(c,s) repmat(c,size(cell2mat([s{:}]),1),1)+"_"+string(tPhys.Somatotopy),string(params.condAbbrev.values),allSegs,'UniformOutput',false);%+"_"+string(tPhys.Channel>16)
+numCondsPerSoma = unique(arrayfun(@(r) length(regexp(r,"_",'match')),unique([psthLabs{:}])));
 allPSTHS = cellfun(@(p) num2cell(p,[2,3]),vertcat(normPSTH{:}),'UniformOutput',false);
 figure();plotJointPSTHS(params,{cell2mat(cellfun(@(m) mean(m,3,'omitnan'),vertcat(allPSTHS{:}),'UniformOutput',false)).*...
     double((0./(vertcat(tPhys.TaskUnits_ESS,tPhys.TaskUnits_LS,tPhys.TaskUnits_P)))+1)},{cell2mat(vertcat(allSegs{:}))},...
-    vertcat(psthLabs{:}),true(size(cell2mat(vertcat(allSegs{:})),1),1),[],[-.5 2.5],[1 5],cell2struct(num2cell(...
-    distinguishable_colors(length(unique([psthLabs{:}])),'r'),2),unique([psthLabs{:}])));
+    vertcat(psthLabs{:}),true(size(cell2mat(vertcat(allSegs{:})),1),1),[],[-.5 2.5],[1 6],cell2struct(reshape(repmat(...
+    num2cell(cl,2),length(unique([psthLabs{:}]))/(numCondsPerSoma*length(conditions)),numCondsPerSoma)',[],1),unique([psthLabs{:}])));
 saveFigures(gcf,savePath,"Normalized_PSTHS",[]);

@@ -18,7 +18,7 @@ smoothKernel = smoothKernel*Fs;
 xLims = cellfun(@(a) a.*Fs, xLims, 'UniformOutput', false);
 colors = colorcube;
 exclude = string([datetime('04/01/2018','InputFormat','MM/dd/yyyy'):datetime('12/30/2018'),...
-    datetime('12/31/2019','InputFormat','MM/dd/yyyy'):datetime('today')],'dd-MMM-yyyy');
+    datetime('12/31/2021','InputFormat','MM/dd/yyyy'):datetime('today')],'dd-MMM-yyyy');
 directory = directory(arrayfun(@(c) isfolder(strjoin([c.folder,c.name,"EMG"],'\')),directory));
 pDates = strings(1,size(directory,1));
 for d = 1:size(directory,1)

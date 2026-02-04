@@ -1,23 +1,14 @@
 monkeys = ["Gilligan","Skipper"];
 drive = "S:\Lab\";
 alignments = [{'StartReach'}];
-alignWindows = {[-.5 2.5]};
-phaseWindows = {[0 0.2],[-.15 .05],[-.2 0.0],[-.15 .05]};
+alignments = [{'GoSignal'},{'StartReach'},{'StartHold'},{'StartWithdraw'}];
+alignWindows = {[-.2 .2],[-.5 .15],[-.20 .20],[-.15 .5]};
 gap = .1;
 groupings = {{"Deltoid.mat","Biceps.mat","Triceps.mat"},...
     {"Wrist Extensor.mat","Wrist Flexor.mat","Digit Extensor.mat","Digit Flexor.mat"}};
 muscles = string([groupings{:}]);
 groupInds = cellfun(@(g) contains(muscles,string(g)), groupings, 'UniformOutput',false);
 groupNames = cellfun(@(g) cellfun(@(s) string(s{1}(1:end-4)),g), groupings,'UniformOutput',false);
-condLabels = {'E', 'L', 'P'};
-events = containers.Map(condLabels, ...
-    {{'GoSignal','StartReach','StartGrasp','StartLift','StartHold',...
-    'StartWithdraw','StartReplaceHold','StartReplaceSuccess','StartReward'},...
-    {'GoSignal','StartReach','StartGrasp','StartLift','StartHold',...
-    'StartWithdraw','StartReplaceHold','StartReplaceSuccess','StartReward'},...
-    {'GoSignal','StartReach','StartGrasp','StartHold',...
-    'StartWithdraw','StartReplaceHold','StartReplaceSuccess','StartReward'}});
-
 saveFigs = true;
 savePath = "C:\Users\ngc14\Desktop\";
 if(saveFigs && ~exist(savePath,'dir'))
@@ -25,9 +16,9 @@ if(saveFigs && ~exist(savePath,'dir'))
     mkdir(savePath+"Phase_Boxplot\")
 end
 %%
-sessionSigs =repmat({repmat({[]},length(condLabels),1)},1,length(muscles));
-sessionSegs =repmat({repmat({[]},length(condLabels),1)},1,length(muscles));
-sessionDates =repmat({repmat({[]},length(condLabels),1)},1,length(muscles));
+sessionSigs =repmat({repmat({[]},3,1)},1,length(muscles));
+sessionSegs =repmat({repmat({[]},3,1)},1,length(muscles));
+sessionDates =repmat({repmat({[]},3,1)},1,length(muscles));
 tic
 for m =1:length(monkeys)
     mPath = drive+monkeys(m)+"\Sorted EMG Data\Averages_Raw\";
@@ -47,13 +38,13 @@ for m =1:length(monkeys)
     sessionDates = cellfun(@(s,m) cellfun(@(sc,mc) horzcat(sc,mc), ...
         s(1:length(Conditions),1),m(1:length(Conditions),1),'UniformOutput',false), sessionDates,  monkDates,'UniformOutput',false);
 end
-toc
-allSessions = cellfun(@(u) unique(string(u)),[sessionDates{:}],'UniformOutput',false);
-allSessions = unique([allSessions{:}]);
+clear monkSigs monkSegs monkDates
 alignWindows = cellfun(@(a) a.*Fs,alignWindows,'UniformOutput',false);
 phaseWindows = cellfun(@(p) p.*Fs,phaseWindows,'UniformOutput',false);
-clear monkSigs monkSegs monkDates
+toc
 %%
+allSessions = cellfun(@(u) unique(string(u)),[sessionDates{:}],'UniformOutput',false);
+allSessions = unique([allSessions{:}]);
 bVal = {};
 for m = 1:length(muscles)
     mTrials = {};
@@ -65,28 +56,25 @@ for m = 1:length(muscles)
         allCondSig = cellfun(@(as,d) as(string(d)==allSessions(s)),mSigs, mDates, 'UniformOutput', false);
         allCondSegs = cellfun(@(g,d) g(string(d)==allSessions(s)),mSegs, mDates, 'UniformOutput', false);
         allCondSegs = cellfun(@(c) cellfun(@(t) t(1),c), allCondSegs,'UniformOutput',false);
-        % normBaseline{s} = mean(cellfun(@(c,s) max(1,mean(c(s:s+Fs),2,'omitnan')),...
-        %     [allCondSig{:}],num2cell([allCondSegs{:}])));
-        % mTrials{s} =cellfun(@(c) cellfun(@(n)(n./normBaseline{s}),c,'UniformOutput', false),...
-        %     allCondSig,'UniformOutput',false);
+        % normBaseline{s} = mean(cellfun(@(c,s) max(1,mean(c(s:s+Fs),2,'omitnan')),[allCondSig{:}],num2cell([allCondSegs{:}])));
+        % mTrials{s} =cellfun(@(c) cellfun(@(n)(n./normBaseline{s}),c,'UniformOutput', false),allCondSig,'UniformOutput',false);
         normBaseline = cellfun(@(c,s) cellfun(@(t,a) max(1,max(t(a:a+2*Fs))),...
             c,num2cell(s),'UniformOutput', false),allCondSig,allCondSegs,'UniformOutput',false);
         maxSession =mean(maxk(cell2mat(cellfun(@cell2mat,normBaseline,'UniformOutput',false)'),3));
-        mTrials{s} =cellfun(@(c) cellfun(@(n)(n./maxSession),c,'UniformOutput', false),...
-            allCondSig,'UniformOutput',false);
+        mTrials{s} =cellfun(@(c) cellfun(@(n)(n./maxSession),c,'UniformOutput', false),allCondSig,'UniformOutput',false);
     end
     allCondSig = [];
     bVal{m} = normBaseline;
     normTrials(:,m) = cellfun(@(c) [c{:}], num2cell([mTrials{:}],2), 'UniformOutput',false);
 end
 allSessionSegs = horzcat(sessionSegs{:});
-%%
 [mTrials, mSigs, mDates, mSegs] = deal({});
-for c = 1:length(condLabels)
+%%
+for c = 1:length(Conditions)
     for a = 1:length(alignments)
         wind = alignWindows{a};
-        alignEvents = events.values(condLabels(c));
-        alignInd = find(strcmp(alignEvents{1},alignments{a}));
+        alignEvents = ConditionSegs{c};
+        alignInd = find(strcmp(alignEvents,alignments{a}));
         alignedSig{c,a} = cellfun(@(s,t) cell2mat(cellfun(@(ts,ss) ts(...
             ss(alignInd)+wind(1):ss(alignInd)+wind(end)),vertcat(s(:))',t,'UniformOutput',false)'),...
             normTrials(c,:),allSessionSegs(c,:),'UniformOutput',false);
@@ -98,7 +86,7 @@ end
 rawActivity = {};
 FStat = [];
 stats = {};
-cmpNames = join([nchoosek(condLabels,2)],',')';
+cmpNames = join([nchoosek(Conditions,2)],',')';
 cmpColors = dictionary(cmpNames,{[1 0 1], [0 1 1], [1 .7 0]});
 for g = 1:length(groupInds)
     currGroup = cellfun(@(ms) ms(groupInds{g}), alignedSig, 'UniformOutput', false);
@@ -124,16 +112,15 @@ for n = 1:numel(rawActivity)
     % combinedConds=cellfun(@(a)vertcat(a{:}).*cell2mat(cellfun(@(t)...
     %     repmat(sum(~isnan(t)),1,length(t)),a,'UniformOutput', false)),rawActivity(r,c),'UniformOutput',false);
     % [FStat(r,c),~,stats{r,c}] = anova1(horzcat(combinedConds{:}),cell2mat(cellfun(@(l,n)...
-    %     ones(1,length(l)).*n, combinedConds',num2cell(1:length(Conditions)),'UniformOutput',false)),...
-    %     'off');
+    %     ones(1,length(l)).*n, combinedConds',num2cell(1:length(Conditions)),'UniformOutput',false)),'off');
     figure('Units','normalized','Position',[0 0 1 1]);
     hold on;
     title([strjoin([groupings{r}{:}],",")+"- "+alignments{c}]);
     outliers = horzcat(combinedConds{:});
     outliers = outliers(isoutlier(horzcat(combinedConds{:}),'quartiles'));
     b=boxplot(horzcat(combinedConds{:}),cell2mat(cellfun(@(n) ones(1,size(combinedConds{1},2)).*n,...
-        num2cell(1:length(condLabels)),'UniformOutput',false)),'Notch','on');
-    xticklabels(condLabels);
+        num2cell(1:length(Conditions)),'UniformOutput',false)),'Notch','on');
+    xticklabels(Conditions);
     xlim([0.5 3.5])
     yl = get(gca,'YLim');
     ylim([0 yl(end)]);
@@ -149,8 +136,8 @@ fx = arrayfun(@gca,arrayfun(@(f) figure('Units','normalized','Position',[0 0 1 1
     1:length(groupings)),'UniformOutput', false);
 cellfun(@(f) hold(f,'on'),fx);
 l={};
-for c = 1:length(condLabels)
-    currEventSegs = events.values(condLabels(c));
+for c = 1:length(Conditions)
+    currEventSegs = ConditionSegs(c);
     numSegs = length(currEventSegs);
     plotted = false(length(groupInds),length(currEventSegs));
     plotted(:,contains(string(currEventSegs{1}),["StartGrasp","StartReplaceHold"])) = true;
@@ -194,7 +181,7 @@ for c = 1:length(condLabels)
                     plotted(g,s) = true;
                     if(avgSegs{g}(s)==plotStart)
                         plotColor = [.4 .4 .4];
-                    elseif(contains(condLabels(c), 's') && s==4)
+                    elseif(contains(Conditions(c), 'Sphere') && s==4)
                         plotColor = [.7 0 .7];
                     else
                         plotColor = pColors(c,:);%[.7 .7 .7];%

@@ -50,7 +50,8 @@ end
 toc
 allSessions = cellfun(@(u) unique(string(u)),[sessionDates{:}],'UniformOutput',false);
 allSessions = unique([allSessions{:}]);
-[alignWindows,phaseWindows] = cellfun(@(a,p) deal(a.*Fs,p.*Fs),alignWindows,phaseWindows,'UniformOutput',false);
+alignWindows = cellfun(@(a) a.*Fs,alignWindows,'UniformOutput',false);
+phaseWindows = cellfun(@(p) p.*Fs,phaseWindows,'UniformOutput',false);
 clear monkSigs monkSegs monkDates
 %%
 bVal = {};
@@ -97,7 +98,7 @@ end
 rawActivity = {};
 FStat = [];
 stats = {};
-cmpNames = join([nchoosek(Conditions,2)],',')';
+cmpNames = join([nchoosek(condLabels,2)],',')';
 cmpColors = dictionary(cmpNames,{[1 0 1], [0 1 1], [1 .7 0]});
 for g = 1:length(groupInds)
     currGroup = cellfun(@(ms) ms(groupInds{g}), alignedSig, 'UniformOutput', false);
@@ -113,6 +114,7 @@ for g = 1:length(groupInds)
     end
 end
 %%
+currGroup = [];
 for n = 1:numel(rawActivity)
     [r,c] = ind2sub(size(rawActivity),n);
     combinedConds=cellfun(@(a) cellfun(@(t) mean(vertcat(t,NaN(...
@@ -130,8 +132,8 @@ for n = 1:numel(rawActivity)
     outliers = horzcat(combinedConds{:});
     outliers = outliers(isoutlier(horzcat(combinedConds{:}),'quartiles'));
     b=boxplot(horzcat(combinedConds{:}),cell2mat(cellfun(@(n) ones(1,size(combinedConds{1},2)).*n,...
-        num2cell(1:length(Conditions)),'UniformOutput',false)),'Notch','on');
-    xticklabels(Conditions);
+        num2cell(1:length(condLabels)),'UniformOutput',false)),'Notch','on');
+    xticklabels(condLabels);
     xlim([0.5 3.5])
     yl = get(gca,'YLim');
     ylim([0 yl(end)]);
@@ -147,11 +149,11 @@ fx = arrayfun(@gca,arrayfun(@(f) figure('Units','normalized','Position',[0 0 1 1
     1:length(groupings)),'UniformOutput', false);
 cellfun(@(f) hold(f,'on'),fx);
 l={};
-for c = 1:length(Conditions)
-    currEventSegs = ConditionSegs{c};
+for c = 1:length(condLabels)
+    currEventSegs = events.values(condLabels(c));
     numSegs = length(currEventSegs);
     plotted = false(length(groupInds),length(currEventSegs));
-    plotted(:,contains(string(currEventSegs),["StartGrasp","StartReplaceHold"])) = true;
+    plotted(:,contains(string(currEventSegs{1}),["StartGrasp","StartReplaceHold"])) = true;
     mSegs = cellfun(@(mc) cellfun(@(g) mean(mc(g,:),1,'omitnan'), groupInds, 'UniformOutput', false),...
         cellfun(@(am) cell2mat(am'),allSegs(c,:),'UniformOutput', false),'UniformOutput', false);
     xTicks = [];
@@ -159,7 +161,7 @@ for c = 1:length(Conditions)
         % plotted = false(1,length(currEventSegs));
         % plotted(contains(string(currEventSegs),["StartGrasp","StartReplaceHold"])) = true;
         wind = alignWindows{align};
-        alignInd = find(strcmp(string(currEventSegs),alignments{align}));
+        alignInd = find(strcmp(string(currEventSegs{1}),alignments{align}));
         alignSession = cellfun(@(gI) cellfun(@(sm) sm(1:min(cellfun(@(s) size(s,1), alignedSig{c,align}(gI))),:),...
             alignedSig{c,align}(gI),'UniformOutput', false), groupInds, 'UniformOutput',false);
         alignSession = cellfun(@(a) mean(cat(3,a{:}),3,'omitnan'),alignSession, 'UniformOutput', false);
@@ -192,12 +194,12 @@ for c = 1:length(Conditions)
                     plotted(g,s) = true;
                     if(avgSegs{g}(s)==plotStart)
                         plotColor = [.4 .4 .4];
-                    elseif(contains(Conditions(c), 'Sphere') && s==4)
+                    elseif(contains(condLabels(c), 's') && s==4)
                         plotColor = [.7 0 .7];
                     else
                         plotColor = pColors(c,:);%[.7 .7 .7];%
                     end
-                    plot(fx{g},[avgSegs{g}(s) avgSegs{g}(s)],[-5 500],'Color',plotColor,'LineStyle','--');
+                    plot(fx{g},[avgSegs{g}(s) avgSegs{g}(s)],[-0 1],'Color',plotColor,'LineStyle','--');
                 end
             end
         end

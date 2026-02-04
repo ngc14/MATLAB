@@ -1,6 +1,6 @@
 clear all;
 close all;
-monkey = 'Gilligan';
+monkey = 'Skipper';
 directory = dir(['S:\Lab\',monkey,'\All Data']);
 modelNames = {'Deltoid','Biceps', 'Triceps', 'Wrist Extensor', 'Wrist Flexor',...
     'Digit Extensor','Digit Flexor'};
@@ -123,8 +123,9 @@ for mm =1:length(modelNames)
                 %%
             paddedEventData = cellfun(@(a) cellfun(@(b) padArrays(abs(b),maxTrialLength), ...
                 a, 'UniformOutput', false), eventData, 'UniformOutput', false);
-            eventData = cellfun(@(a) cellfun(@(b) conv(b,gausswin(smoothKernel)/...
-                sum(gausswin(smoothKernel)),'same'),a,'UniformOutput', false),  paddedEventData, 'UniformOutput', false);
+            %eventData = cellfun(@(a) cellfun(@(b) conv(b,gausswin(smoothKernel)/...
+            %    sum(gausswin(smoothKernel)),'same'),a,'UniformOutput', false),  paddedEventData, 'UniformOutput', false);
+            eventData=paddedEventData;
             %%
             mismatch = cellfun(@(e) find(cellfun(@length,e)~=mode(cellfun(@length,e))), eventData, 'UniformOutput',false);
             if(any(cellfun(@any,mismatch)))

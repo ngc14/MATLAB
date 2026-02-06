@@ -1,8 +1,10 @@
 monkeys = ["Gilligan","Skipper"];
 drive = "S:\Lab\";
-alignments = [{'StartReach'}];
 alignments = [{'GoSignal'},{'StartReach'},{'StartHold'},{'StartWithdraw'}];
 alignWindows = {[-.2 .2],[-.5 .15],[-.20 .20],[-.15 .5]};
+alignments = [{'StartReach'}];
+alignWindows = {[-.5 2.5]};
+phaseWindows = {[0 0.2],[-.15 .05],[-.2 0.0],[-.15 .05]};
 gap = .1;
 groupings = {{"Deltoid.mat","Biceps.mat","Triceps.mat"},...
     {"Wrist Extensor.mat","Wrist Flexor.mat","Digit Extensor.mat","Digit Flexor.mat"}};
@@ -76,7 +78,7 @@ for c = 1:length(Conditions)
         alignEvents = ConditionSegs{c};
         alignInd = find(strcmp(alignEvents,alignments{a}));
         alignedSig{c,a} = cellfun(@(s,t) cell2mat(cellfun(@(ts,ss) ts(...
-            ss(alignInd)+wind(1):ss(alignInd)+wind(end)),vertcat(s(:))',t,'UniformOutput',false)'),...
+            max(1,ss(alignInd)+wind(1)):max(range(wind)+1,ss(alignInd)+wind(end))),vertcat(s(:))',t,'UniformOutput',false)'),...
             normTrials(c,:),allSessionSegs(c,:),'UniformOutput',false);
         allSegs{c,a} = cellfun(@(s) mean(cell2mat(cellfun(@(t) t-t(alignInd),s,'UniformOutput',false)'),1,'omitnan'),...
             allSessionSegs(c,:),'UniformOutput',false);
@@ -164,11 +166,10 @@ for c = 1:length(Conditions)
         %     'lineprops',{'Color',r,'LineWidth',2},...
         %     'ax',f),alignSession,repmat(num2cell(pColors(c,:),2),1,length(groupings)),fx);
 
-        l{end+1}=cellfun(@(n,r,f) plot(f,plotStart+wind(1):plotStart+wind(2),...
-            n(1:100,:),'Color',r,'LineWidth',1.25),alignSession,repmat(num2cell(pColors(c,:),2),1,...
-            length(groupings)),fx,'UniformOutput',false);
+        l{end+1}=cellfun(@(n,r,f) plot(f,plotStart+wind(1):plotStart+wind(2), n(1:100,:),'Color',r,'LineWidth',1.25),...
+            alignSession,repmat(num2cell(pColors(c,:),2),1,length(groupings)),fx,'UniformOutput',false);
+        cellfun(@(f,n) plot(f,plotStart+wind(1):plotStart+wind(2),mean(n,1,'omitnan')','LineWidth',4), fx,alignSession);
 
-        cellfun(@(f,n) plot(f,plotStart+wind(1):plotStart+wind(2),median(n,1,'omitnan'),'Color',pColors(c,:).*.85,'LineWidth',4), fx,alignSession);
         %plot(fx{c},plotStart+wind(1):plotStart+wind(end),mean(cell2mat(alignSession),1,'omitnan'),'k', 'LineWidth', 4,'LineStyle','-.');
         averageSegs = cellfun(@(ms) mean(ms,1,'omitnan'),mSegs{align},'UniformOutput',false);
         beforeSegs = cellfun(@(b)plotStart + cumsum(diff(b(alignInd:-1:1))), averageSegs,'UniformOutput', false);

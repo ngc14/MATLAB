@@ -16,12 +16,13 @@ else
     noteFiles = dirPath(find(cellfun(@(f) contains(f,extract(hFilePath.name,wildcardPattern+lookAheadBoundary(characterListPattern("_")+...
         digitsPattern+characterListPattern(".")))+"_Note"),{dirPath.name}),1)).name;
     notesLines = readlines(hFilePath.folder+"\"+noteFiles);
-    infoLines = notesLines(contains(notesLines,"Channel"));
+    infoLines = notesLines(contains(notesLines,"Channel")|contains(notesLines,"Electrode"));
     chMap{1} = {};
     chMap{2} = {};
     if(loadChannelMap)
         [res,hFile] = ns_OpenFile([hFilePath.folder,'\',hFilePath.name],'single');
         if(strcmp(res, 'ns_OK'))
+            oldCI = [];
             chMapR = [hFile.Entity.Label];
             chMapR = chMapR(~cellfun(@isempty,chMapR));
             chs = cellfun(@(r) cell2mat(regexp(r,'(\d+)(?!.*\d)','match')),chMapR,'Uniformoutput',false);
@@ -40,12 +41,27 @@ else
                     chs = chs(cellfun(@(c) ~strcmp(c,"0"), chs));
                 end
             end
-            [chs,ci,~] = unique(cellfun(@str2double,chs));
+            [chs,ci,~] = unique(cellfun(@str2double,chs),'sorted');
+            chs = chs-(min(chs)-1);
             if(any(contains(infoLines,"Microprobes",'IgnoreCase',true)) && ...
-                    any(contains(infoLines, "Channel 1"+wildcardPattern+"deep")))
+                    any(contains(infoLines, "Channel 1"+wildcardPattern+"deep")) ||...
+                    any(contains(infoLines, "Channel 32"+wildcardPattern+"superficial")))
                 ci = flipud(ci);
+            elseif(any(contains(infoLines,"VProbe","IgnoreCase",true)))
+                oldCI = ci;
+                maxCh = str2double(cellfun(@string,regexp(reshape(char(infoLines)',1,[]),'(\d*){1} contacts','tokens')));
+                ci = [1:2:maxCh,2:2:maxCh];
+                missingChs = find(~ismember(1:maxCh,chs));
+                if(~isempty(missingChs))
+                    ci = ci(ci~=missingChs);
+                    ci(ci>=min(missingChs)) = ci(ci>=min(missingChs))-length(missingChs);
+                end
+                ci(ci>maxCh) = NaN;
             end
-            chMap{1} = chMapR(ci);
+            chMap{1,1} = chMapR(ci);
+            if(~isempty(oldCI))
+                chMap{1,2} = oldCI;
+            end
             chMap{2} = chs(ci);
         end
         ns_CloseFile(hFile);

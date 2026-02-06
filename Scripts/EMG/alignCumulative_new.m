@@ -123,9 +123,8 @@ for mm =1:length(modelNames)
                 %%
             paddedEventData = cellfun(@(a) cellfun(@(b) padArrays(abs(b),maxTrialLength), ...
                 a, 'UniformOutput', false), eventData, 'UniformOutput', false);
-            %eventData = cellfun(@(a) cellfun(@(b) conv(b,gausswin(smoothKernel)/...
-            %    sum(gausswin(smoothKernel)),'same'),a,'UniformOutput', false),  paddedEventData, 'UniformOutput', false);
-            eventData=paddedEventData;
+            eventData = cellfun(@(a) cellfun(@(b) conv(b,gausswin(smoothKernel)/...
+               sum(gausswin(smoothKernel)),'same'),a,'UniformOutput', false),  paddedEventData, 'UniformOutput', false);
             %%
             mismatch = cellfun(@(e) find(cellfun(@length,e)~=mode(cellfun(@length,e))), eventData, 'UniformOutput',false);
             if(any(cellfun(@any,mismatch)))

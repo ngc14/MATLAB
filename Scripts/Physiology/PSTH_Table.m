@@ -43,13 +43,13 @@ for c = 1:length(conditions)
 end
 sumSegs = cellfun(@(c)cellfun(@(s) {s},c,'UniformOutput',false),sumSegs,'UniformOutput',false);
 [taskBaseline,taskFR] = calculatePhases(params,taskAlign,taskWindow,sumSegs,siteTrialPSTHS,false,true);
-[~,tUnit] = cellfun(@(tb,tc) cellfun(@(b,cn) ttestTrials(b,cn,1,true,pVal),tb,tc,'UniformOutput',false),taskBaseline,taskFR,'UniformOutput', false);
-[phaseBaseline,phaseFR] = calculatePhases(params,condPhaseAlign,phaseWindows,sumSegs,normPSTH,false,true);
-[~,avgPhase] =  calculatePhases(params,condPhaseAlign,phaseWindows,sumSegs,normPSTH,false,true);
+[~,phaseFR] = calculatePhases(params,condPhaseAlign,phaseWindows,sumSegs,siteTrialPSTHS,false,true);
+[~,avgPhase] =  calculatePhases(params,condPhaseAlign,phaseWindows,sumSegs,normPSTH,false,false);
 rAUC = cellfun(@(c) cellfun(@(a) a{1}{:,contains(string(phaseNames),"Reach")},c,'UniformOutput',false), phaseFR, 'UniformOutput',false);
 gAUC = cellfun(@(c) cellfun(@(a) a{1}{:,contains(string(phaseNames),"Hold")},c,'UniformOutput',false), phaseFR, 'UniformOutput',false);
 [gsubr,rgInds] = cellfun(@(cr,cg) cellfun(@(r,g) ttestTrials({{r}},{{g}},1,true,0.05),cr,cg,'UniformOutput',false),rAUC,gAUC, 'UniformOutput',false);
 gsubr = cellfun(@(c) cellfun(@(v) mean([v{:}],2,'omitnan'), c, 'UniformOutput',false),gsubr,'UniformOutput',false);
+[~,tUnit] = cellfun(@(tb,tc) cellfun(@(b,cn) ttestTrials(b,cn,1,true,pVal),tb,tc,'UniformOutput',false),taskBaseline,taskFR,'UniformOutput', false);
 typeUnits = cellfun(@(rg,v,t) sum(cumprod([cell2mat(rg)>0 & cell2mat(v)<0, cell2mat(rg)>0 & cell2mat(v)>0, ...
     cell2mat(rg)==0 & cell2mat(t)==1] ==0,2),2)+1, rgInds,gsubr,tUnit, 'UniformOutput', false);
 for t = 1:length(typeUnits)
@@ -59,7 +59,7 @@ condXphase = cellfun(@(pc) cell2mat(cellfun(@(v) permute(mean(cat(3,v{:}),2,'omi
     cellfun(@(n) vertcat(n{:}),pc,'UniformOutput',false),'UniformOutput',false)),avgPhase,'UniformOutput',false);
 condXphase = cellfun(@(s) [s,NaN(size(s,1),length(phaseNames)-size(s,2))], condXphase, 'UniformOutput',false);
 chUnitMap = cellfun(@(m) m{end},chMaps','UniformOutput',false);
-chUnitMap(strcmp([siteDateMap.Monkey],"Gilligan")) = {[1:2:32,2:2:32]};chUnitMap(strcmp([siteDateMap.Monkey],"Skipper")) = {[32:-1:1]};
+% chUnitMap(strcmp([siteDateMap.Monkey],"Gilligan")) = {[1:2:32,2:2:32]};chUnitMap(strcmp([siteDateMap.Monkey],"Skipper")) = {[32:-1:1]};
 %%
 tPhys = table();
 for c = 1:length(conditions)
@@ -118,6 +118,7 @@ gNames = cellfun(@(g) string(g{1})+"_"+string(g{2}), gNames, 'UniformOutput', fa
 plotVals = cell2mat(cellfun(@(g,m) reshape(m((contains(g,"Arm") | contains(g,"Hand")) & contains(g,"true"),:),1,[]),gNames,meanVals,'UniformOutput',false));
 scatter(unique(get(xa,"Children").XData,'sorted'),plotVals,200,'black',"_",'LineWidth',3);
 saveFigures(gcf,savePath,"Normalized_Violins",[]);
+%
 allSegs = cellfun(@(c,n) cellfun(@(s,t) repmat(mean([s{:}],1,'omitnan'),size(t,1),1), c,n, 'UniformOutput',false), sumSegs,normPSTH,'UniformOutput',false);
 psthLabs = arrayfun(@(c,s) repmat(c,size(cell2mat([s{:}]),1),1)+"_"+string(tPhys.Somatotopy),string(params.condAbbrev.values),allSegs,'UniformOutput',false);%+"_"+string(tPhys.Channel>16)
 numCondsPerSoma = unique(arrayfun(@(r) length(regexp(r,"_",'match')),unique([psthLabs{:}])));

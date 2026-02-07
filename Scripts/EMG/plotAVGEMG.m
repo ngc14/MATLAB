@@ -133,7 +133,7 @@ for n = 1:numel(rawActivity)
 end
 %% TIMECOURSES %%
 close all;
-pColors =([.7 0 0; .8 .4 0; 0 0 .7]);
+pColors =([.7 0 0; .8 .4 0; 0 0 .7; 0 0 0]);
 fx = arrayfun(@gca,arrayfun(@(f) figure('Units','normalized','Position',[0 0 1 1]),...
     1:length(groupings)),'UniformOutput', false);
 cellfun(@(f) hold(f,'on'),fx);
@@ -148,29 +148,25 @@ for c = 1:length(Conditions)
     xTicks = [];
     for align = 1:length(alignments)
         % plotted = false(1,length(currEventSegs));
-        % plotted(contains(string(currEventSegs),["StartGrasp","StartReplaceHold"])) = true;
         wind = alignWindows{align};
         alignInd = find(strcmp(string(currEventSegs{1}),alignments{align}));
         alignSession = cellfun(@(gI) cellfun(@(sm) sm(1:min(cellfun(@(s) size(s,1), alignedSig{c,align}(gI))),:),...
             alignedSig{c,align}(gI),'UniformOutput', false), groupInds, 'UniformOutput',false);
-        alignSession = cellfun(@(a) mean(cat(3,a{:}),3,'omitnan'),alignSession, 'UniformOutput', false);
+        alignSession = cellfun(@(a) cat(3,a(:)),alignSession, 'UniformOutput', false);
         %fx{c}=gca(figure(c)); hold on; legend('AutoUpdate','off');
         if(align==1)
             plotStart = 0;
         else
             plotStart =(gap*Fs) + xTicks{align-1}(end)+abs(wind(1));
         end
-
-        % l{end+1}=cellfun(@(n,r,f) shadedErrorBar(plotStart+wind(1):plotStart+wind(2),...
-        %     mean(n,1,'omitnan'),.5*std(n,1,1,'omitnan'),.../sqrt(size(n,1))
-        %     'lineprops',{'Color',r,'LineWidth',2},...
-        %     'ax',f),alignSession,repmat(num2cell(pColors(c,:),2),1,length(groupings)),fx);
-
-        l{end+1}=cellfun(@(n,r,f) plot(f,plotStart+wind(1):plotStart+wind(2), n(1:100,:),'Color',r,'LineWidth',1.25),...
-            alignSession,repmat(num2cell(pColors(c,:),2),1,length(groupings)),fx,'UniformOutput',false);
-        cellfun(@(f,n) plot(f,plotStart+wind(1):plotStart+wind(2),mean(n,1,'omitnan')','LineWidth',4), fx,alignSession);
-
-        %plot(fx{c},plotStart+wind(1):plotStart+wind(end),mean(cell2mat(alignSession),1,'omitnan'),'k', 'LineWidth', 4,'LineStyle','-.');
+        l{end+1}=cellfun(@(n,r,f) shadedErrorBar(plotStart+wind(1):plotStart+wind(2),mean(n,1,'omitnan'),...
+        .5*std(n,1,1,'omitnan'),.../sqrt(size(n,1))',lineprops',{'Color',r,'LineWidth',2},...
+        'ax',f),alignSession,repmat(num2cell(pColors(c,:),2),1,length(groupings)),fx);
+        
+        % l{end+1}=cellfun(@(n,f) cellfun(@(a,r)plot(f,plotStart+wind(1):plotStart+wind(2), a(1:100,:),'Color',r,'LineWidth',1.25),...
+        %     n,num2cell(pColors(1:length(n),:),2),'UniformOutput',false),alignSession,fx,'UniformOutput',false);
+        % cellfun(@(f,g) cellfun(@(n) plot(f,plotStart+wind(1):plotStart+wind(2),mean(n,1,'omitnan')','LineWidth',4),g), fx,alignSession);
+        plot(fx{c},plotStart+wind(1):plotStart+wind(end),mean(cell2mat(alignSession),1,'omitnan'),'k', 'LineWidth', 4,'LineStyle','-.');
         averageSegs = cellfun(@(ms) mean(ms,1,'omitnan'),mSegs{align},'UniformOutput',false);
         beforeSegs = cellfun(@(b)plotStart + cumsum(diff(b(alignInd:-1:1))), averageSegs,'UniformOutput', false);
         afterSegs = cellfun(@(a) plotStart + cumsum(diff(a(alignInd:end))), averageSegs, 'UniformOutput', false);

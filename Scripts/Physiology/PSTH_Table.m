@@ -21,7 +21,6 @@ condPhaseAlign = containers.Map(conditions,cellfun(@num2cell,phaseAlignmentPoint
 %%
 [siteDateMap, siteSegs, siteTrialPSTHS, rawSpikes, siteChannels, siteActiveInd,...
     siteRep,siteLocation,siteMasks,monkeys,vMask,conditions,chMaps,siteTrialInfo] = getAllSessions(params,"Single","M1");
-clear rawSpikes
 %%
 allCondCue = cellfun(@(c) cellfun(@(a) cellfun(@(t) findBins(mean(t(:,2)-4,'omitnan'),params.bins),a),...
     c,'UniformOutput',false),siteSegs,'UniformOutput',false);
@@ -58,27 +57,26 @@ end
 condXphase = cellfun(@(pc) cell2mat(cellfun(@(v) permute(mean(cat(3,v{:}),2,'omitnan'),[1 3 2]),...
     cellfun(@(n) vertcat(n{:}),pc,'UniformOutput',false),'UniformOutput',false)),avgPhase,'UniformOutput',false);
 condXphase = cellfun(@(s) [s,NaN(size(s,1),length(phaseNames)-size(s,2))], condXphase, 'UniformOutput',false);
-chUnitMap = cellfun(@(m) m{end},chMaps','UniformOutput',false);
-% chUnitMap(strcmp([siteDateMap.Monkey],"Gilligan")) = {[1:2:32,2:2:32]};chUnitMap(strcmp([siteDateMap.Monkey],"Skipper")) = {[32:-1:1]};
+chUnitMap = cellfun(@(m) m{end},chMaps,'UniformOutput',false);
+%chUnitMap(strcmp([siteDateMap.Monkey],"Gilligan"))= {[1:2:32,2:2:32]};chUnitMap(strcmp([siteDateMap.Monkey],"Skipper"))= {[32:-1:1]};
 %%
 tPhys = table();
 g = @(x,y,c)GetPointLineDistance(x,y,c(1),c(2),c(3),c(4));
+unitLocation = cell2mat(arrayfun(@(x,y,c) [g(x,y,OrthogonalLines(c).RCLine), g(x,y,OrthogonalLines(c).MLLine)],...
+    siteDateMap.x,siteDateMap.y,siteDateMap.Monkey,'UniformOutput',false));
+condUnitMapping = cellfun(@(si) size(si,2),siteChannels)';
+unitLocation = mapSites2Units(condUnitMapping,num2cell([unitLocation(:,1),unitLocation(:,2)],2));
+allReps =  mapSites2Units(condUnitMapping,siteRep');
 for c = 1:length(conditions)
     condTable = table();
     AUCVals = condXphase{c};
     tUnits = cell2mat(tUnit{c});
     tUnits(isnan(tUnits)) = 0;
-    condUnitMapping = cellfun(@(si) size(si,2),siteChannels)';    
-    allReps =  mapSites2Units(condUnitMapping,siteRep');
-    mLabs = mapSites2Units(condUnitMapping,siteDateMap.Monkey);
-    mInds= contains(mLabs,"Skipper");
-    unitLocation = cell2mat(arrayfun(@(x,y,c) [g(x,y,OrthogonalLines(c).RCLine), g(x,y,OrthogonalLines(c).MLLine)],...
-        siteDateMap.x,siteDateMap.y,siteDateMap.Monkey,'UniformOutput',false));
-    unitLocation = mapSites2Units(condUnitMapping,num2cell([unitLocation(:,1),unitLocation(:,2)],2));
-    condTable.Unit = [1:length(mLabs)]';
-    condTable.SiteNum = cell2mat(arrayfun(@(s,c) repmat(s,c,1), [1:length(condUnitMapping)]',condUnitMapping,'UniformOutput',false));
-    condTable.Monkey = categorical(mLabs);
+    condTable.Unit = transpose(1:length(allReps));
+    condTable.SiteNum = cell2mat(arrayfun(@(s,c) repmat(s,c,1), 1:length(condUnitMapping),condUnitMapping','UniformOutput',false)');
+    condTable.Monkey = categorical(mapSites2Units(condUnitMapping,siteDateMap.Monkey));
     condTable.Somatotopy = categorical(allReps);
+    mInds= contains(condTable.Monkey,"Skipper");
     condTable.Channel =  cell2mat(cellfun(@(ch,l) ch(l(~isnan(l))), chUnitMap,siteChannels, 'Uniformoutput', false))';
     condTable.X(mInds) = cellfun(@(x) x(1), unitLocation(mInds)) - min(cellfun(@(x) x(1), unitLocation(mInds)));
     condTable.X(~mInds) = cellfun(@(x) x(1), unitLocation(~mInds)) - min(cellfun(@(x) x(1), unitLocation(~mInds)));
@@ -100,20 +98,20 @@ plotNames = arrayfun(@(p) arrayfun(@(c) string(p)+"_"+c{1}(1), conditions, 'Unif
 plotNames = [plotNames{:}];
 tPhys = unstack(tPhys,condTable.Properties.VariableNames(find(strcmp(condTable.Properties.VariableNames,"Condition"))+1:end),"Condition");
 %%
+somaColors = [0 .5 0; .5 0 .5;0 0 0];
 varNames = tPhys.Properties.VariableNames(any(cell2mat(arrayfun(@(p) contains(tPhys.Properties.VariableNames,string(p)) & ~contains(tPhys.Properties.VariableNames,"_R"), phaseNames, 'UniformOutput', false)'),1));
 phaseVals = tPhys{:,varNames};
 condLabels = sum(cell2mat(cellfun(@(c,n) n.*contains(varNames,"_"+c),params.condAbbrev.values,num2cell(1:length(conditions)),'UniformOutput',false)'),1);
 phaseLabels = sum(cell2mat(cellfun(@(c,n) n.*contains(varNames,string(c)),cellstr(phaseNames),num2cell(1:length(phaseNames)),'UniformOutput',false)'),1);
-condIndex = any(tPhys{:,contains(tPhys.Properties.VariableNames,"Task") & ~contains(tPhys.Properties.VariableNames,"_R")},2) ...
+condIndex = any(tPhys{:,contains(tPhys.Properties.VariableNames,"Task") & ~contains(tPhys.Properties.VariableNames,"_R")},2); ...
     %& tPhys.Channel<=16;
 condPhases = phaseVals(condIndex,:);
 armPhases = condPhases(tPhys{condIndex,'Somatotopy'}=="Arm",:);
 handPhases = condPhases(tPhys{condIndex,'Somatotopy'}=="Hand",:);
-cl = [0 .5 0; .5 0 .5;0 0 0];
 figure(); hold on;
 s=swarmchart(reshape([repmat(condLabels+[-.3 -.3 -.3 -.1 -.1 -.1 .1 .1 .1 .3 .3 .3],size(armPhases,1),1);repmat(condLabels...
     +[-.3 -.3 -.3 -.1 -.1 -.1 .1 .1 .1 .3 .3 .3]+.05,size(handPhases,1),1)],[],1),reshape([armPhases;handPhases],[],1),...
-    [],cl(reshape([ones(size(armPhases));2*ones(size(handPhases))],1,[]),:),'filled');
+    [],somaColors(reshape([ones(size(armPhases));2*ones(size(handPhases))],1,[]),:),'filled');
 s.XJitter = 'rand'; s.XJitterWidth = .02;
 [meanVals,gNames] = cellfun(@(c) groupsummary(cell2mat(arrayfun(@(v) tPhys{condIndex,string(v)},(varNames(contains(varNames,"_"+c))),'UniformOutput',false)),...
     {tPhys{condIndex,"Somatotopy"},any(tPhys{condIndex,contains(tPhys.Properties.VariableNames,"TaskUnit")},2)},"median"),params.condAbbrev.values,'UniformOutput',false);
@@ -126,16 +124,19 @@ gNames = cellfun(@(g) string(g{1})+"_"+string(g{2}), gNames, 'UniformOutput', fa
 plotVals = cell2mat(cellfun(@(g,m) reshape(m((contains(g,"Arm") | contains(g,"Hand")) & contains(g,"true"),:),1,[]),gNames,meanVals,'UniformOutput',false));
 scatter(unique([get(xa,"Children").XData],'sorted'),plotVals,200,'black',"_",'LineWidth',3);
 saveFigures(gcf,savePath,"Normalized_Violins",[]);
-%
+%%
 allSegs = cellfun(@(c,n) cellfun(@(s,t) repmat(mean([s{:}],1,'omitnan'),size(t,1),1), c,n, 'UniformOutput',false), sumSegs,normPSTH,'UniformOutput',false);
 psthLabs = arrayfun(@(c,s) repmat(c,size(cell2mat([s{:}]),1),1)+"_"+string(tPhys.Somatotopy)+"_"+tPhys.("unitType_"+c),string(params.condAbbrev.values),allSegs,'UniformOutput',false);%+"_"+string(tPhys.Channel>16)
 allPSTHS = cellfun(@(p) num2cell(p,[2,3]),vertcat(normPSTH{:}),'UniformOutput',false);
+allLabs = unique([psthLabs{:}]); 
+emptyConds = allLabs(contains(allLabs,"_0"));
 for p = 1:length(psthLabs)
-    psthLabs{p}(ismember(psthLabs{p},emptyConds{p}))="";
+    psthLabs{p}(ismember(psthLabs{p},emptyConds))="";
 end
-allLabs = unique([psthLabs{:}]); twoDim = length(conditions) * double(max(unique(arrayfun(@(r) length(regexp(r,"_",'match')),allLabs)))>1);
+allLabs = allLabs(~ismember(allLabs,emptyConds));
+twoDim = length(conditions) * double(max(unique(arrayfun(@(r) length(regexp(r,"_",'match')),allLabs)))>1);
 figure();plotJointPSTHS(params,{cell2mat(cellfun(@(m) mean(m,3,'omitnan'),vertcat(allPSTHS{:}),'UniformOutput',false)).*...
     double((0./(vertcat(tPhys.TaskUnits_ESS,tPhys.TaskUnits_LS,tPhys.TaskUnits_P)))+1)},{cell2mat(vertcat(allSegs{:}))},...
     vertcat(psthLabs{:}),(vertcat(tPhys.TaskUnits_ESS,tPhys.TaskUnits_LS,tPhys.TaskUnits_P)),[],[-.5 2.5],[.9 6],...
-    cell2struct(reshape(repmat(repmat(num2cell(cl,2),1,length(conditions)),max(1,twoDim),1)',[],1),allLabs(allLabs~="")));
+    cell2struct(reshape(repmat(repmat(num2cell(somaColors,2),1,length(conditions)),max(1,twoDim),1)',[],1),allLabs(allLabs~="")));
 saveFigures(gcf,savePath,"Normalized_PSTHS",[]);

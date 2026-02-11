@@ -81,7 +81,7 @@ for j = 1:length(jointName)
             meanTrace = mean(currJointAlign,1,'omitnan');
             plot(xAlignTicks{a},meanTrace, 'LineWidth',2,'Color',plotColors.(jointName{j}));
             SEM = nanstd(currJointAlign,0,1);
-            if(~trialSamples)
+            if(trialSamples)
                 SEM = SEM/sqrt(sum(~all(isnan(currJointAlign),2)));
             end
             uE=meanTrace+SEM;

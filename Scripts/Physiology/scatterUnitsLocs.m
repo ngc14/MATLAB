@@ -1,10 +1,10 @@
 typeNames = ["Reach","Grasp","Both","All"];
-conds = ["E","L","P"];
+conds = ["ESS","LS","P"];
 sOrder = [3 1 2];
 pairs = combnk(1:length(sOrder),2);
-load("S:\Lab\ngc14\Working\Both\Full_Baseline\FRTable_STransformed.mat");
+sTable=readtable("S:\Lab\ngc14\Physiology_Paper\Stats\Updated_Stats\TaskUnits_All.xlsx");
 repNames = ["Arm","Trunk","Hand"];
-savePath = "S:\Lab\ngc14\Working\Both\Full_Baseline\SI\XY_Histograms\";
+savePath = "S:\Lab\ngc14\Physiology_Paper\Stats\Updated_Stats\";
 dir = ["ML","RC"];
 cl = validatecolor(["#A2142F","#0072BD","#EDB120","#77AC30"],'multiple');
 whiskerP = 10;
@@ -13,7 +13,6 @@ close all;
 monkeys = 1;
 mStep = 55.65;
 minBinPerc = 5;
-newtPhys = tPhys;
 sig = cell(length(dir),1);
 allTable = table();
 for c = 1:length(conds)
@@ -33,13 +32,15 @@ for c = 1:length(conds)
             end
             pInd = [1:monkeys:length(typeNames)*monkeys]+(m-1);
             if(d==1)
-                cBin = tPhys{:,'Y'};
+                distV = sTable{:,'ML'};
+                cBin = sTable{:,'Y'};
             else
-                cBin = tPhys{:,'X'};
+                distV = sTable{:,'RC'};
+                cBin = sTable{:,'X'};
             end
-            tInd = tPhys.("TaskUnits_"+conds(c))>0;
+            tInd = sTable.("TaskUnits_"+conds(c))>0;
             edgs = min(cBin(tInd)):mStep:(max(cBin(tInd))+(mStep-rem(max(cBin(tInd)),mStep)))+abs(rem(min(cBin(tInd)),mStep));
-            [tvalue,~,~] = histcounts(cBin,edgs,'Normalization','count');
+            [tvalue,~,~] = histcounts(distV(tInd),[unique(distV)' max(distV)+1],'Normalization','count');
             totalUnits = sum(tvalue);
             tvalue = 100*(tvalue./totalUnits);
             startInd = find([-Inf tvalue]>minBinPerc,1,'first')-1;
@@ -56,7 +57,7 @@ for c = 1:length(conds)
                 if(s==length(typeNames))
                     sInd = tInd;
                 else
-                    sInd = tInd & tPhys{:,("unitType_E")}==s;
+                    sInd = tInd & sTable{:,("unitType_ESS")}==s;
                     % ~isnan(tPhys.("rgSI_"+conds(c))) & [tPhys{:,"Somatotopy"}]==repNames(r) & strcmp(string(tPhys.Monkey),monkey)
                     % newtPhys = addvars(newtPhys,NaN(height(newtPhys),1),'NewVariableNames',svar,'After',width(newtPhys));
                 end
@@ -68,7 +69,7 @@ for c = 1:length(conds)
                 hold on;
                 if(0)
                     for ac = 1:(lastInd-startInd)
-                        barReps = string(tPhys{sInd(p==unBars(ac)),'Somatotopy'});
+                        barReps = string(sTable{sInd(p==unBars(ac)),'Somatotopy'});
                         [~,sortOrder] = ismember(barReps,repNames);
                         [~,sortOrder] = sort(sortOrder);
                         barReps = string(barReps(sortOrder));
@@ -80,7 +81,7 @@ for c = 1:length(conds)
                         %     hvalues(ac)*tPoints(1), hvalues(ac)*tPoints(2), hvalues(ac)*tPoints(3)],[1;2;3]);
                     end
                 else
-                    csBin = tPhys{sInd,"rgSI_"+conds(c)};
+                    csBin = sTable{sInd,"rgSI_"+conds(c)};
                     sig{d}(c,s,:) = accumarray(p(sInd),csBin,[max(p(sInd)),1],@ttest, 0,1);
                     if(s==4)
                         disp('');
@@ -130,7 +131,7 @@ for c = 1:length(conds)
                 hs(si) = length(ec{pairs(si,1)}) + length(ec{pairs(si,2)});
                 scatter([x1(find(e1>=.5,1,'first')), x2(find(e2>=.5,1,'first'))],[0 0], 120,[cl(pairs(si,1),:);cl(pairs(si,end),:)],'|','LineWidth',5)
                 title(typeNames(pairs(si,1))+"/"+typeNames(pairs(si,2)));
-                text(sum(get(gca,'XLim'))/2,0.8,"p = "+num2str(pvalue(si),'%.4f'),'Units','data');
+                text(sum(get(gca,'XLim'))/2,0.2,"p = "+num2str(pvalue(si),'%.4f'),'Units','data');
                 set(gca,'XTickLabels',str2double(get(gca,'XTickLabel')).*ImagingParameters.px2mm)
             end
             allTable(end+1:end+3,:) = cell2table([repmat({conds(c)},length(pvalue),1),num2cell(pairs,2),...
@@ -139,10 +140,10 @@ for c = 1:length(conds)
             linkaxes([sax(m,1:end-1)]);
         end
 
-        saveFigures(figure(1),savePath,"BothSites"+conds(c)+"_"+dir(d),[]);
+        saveFigures(figure(1),savePath+"CDF\","BothSites"+conds(c)+"_"+dir(d),[]);
         saveFigures(figure(2),savePath+"CDF\","BothSites"+conds(c)+"_"+dir(d),[]);
         close all;
     end
     %    end
 end
-writetable(allTable,savePath+"CDF\stats");
+writetable(allTable,savePath+"stats");

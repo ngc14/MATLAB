@@ -72,11 +72,11 @@ end
 % mask is black, nans are white
 % MM_image(vMask==0) = length(cMap)-1;
 MM_image(isinf(MM_image) & vMask==1) = length(cMap);
+MM_image(vMask~=1) = size(cMap,1)+1;
+figureMap = ind2rgb(MM_image,[cMap; .3 .3 .3]);
 if(isempty(get(0,'CurrentFigure')))
     figure('Units', 'normalized', 'Position', [0 0 1 1]);hold on;
 end
-MM_image(vMask~=1) = size(cMap,1)+1;
-figureMap = ind2rgb(MM_image,[cMap; .3 .3 .3]);
 %imshow(figureMap,'XData', 1:size(MM_image,2),'YData',1:size(MM_image,1));hold on;
 bnds = arrayfun(@(b) bwboundaries(siteMask{b}), find(emptyInds), 'UniformOutput',false);
 cellfun(@(tr) plot(tr{1}(:,2), tr{1}(:,1), 'LineStyle','--', 'LineWidth',.5,...

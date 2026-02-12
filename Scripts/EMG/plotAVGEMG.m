@@ -137,11 +137,13 @@ end
 %% TIMECOURSES %%
 close all;
 pColors =([.7 0 0; .8 .4 0; 0 0 .7; 0 0 0]);
-fx = arrayfun(@gca,arrayfun(@(f) figure('Units','normalized','Position',[0 0 1 1]),...
-    1:length(groupings)),'UniformOutput', false);
-cellfun(@(f) hold(f,'on'),fx);
+pColors = repmat({{[.8 0 .8],[0 .8 0]}},1,3);
+% fx = arrayfun(@gca,arrayfun(@(f) figure('Units','normalized','Position',[0 0 1 1]),...
+%     1:length(groupings)),'UniformOutput', false);
+% cellfun(@(f) hold(f,'on'),fx);
 l={};
 for c = 1:length(Conditions)
+    fx{c} = gca(figure('Units','normalized','Position',[0 0 1 1])); hold on;
     currEventSegs = ConditionSegs(c);
     numSegs = length(currEventSegs);
     plotted = false(length(groupInds),length(currEventSegs));
@@ -162,9 +164,10 @@ for c = 1:length(Conditions)
         else
             plotStart =(gap*Fs) + xTicks{align-1}(end)+abs(wind(1));
         end
-        l{end+1}=cellfun(@(n,r,f) shadedErrorBar(plotStart+wind(1):plotStart+wind(2),mean(n,1,'omitnan'),...
-        .6*std(n,1,1,'omitnan'),'lineprops',{'Color',r,'LineWidth',2},...
-        'ax',f),alignSession,repmat(num2cell(pColors(c,:),2),1,length(groupings)),fx);
+        l{end+1}=cellfun(@(n,r) shadedErrorBar(plotStart+wind(1):plotStart+wind(2),...
+            conv(mean(n,1,'omitnan'),gausswin(smoothKernel)/sum(gausswin(smoothKernel)),'same'),...
+            conv(std(n,1,1,'omitnan')./(sqrt(length(n))/10),gausswin(smoothKernel)/sum(gausswin(smoothKernel)),'same'),...
+            'lineprops',{'Color',r,'LineWidth',2}),alignSession,pColors{c});
         
         % l{end+1}=cellfun(@(n,f) cellfun(@(a,r)plot(f,plotStart+wind(1):plotStart+wind(2), a(1:100,:),'Color',r,'LineWidth',1.25),...
         %     n,num2cell(pColors(1:length(n),:),2),'UniformOutput',false),alignSession,fx,'UniformOutput',false);
@@ -186,7 +189,7 @@ for c = 1:length(Conditions)
                     else
                         plotColor = pColors(c,:);%[.7 .7 .7];%
                     end
-                    plot(fx{g},[avgSegs{g}(s) avgSegs{g}(s)],[-0 1],'Color',plotColor,'LineStyle','--');
+                    plot([avgSegs{g}(s) avgSegs{g}(s)],[-0 1],'Color',plotColor,'LineStyle','--');
                 end
             end
         end
@@ -196,7 +199,7 @@ end
 yL = [0 1];
 xlim([fx{:}],[xTicks{1}(1), xTicks{end}(end)]);
 ylim([fx{:}],yL);
-cellfun(@(a,s) title(a,s), fx, groupings);%num2cell(fNames)')%Conditions(1:end-1)');
+cellfun(@(a,s) title(a,s), fx, num2cell(Conditions(1:end))');
 set([fx{:}], 'XTick', sort([xTicks{:}]));
 alignNames = cellfun(@(x,w) [num2str(x(1)/Fs),string(w),...
     num2str(x(end)/Fs)],alignWindows,alignments,'UniformOutput',false);
@@ -205,7 +208,7 @@ l=[l{1:length(alignments):end}];
 l=l(1:length(groupings):end);
 %cellfun(@(f) legend(f,[l.mainLine],Conditions),fx)%,cellfun(@(n) string(n(1:end-4)), fNames))
 if(saveFigs)
-    cellfun(@(f,n) exportgraphics(f,savePath+strjoin(n+".png",'_'),'Resolution',300,'ContentType','vector'),fx,groupings);
-    cellfun(@(f,n) exportgraphics(f,savePath+strjoin(n+".eps",'_'),'Resolution',300,'ContentType','vector'),fx,groupings);
+    cellfun(@(f,n) saveFigures(f.Parent,savePath,n,[]),fx,Conditions(1:end)');
+    % cellfun(@(f,n) exportgraphics(f,savePath+strjoin(n+".png",'_'),'Resolution',300,'ContentType','vector'),fx,groupings);
+    % cellfun(@(f,n) exportgraphics(f,savePath+strjoin(n+".eps",'_'),'Resolution',300,'ContentType','vector'),fx,groupings);
 end
-%cellfun(@(f,n) saveas(f,drive+"Lab\ngc14\Working\"+monkey+"\EMG\Muscles\Forelimb"+cellfun(@(cn) cn(1), regexp(n,' ','split'))+'png'),fx,Conditions(1:end-1)'

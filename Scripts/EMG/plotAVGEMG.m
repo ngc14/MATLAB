@@ -6,6 +6,7 @@ alignments = [{'StartReach'}];
 alignWindows = {[-.5 2.5]};
 phaseWindows = {[0 0.2],[-.15 .05],[-.2 0.0],[-.15 .05]};
 gap = .1;
+smoothKernel = .15; 
 groupings = {{"Deltoid.mat","Biceps.mat","Triceps.mat"},...
     {"Wrist Extensor.mat","Wrist Flexor.mat","Digit Extensor.mat","Digit Flexor.mat"}};
 muscles = string([groupings{:}]);
@@ -43,6 +44,7 @@ end
 clear monkSigs monkSegs monkDates
 alignWindows = cellfun(@(a) a.*Fs,alignWindows,'UniformOutput',false);
 phaseWindows = cellfun(@(p) p.*Fs,phaseWindows,'UniformOutput',false);
+smoothKernel = smoothKernel*Fs;
 toc
 %%
 allSessions = cellfun(@(u) unique(string(u)),[sessionDates{:}],'UniformOutput',false);
@@ -110,7 +112,8 @@ for n = 1:numel(rawActivity)
     combinedConds=cellfun(@(a) cellfun(@(t) mean(vertcat(t,NaN(...
         max(cellfun(@length,a)-length(t)),size(t,2))),2,'omitnan')',a,'UniformOutput',false),...
         rawActivity(r,c),'UniformOutput',false);
-    combinedConds=combinedConds{1};
+    combinedConds=cellfun(@(b) conv(b,gausswin(smoothKernel)/sum(gausswin(smoothKernel)),'same'),...
+        combinedConds{1},'UniformOutput', false);
     % combinedConds=cellfun(@(a)vertcat(a{:}).*cell2mat(cellfun(@(t)...
     %     repmat(sum(~isnan(t)),1,length(t)),a,'UniformOutput', false)),rawActivity(r,c),'UniformOutput',false);
     % [FStat(r,c),~,stats{r,c}] = anova1(horzcat(combinedConds{:}),cell2mat(cellfun(@(l,n)...
@@ -152,7 +155,7 @@ for c = 1:length(Conditions)
         alignInd = find(strcmp(string(currEventSegs{1}),alignments{align}));
         alignSession = cellfun(@(gI) cellfun(@(sm) sm(1:min(cellfun(@(s) size(s,1), alignedSig{c,align}(gI))),:),...
             alignedSig{c,align}(gI),'UniformOutput', false), groupInds, 'UniformOutput',false);
-        alignSession = cellfun(@(a) cat(3,a(:)),alignSession, 'UniformOutput', false);
+        alignSession = cellfun(@(a) mean(cat(3,a{:}),3,'omitnan'),alignSession, 'UniformOutput', false);
         %fx{c}=gca(figure(c)); hold on; legend('AutoUpdate','off');
         if(align==1)
             plotStart = 0;
@@ -160,13 +163,13 @@ for c = 1:length(Conditions)
             plotStart =(gap*Fs) + xTicks{align-1}(end)+abs(wind(1));
         end
         l{end+1}=cellfun(@(n,r,f) shadedErrorBar(plotStart+wind(1):plotStart+wind(2),mean(n,1,'omitnan'),...
-        .5*std(n,1,1,'omitnan'),.../sqrt(size(n,1))',lineprops',{'Color',r,'LineWidth',2},...
+        .6*std(n,1,1,'omitnan'),'lineprops',{'Color',r,'LineWidth',2},...
         'ax',f),alignSession,repmat(num2cell(pColors(c,:),2),1,length(groupings)),fx);
         
         % l{end+1}=cellfun(@(n,f) cellfun(@(a,r)plot(f,plotStart+wind(1):plotStart+wind(2), a(1:100,:),'Color',r,'LineWidth',1.25),...
         %     n,num2cell(pColors(1:length(n),:),2),'UniformOutput',false),alignSession,fx,'UniformOutput',false);
         % cellfun(@(f,g) cellfun(@(n) plot(f,plotStart+wind(1):plotStart+wind(2),mean(n,1,'omitnan')','LineWidth',4),g), fx,alignSession);
-        plot(fx{c},plotStart+wind(1):plotStart+wind(end),mean(cell2mat(alignSession),1,'omitnan'),'k', 'LineWidth', 4,'LineStyle','-.');
+        %plot(fx{c},plotStart+wind(1):plotStart+wind(end),mean(cell2mat(alignSession),1,'omitnan'),'k', 'LineWidth', 4,'LineStyle','-.');
         averageSegs = cellfun(@(ms) mean(ms,1,'omitnan'),mSegs{align},'UniformOutput',false);
         beforeSegs = cellfun(@(b)plotStart + cumsum(diff(b(alignInd:-1:1))), averageSegs,'UniformOutput', false);
         afterSegs = cellfun(@(a) plotStart + cumsum(diff(a(alignInd:end))), averageSegs, 'UniformOutput', false);

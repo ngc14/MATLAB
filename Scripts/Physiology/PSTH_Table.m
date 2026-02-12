@@ -76,13 +76,13 @@ for c = 1:length(conditions)
     condTable.SiteNum = cell2mat(arrayfun(@(s,c) repmat(s,c,1), 1:length(condUnitMapping),condUnitMapping','UniformOutput',false)');
     condTable.Monkey = categorical(mapSites2Units(condUnitMapping,siteDateMap.Monkey));
     condTable.Somatotopy = categorical(allReps);
-    mInds= contains(condTable.Monkey,"Skipper");
+    mInds= condTable.Monkey=="Skipper";
     condTable.Channel =  cell2mat(cellfun(@(ch,l) ch(l(~isnan(l))), chUnitMap,siteChannels, 'Uniformoutput', false))';
     condTable.X(mInds) = cellfun(@(x) x(1), unitLocation(mInds)) - min(cellfun(@(x) x(1), unitLocation(mInds)));
     condTable.X(~mInds) = cellfun(@(x) x(1), unitLocation(~mInds)) - min(cellfun(@(x) x(1), unitLocation(~mInds)));
     condTable.Y(mInds) =  cellfun(@(x) x(end), unitLocation(mInds)) - min(cellfun(@(x) x(end), unitLocation(mInds)));
     condTable.Y(~mInds) = cellfun(@(x) x(end), unitLocation(~mInds)) - min(cellfun(@(x) x(end), unitLocation(~mInds)));
-    condTable.Condition = categorical(repmat({params.condAbbrev(conditions{c})},length(mLabs),1));
+    condTable.Condition = categorical(repmat({params.condAbbrev(conditions{c})},length(allReps),1));
     condTable.TaskUnits =  logical(tUnits);
     condTable.TaskFR = cell2mat(cellfun(@(t) mean(t{1}{1},2,'omitnan'), taskFR{c},'UniformOutput',false));
     for pn = 1:length(phaseNames)
@@ -114,7 +114,7 @@ s=swarmchart(reshape([repmat(condLabels+[-.3 -.3 -.3 -.1 -.1 -.1 .1 .1 .1 .3 .3 
     [],somaColors(reshape([ones(size(armPhases));2*ones(size(handPhases))],1,[]),:),'filled');
 s.XJitter = 'rand'; s.XJitterWidth = .02;
 [meanVals,gNames] = cellfun(@(c) groupsummary(cell2mat(arrayfun(@(v) tPhys{condIndex,string(v)},(varNames(contains(varNames,"_"+c))),'UniformOutput',false)),...
-    {tPhys{condIndex,"Somatotopy"},any(tPhys{condIndex,contains(tPhys.Properties.VariableNames,"TaskUnit")},2)},"median"),params.condAbbrev.values,'UniformOutput',false);
+    {tPhys{condIndex,"Somatotopy"},any(tPhys{condIndex,contains(tPhys.Properties.VariableNames,"TaskUnit")},2)},"mean"),params.condAbbrev.values,'UniformOutput',false);
 %bx=violin(condPhases,'x',length(phaseNames)*(condLabels-1+repmat([-.3 -.1 .1 .3],1,length(conditions))),'facecolor',cl(phaseLabels,:));
 ylim([0 8]);
 xa = gca();
@@ -140,3 +140,14 @@ figure();plotJointPSTHS(params,{cell2mat(cellfun(@(m) mean(m,3,'omitnan'),vertca
     vertcat(psthLabs{:}),(vertcat(tPhys.TaskUnits_ESS,tPhys.TaskUnits_LS,tPhys.TaskUnits_P)),[],[-.5 2.5],[.9 6],...
     cell2struct(reshape(repmat(repmat(num2cell(somaColors,2),1,length(conditions)),max(1,twoDim),1)',[],1),allLabs(allLabs~="")));
 saveFigures(gcf,savePath,"Normalized_PSTHS",[]);
+%%
+somaR = splitapply(@(x){x},tPhys{:,contains(tPhys.Properties.VariableNames,"Reach")}.*...
+    double((0./(tPhys.TaskUnits_ESS|tPhys.TaskUnits_LS|tPhys.TaskUnits_P))+1),findgroups(tPhys.Somatotopy));
+somaG = splitapply(@(x){x},tPhys{:,contains(tPhys.Properties.VariableNames,"Hold")}.*...
+    double((0./(tPhys.TaskUnits_ESS|tPhys.TaskUnits_LS|tPhys.TaskUnits_P))+1),findgroups(tPhys.Somatotopy));
+boxplotGroup(arrayfun(@(n)cell2mat(cellfun(@(r) resize(r(:,n),max(cellfun(@length,[somaR,somaG]),[],'all'),'FillValue',NaN,'Dimension',1), ...
+[somaR(~strcmp(repNames,"Trunk"));somaG(~strcmp(repNames,"Trunk"))],'UniformOutput',false)'),1:3,'UniformOutput',false),'Notch','on',...
+'Symbol','','primaryLabels',{'','',''},'SecondaryLabels',reshape(repNames(~strcmp(repNames,"Trunk")) + string(phaseNames(2:3))',1,[]));
+ylim([0 8]);
+cellfun(@(c) arrayfun(@(l) set(l,'LineStyle','-'),c),arrayfun(@(a) a.Children(contains(get(a.Children,'Tag'),'Whisker')),allchild(gca),'UniformOutput',false));
+saveFigures(gcf,savePath,"CondBoxes",[]);

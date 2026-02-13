@@ -259,7 +259,7 @@ if ~isempty(p.Results.secondarylabels)
         else                                % version >= 18b (written in r21a)
             isuifig = @(h)matlab.ui.internal.isUIFigure(h) && ~isprop(h,'LiveEditorRunTimeFigure');
         end
-        isUIFigure = isuifig(h.figure);
+        isUIFigure = 0;isuifig(h.figure);
         if isUIFigure
             %groupLabelType = 'vertical';
             %warning('BOXPLOTGRP:uifig','''Horizontal'' GroupLabelType is not supported with UIFIgures. GroupLabelType was changed to ''vertical''.')

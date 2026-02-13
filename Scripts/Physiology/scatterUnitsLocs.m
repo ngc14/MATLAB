@@ -86,8 +86,8 @@ for c = 1:length(conds)
                     if(s==4)
                         disp('');
                     end
-                    boxplot(csBin,p(sInd),'Whisker',median(arrayfun(@(a) diff(prctile(csBin(p(sInd)==a),[25 75]+([1 -1].*whiskerP/2)))...
-                        /iqr(csBin(p(sInd)==a)), 1:length(bars)-1)),'Notch','on','Widths',0.8,'Symbol','');
+                    boxplot(csBin,p(sInd),'Notch','on','Widths',0.8,'Symbol','');
+                    %'Whisker',median(arrayfun(@(a) diff(prctile(csBin(p(sInd)==a),[25 75]+([1 -1].*whiskerP/2)))/iqr(csBin(p(sInd)==a)), 1:length(bars)-1)),);
                     f = findobj(get(sax(m,s),'Children'),{'tag', 'Box', '-or','tag','Median'});
                     [f.Color] = deal(cl(s,:));
                     [f.LineWidth] = deal(2);

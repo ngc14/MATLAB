@@ -126,8 +126,8 @@ scatter(unique([get(xa,"Children").XData],'sorted'),plotVals,200,'black',"_",'Li
 saveFigures(gcf,savePath,"Normalized_Violins",[]);
 %%
 allSegs = cellfun(@(c,n) cellfun(@(s,t) repmat(mean([s{:}],1,'omitnan'),size(t,1),1), c,n, 'UniformOutput',false), sumSegs,normPSTH,'UniformOutput',false);
-psthLabs = arrayfun(@(c,s) repmat(c,size(cell2mat([s{:}]),1),1)+"_"+string(tPhys.Somatotopy)+"_"+tPhys.("unitType_"+c),string(params.condAbbrev.values),allSegs,'UniformOutput',false);%+"_"+string(tPhys.Channel>16)
 allPSTHS = cellfun(@(p) num2cell(p,[2,3]),vertcat(normPSTH{:}),'UniformOutput',false);
+psthLabs = arrayfun(@(c,s) repmat(c,size(cell2mat([s{:}]),1),1)+"_"+string(tPhys.Somatotopy)+"_"+tPhys.("unitType_"+c),string(params.condAbbrev.values),allSegs,'UniformOutput',false);%+"_"+string(tPhys.Channel>16)
 allLabs = unique([psthLabs{:}]); 
 emptyConds = allLabs(contains(allLabs,"_0"));
 for p = 1:length(psthLabs)
@@ -137,7 +137,7 @@ allLabs = allLabs(~ismember(allLabs,emptyConds));
 twoDim = length(conditions) * double(max(unique(arrayfun(@(r) length(regexp(r,"_",'match')),allLabs)))>1);
 figure();plotJointPSTHS(params,{cell2mat(cellfun(@(m) mean(m,3,'omitnan'),vertcat(allPSTHS{:}),'UniformOutput',false)).*...
     double((0./(vertcat(tPhys.TaskUnits_ESS,tPhys.TaskUnits_LS,tPhys.TaskUnits_P)))+1)},{cell2mat(vertcat(allSegs{:}))},...
-    vertcat(psthLabs{:}),(vertcat(tPhys.TaskUnits_ESS,tPhys.TaskUnits_LS,tPhys.TaskUnits_P)),[],[-.5 2.5],[.9 6],...
+    vertcat(psthLabs{:}),(vertcat(tPhys.TaskUnits_ESS,tPhys.TaskUnits_LS,tPhys.TaskUnits_P)),[],[-.5 2.5],[.9 7],...
     cell2struct(reshape(repmat(repmat(num2cell(somaColors,2),1,length(conditions)),max(1,twoDim),1)',[],1),allLabs(allLabs~="")));
 saveFigures(gcf,savePath,"Normalized_PSTHS",[]);
 %%

@@ -7,7 +7,7 @@ allSegs = params.condSegMap.values;
 maxSegL = allSegs{maxSegL};
 plotPSTHS = false;
 %%
-[siteDateMap, siteSegs, siteTrialPSTHS, ~, siteChannels, ~,...
+[siteDateMap, siteSegs, siteTrialPSTHS,rawSpikes, siteChannels, ~,...
     siteRep,siteLocation,~,monkeys,~,conditions,chMaps,siteTrialInfo] = getAllSessions(params,"Single","M1");
 %%
 mappedChannels = cellfun(@(ch,l) ch{2}(l(~isnan(l))), chMaps,siteChannels, 'Uniformoutput', false)';

@@ -1,11 +1,10 @@
 function [siteDateMap,siteSegs,siteTrialPSTHS,rawSpikes,siteChannels,siteActiveInd, simpRep,...
     siteLocation, siteMasks, monkeys,vMask,conditions,channelMap,trialInfo] = ...
-    getAllSessions(params,singleOrAllUnits,domain)
+    getAllSessions(params,singleOrAllUnits,domain,excludeRep)
 %  assign parameters
 rawSpikes = [];
 drivePath = "S:\Lab\";
 monkeys = ["Gilligan", "Skipper"];
-excludeRep = "Face";
 % PSTH parameters: bin sizes, smoothing kernel, seconds prior to zero
 % alignment,seconds after zero alignment, alignment point(s) for each
 % condition (default value)
@@ -82,7 +81,7 @@ parfor  i = 1:numSites
         NaNGraspInd = repmat({false},size(currTrials,1),1);
         NaNGraspInd(ismember(currTrials(:,1),conditions)) = cellfun(@(s,t) sum(isnan(t))==1 & isnan(t(strcmp(params.condSegMap(s),"StartGrasp"))), ...
             currTrials(ismember(currTrials(:,1),conditions),1),times(ismember(currTrials(:,1),conditions))','UniformOutput',false);
-        successfulInds = cellfun(@(b,t) ~isnan(str2double(b)) | isempty(b),currTrials(:,end-1));
+        successfulInds = cellfun(@(b) ~all(isnan(b)), times)';
         NaNGraspInd(cellfun(@isempty,NaNGraspInd)) = {false};
         successfulTrials = successfulInds | cell2mat(NaNGraspInd);
         currTrials = currTrials(successfulTrials,:);

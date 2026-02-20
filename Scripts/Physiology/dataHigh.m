@@ -47,7 +47,7 @@ dHiStruct = struct('data',vertcat(taskPSTHD{:}),'epochStarts',cellfun(@(s) fix(m
     'UniformOutput',false)),allSegs,[unitInds{:}],'UniformOutput',false),'UniformOutput',false),'UniformOutput',false)',...
     'condition',cellstr(cell2mat(cellfun(@(d) repmat(string(d),max(plotTrials*sTrials,1),1),cellstr(dimCond),'UniformOutput',false)')),'epochColors',vertcat(cls{:}));
 %%
-binWidth = 10;smoothWin = 50;
+binWidth = 10;smoothWin = 100;
 trialLength = floor(size(dHiStruct(1).data, 2) / binWidth);
 mv = mean([dHiStruct.data],2) * 1000;
 for n = 1:length(dHiStruct)
@@ -63,7 +63,7 @@ somaLabs = tPhys{somaLabs(somaLabs>0),"Somatotopy"};
 smoothedData = cellfun(@(s) sqrt(resize(conv2(s,transpose(gausswin(ceil(smoothWin/binWidth))./sum(gausswin(ceil(smoothWin/binWidth)))),'valid')...
     ./(binWidth/1000),size(s),'Pattern','edge','Side','both')),smoothedData,'UniformOutput',false);
 %smoothedData=cellfun(@(s)s(:,8+1:end-8),smoothedData,'UniformOutput',false);normpdf(ceil(3*smoothWin/binWidth)*binWidth:binWidth:binWidth*ceil(3*smoothWin/binWidth),0,smoothWin)
-[loadings, scores, eig] = pca([cell2mat(smoothedData)]','Economy',false,'Centered','off');
+[loadings, scores, eig] = pca([cell2mat(smoothedData)],'Economy',false,'Centered','off');
 index = 0;D = dHiStruct;
 for i=1:length(smoothedData)
     D(i).data= scores(index + (1:size(smoothedData{i},2)),:)';

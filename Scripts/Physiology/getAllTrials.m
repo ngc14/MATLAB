@@ -111,16 +111,14 @@ else
                 labs = labs(goodUnits);
                 trialSegs = repmat(cellfun(@(t) t{:}, trialSegs, 'UniformOutput', false),size(segTimes,1),1);
                 cSpikes = num2cell(cSpikes(goodUnits,:),2);
-                missGraspInds = cellfun(@(a,b) isalmost(a(max(1,end-1))-a(max(1,end-2)),2,.001)...
-                    & length(a)+1==length(b), segTimes,trialSegs);
+                missGraspInds = cellfun(@(a,b) length(a)+1==length(b), segTimes,trialSegs);
                 if(any(missGraspInds(:)))
                     segTimes(missGraspInds) = cellfun(@(a,b) [b(1:find(strcmp(a,'StartGrasp'))-1),...
                         NaN, b(find(strcmp(a, 'StartGrasp')):end)],trialSegs(missGraspInds),...
                         segTimes(missGraspInds),'UniformOutput', false);
                 end
-                failedTrials = cellfun(@length,trialSegs)~=cellfun(@length,segTimes);
-                segTimes(failedTrials) = cellfun(@(c,n) [n(1:end-1),NaN(1,length(c)-length(n)),n(end)], ...
-                    trialSegs(failedTrials),segTimes(failedTrials),'UniformOutput',false);
+                segTimes(cellfun(@length,trialSegs)~=cellfun(@length,segTimes)) = deal(repmat({NaN(1,...
+                    max(cellfun(@length,events.values)))},1,sum(cellfun(@length,trialSegs)~=cellfun(@length,segTimes),'all')));%cellfun(@(c,n) [n(1:2),NaN(1,length(c)-length(n)),n(3:end)],trialSegs(failedTrials),segTimes(failedTrials),'UniformOutput',false);
                 allTimes(end+1:end+size(segTimes,1),:) = segTimes;
                 channel(end+1:end+sum(goodUnits)) = f;
                 labels(end+1:end+length(labs)) = labs;

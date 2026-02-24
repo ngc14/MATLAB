@@ -8,7 +8,7 @@ maxSegL = allSegs{maxSegL};
 plotPSTHS = false;
 %%
 [siteDateMap, siteSegs, siteTrialPSTHS,rawSpikes, siteChannels, ~,...
-    siteRep,siteLocation,~,monkeys,~,conditions,chMaps,siteTrialInfo] = getAllSessions(params,"Single","M1");
+    siteRep,siteLocation,~,monkeys,~,conditions,chMaps,siteTrialInfo] = getAllSessions(params,"Single","M1","Face");
 %%
 mappedChannels = cellfun(@(ch,l) ch{2}(l(~isnan(l))), chMaps,siteChannels, 'Uniformoutput', false)';
 sumSegs = cellfun(@(c) cellfun(@(n) [n{:}], c, 'UniformOutput',false), siteSegs,'UniformOutput',false);

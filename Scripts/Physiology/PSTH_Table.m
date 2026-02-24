@@ -20,7 +20,7 @@ maxSegL = allSegs{maxSegL};
 condPhaseAlign = containers.Map(conditions,cellfun(@num2cell,phaseAlignmentPoints,'UniformOutput',false));
 %%
 [siteDateMap, siteSegs, siteTrialPSTHS, rawSpikes, siteChannels, siteActiveInd,...
-    siteRep,siteLocation,siteMasks,monkeys,vMask,conditions,chMaps,siteTrialInfo] = getAllSessions(params,"Single","M1");
+    siteRep,siteLocation,siteMasks,monkeys,vMask,conditions,chMaps,siteTrialInfo] = getAllSessions(params,"Single","M1","");
 %%
 allCondCue = cellfun(@(c) cellfun(@(a) cellfun(@(t) findBins(mean(t(:,2)-4,'omitnan'),params.bins),a),...
     c,'UniformOutput',false),siteSegs,'UniformOutput',false);
@@ -30,9 +30,10 @@ normPSTH = cellfun(@(cp,nb) cellfun(@(p,b)p./b,cp,nb,'UniformOutput',false),num2
     normBaseline,'Uniformoutput', false);
 normPSTH = num2cell(vertcat(normPSTH{:}),1);
 %%
-sumSegs = cellfun(@(c) cellfun(@(n) [n{:}], c, 'UniformOutput',false), siteSegs,'UniformOutput',false);
+sumSegs = cellfun(@(c) cellfun(@(n) cat(3,n{:}), c, 'UniformOutput',false), siteSegs,'UniformOutput',false);
 for c = 1:length(conditions)
-    nanSegs = find(sum(isnan(cell2mat(sumSegs{c})),1)>size(cell2mat(sumSegs{c}),1)/2 & [true(1,length(maxSegL)-1) 0]);
+    nanSegs = find(sum(isnan(cell2mat(sumSegs{c})),[1,3])-(length(size(sumSegs{c}{1})) * sum(all(isnan(cell2mat(sumSegs{c})),[2 3])))...
+        >prod(size(cell2mat(sumSegs{c}),[1,3]))/2 & [true(1,length(maxSegL)-1) 0]);
     for a = 1:length(nanSegs)
         for n = 1:length(sumSegs{c})
             nextSeg = intersect(setdiff(1:size(sumSegs{c}{n},2),nanSegs),nanSegs(a)+1:size(sumSegs{c}{n},2));

@@ -21,7 +21,7 @@ phaseAlignmentPoints = {["GoSignal","StartReach","StartHold","StartWithdraw"],..
     ["GoSignal","StartReach","StartHold","StartWithdraw"]};
 %%
 [siteDateMap, siteSegs, siteTrialPSTHS, rawSpikes, siteChannels, siteActiveInd,...
-    siteRep,siteLocation,siteMasks,monkeys,vMask,conditions,chMaps,siteTrialInfo] = getAllSessions(params,"Single","M1");
+    siteRep,siteLocation,siteMasks,monkeys,vMask,conditions,chMaps,siteTrialInfo] = getAllSessions(params,"Single","M1","");
 taskAlign = containers.Map(conditions,taskAlignmentPoints);
 condPhaseAlign = containers.Map(conditions,cellfun(@num2cell,phaseAlignmentPoints,'UniformOutput',false));
 %%

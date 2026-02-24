@@ -4,7 +4,7 @@ sOrder = [3 1 2];
 pairs = combnk(1:length(sOrder),2);
 sTable=readtable("S:\Lab\ngc14\Physiology_Paper\Stats\Updated_Stats\TaskUnits_All.xlsx");
 repNames = ["Arm","Trunk","Hand"];
-savePath = "S:\Lab\ngc14\Physiology_Paper\Stats\Updated_Stats\";
+savePath = "S:\Lab\ngc14\Working\PSTHS\";
 dir = ["ML","RC"];
 cl = validatecolor(["#A2142F","#0072BD","#EDB120","#77AC30"],'multiple');
 whiskerP = 10;
@@ -140,8 +140,8 @@ for c = 1:length(conds)
             linkaxes([sax(m,1:end-1)]);
         end
 
-        saveFigures(figure(1),savePath+"CDF\","BothSites"+conds(c)+"_"+dir(d),[]);
         saveFigures(figure(2),savePath+"CDF\","BothSites"+conds(c)+"_"+dir(d),[]);
+        saveFigures(figure(1),savePath+"rgSIBox\","BothSites"+conds(c)+"_"+dir(d),[]);
         close all;
     end
     %    end

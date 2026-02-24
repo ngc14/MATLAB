@@ -1,34 +1,51 @@
 %% load data
-loadPath = "S:\Lab\ngc14\Working\";%"E:\Data\"
 phaseNames = ["Go", "Reach", "Hold", "Withdraw"];
 fTypes = ["Reach","Grasp","Both","Shallow","Deep"];
+conditions = ["Extra Small Sphere","Large Sphere", "Photocell"];
 condLabels = {'E','L','P'};
 taskPhase = false;
 numRuns = 500;
-mtform = load('S:\Lab\ngc14\Working\Both\S2G_Reference_tform.mat');
+windowPad = 200;
 phaseWinSz = 0.2;
-m = matfile("S:\Lab\ngc14\Working\Both\Baseline_FR\phaseAnalysis_Face.mat");
+m = matfile_m("S:\Lab\ngc14\Working\M1_Physiology\Baseline_FR_OLD\phaseAnalysis_Face.mat");
+add_ndt_paths_and_init_rand_generator
 
+params = m.params;
 rawSpikes = m.rawSpikes;
-avgPhase = m.avgPhase;
 siteSegs = m.siteSegs;
 siteChannels = m.siteChannels;
 siteChannels = siteChannels{2};
 phaseFR = m.phaseFR;
 taskBaseline = m.taskBaseline;
-sdm = m.siteDateMap;
 taskFR = m.taskFR;
-siteImaging = m.siteActiveInd;
+sdm = m.siteDateMap;
+%%
+siteRep = sdm.SiteRep;
+simpRep = string(cellfun(@(r,t,f) r{find((f.*t)==(min((f./f).*t)),1)},...
+    siteRep,sdm.Thresh, cellfun(@(r)  ~strcmp(r,""), siteRep,'UniformOutput',false),'UniformOutput', false))';
+allSegsL = params.condSegMap.values;
+[~,maxSegL]= max(cellfun(@length,allSegsL));
+maxSegL = allSegsL{maxSegL};
 chUnitMap = cell(height(sdm),1);
 chUnitMap(strcmp([sdm.Monkey],"Gilligan")) = {[1:2:32,2:2:32]};
 chUnitMap(strcmp([sdm.Monkey],"Skipper")) = {[32:-1:1]};
-mappedChannels =  cell2mat(cellfun(@(ch,l) ch(l(~isnan(l))), chUnitMap,siteChannels, 'Uniformoutput', false))';
-params = PhysRecording(["Extra Small Sphere","Large Sphere", "Photocell"],.01,.15,-6,5,containers.Map(conditions,...
-    {"StartReach","StartReach","StartReach"}));
-unitSomatotopy = cellstr(mapSites2Units(cellfun(@length, siteChannels), siteRep));
-monkeyUnitInd = cellstr(mapSites2Units(cellfun(@length, siteChannels)', sdm.Monkey));
+mappedChannels =  cell2mat(cellfun(@(ch,l) ch(l(~isnan(l)))', chUnitMap,siteChannels, 'Uniformoutput', false));
+unitSomatotopy = cellstr(mapSites2Units(cellfun(@length, siteChannels), simpRep'));
+monkeyUnitInd = cellstr(mapSites2Units(cellfun(@length, siteChannels)', sdm.Monkey'));
+replaceVals = cell2mat(cellfun(@(c) cellfun(@(s) any(size(s)==[0 0]),c),rawSpikes,'Uniformoutput',false));
+for cc = 1:length(rawSpikes)
+    rv = replaceVals(:,cc);
+    if(any(rv))
+        fillSize = cellfun(@(m) max(cell2mat(m')),num2cell(cellfun(@(s) size(s{1}),...
+            [rawSpikes{~ismember(1:size(replaceVals,2),cc)}], 'UniformOutput', false),2),'UniformOutput',false);
+    end
+    rawSpikes{cc}(rv) = cellfun(@(f) repmat({repmat({NaN(1,length(params.bins))},[f(1),f(end)])},1,...
+        length(cell2mat(params.PSTHAlignments.values(cellstr(conditions(cc)))))),fillSize(rv),'UniformOutput',false);
+    siteSegs{cc}(rv) = cellfun(@(f) repmat({NaN(f(end),length(params.condSegMap(conditions(cc))))},1,length(cell2mat(params.PSTHAlignments.values(cellstr(conditions(cc)))))),...
+        fillSize(rv),'UniformOutput',false);
+end
 xyLoc = num2cell([tPhys.X,tPhys.Y],2);
-add_ndt_paths_and_init_rand_generator
+%params = PhysRecording(conditions,.01,.15,-6,5,containers.Map(conditions,{"StartReach","StartReach","StartReach"}));
 % siteImaging = cellfun(@(si) mapSites2Units(cellfun(@length, siteChannels), si), siteImaging, 'UniformOutput',false);
 % xyLoc = num2cell(mapSites2Units(cellfun(@length,siteChannels),num2cell([sdm.x,sdm.y],2)),2);
 % xyLoc(strcmp(monkeyUnitInd,"Skipper")) = cellfun(@(s) round(transformPointsForward(mtform.tform,s)), xyLoc(strcmp(monkeyUnitInd,"Skipper")),'UniformOutput',false);
@@ -43,16 +60,15 @@ trialConds = arrayfun(@(t) table2cell(trialConds(trialCondTable.Unit==t & ~all(i
 taskUnits = cell2mat(cellfun(@cell2mat, taskUnits,'UniformOutput',false));
 tPhase = arrayfun(@(pn) cellfun(@(s) cellfun(@(a) cellfun(@(t) {t{strcmp(phaseNames,pn)}},...
     a,'UniformOutput',false), s,'UniformOutput', false),phaseFR(1:length(condLabels)),'UniformOutput', false), phaseNames, 'UniformOutput',false);
-[~,rgInds] = cellfun(@(cr,cg) cellfun(@(r,g) ttestTrials(r,g,1,true,0.05),cr,cg,'UniformOutput',false),...
+[rgVals,rgInds] = cellfun(@(cr,cg) cellfun(@(r,g) ttestTrials(r,g,1,true,0.05),cr,cg,'UniformOutput',false),...
     tPhase{strcmp(phaseNames,"Reach")},tPhase{strcmp(phaseNames,"Hold")}, 'UniformOutput',false);
 rgInds = cellfun(@cell2mat, rgInds, 'UniformOutput',false);
-AUCVals = cellfun(@(c) cell2mat(c), avgPhase(1:length(condLabels)),'UniformOutput',false);
-rAUC = cellfun(@(a) a(:,strcmp(phaseNames,"Reach")), AUCVals, 'UniformOutput',false);
-gAUC = cellfun(@(a) a(:,strcmp(phaseNames,"Hold")), AUCVals, 'UniformOutput',false);
-rUnits = cellfun(@(rg,r,g) rg==1 & r > g, rgInds, rAUC, gAUC, 'UniformOutput',false);
-gUnits = cellfun(@(rg,r,g) rg==1 & r < g, rgInds, rAUC, gAUC, 'UniformOutput',false);
+AUCVals = cellfun(@(c) cell2mat(cellfun(@(d) mean(cell2mat(d),2,'omitnan'),c,'UniformOutput',false)), rgVals,'UniformOutput',false);
+rUnits = cellfun(@(rg,r) rg==1 & r < 1, rgInds, AUCVals, 'UniformOutput',false);
+gUnits = cellfun(@(rg,r) rg==1 & r > 1, rgInds, AUCVals, 'UniformOutput',false);
 bothUnits = cellfun(@(r,g,t) ~r & ~g & t==1, rUnits, gUnits, num2cell(taskUnits,1), 'UniformOutput',false);
 fUnits = {cell2mat(rUnits), cell2mat(gUnits), cell2mat(bothUnits),repmat(mappedChannels<=16,1,length(condLabels)), repmat(mappedChannels>16,1,length(condLabels))};
+fUnits = cellfun(@(f) f(:,1), fUnits, 'Uniformoutput',false);
 %fUnits{end+1} = taskUnits;
 tUnitsInd = sum(taskUnits,2)>0;
 goodInds = ~any(cell2mat(cellfun(@(n) all(isnan(n),2),AUCVals,'UniformOutput',false)),2) & tUnitsInd;
@@ -67,7 +83,6 @@ clear trialCondTable tPhase phaseFR phaseBaseline taskBaseline
 %% get trial spike counts
 if(taskPhase)
     taskWindow = {[phaseWinSz, 0]};
-    windowPad = 200;
     taskAlignmentPoints = {["GoSignal" "StartLift"],["GoSignal","StartLift"],...
         ["GoSignal","StartHold"]};
     taskEnds = cellfun(@(a,pa) cellfun(@(ps) cellfun(@(ap)cellfun(@(p,pw) ...
@@ -94,43 +109,22 @@ else
         p),phaseAlignmentPoints,values(params.condSegMap,...
         params.condSegMap.keys()),'UniformOutput',false);
     psthPhaseEnds = cellfun(@(a,pa,pw) cellfun(@(ps) cellfun(@(ap)cellfun(@(p,pw) ...
-        ap(:,p)+pw,num2cell(pa),pw,'UniformOutput', false),ps,'UniformOutput',false),...
+        findBins(ap(:,p)+pw,params.bins),num2cell(pa),pw,'UniformOutput', false),ps,'UniformOutput',false),...
         a, 'UniformOutput', false),siteSegs,phaseInds,phaseWindows,'UniformOutput', false);
-    psthPhaseEnds = cellfun(@(n) vertcat(n{:}), psthPhaseEnds, 'UniformOutput',false);
-    paddedRawSpikes = rawSpikes;
-    for cc = 1:length(rawSpikes)
-        checkInds = find(cellfun(@(s) size(s,2)==1,paddedRawSpikes{cc}));
-        replaceVals = checkInds(cellfun(@(s) ~all(size(s)==[1 1]),paddedRawSpikes{cc}(checkInds)));
-        paddedRawSpikes{cc}(replaceVals) = cellfun(@(r) cellfun(@(s) {s},r,'UniformOutput',false)',paddedRawSpikes{cc}(replaceVals),'UniformOutput',false);
-    end
     spCounts = cellfun(@(p,s) cellfun(@(tt,a)cellfun(@(h) cell2mat(cellfun(@(tp,hp)...
-        cellfun(@(i) sum(hp<=i(end) & hp>=i(1)),tp),squeeze(cellfun(@(s) num2cell(squeeze(s),1),...
-        num2cell(cell2mat(reshape(a,size(a,1),1,size(a,2))),[2 3]),'Uniformoutput',false))',...
-        h,'UniformOutput',false)'), tt, 'UniformOutput',false),p,s,'UniformOutput',false),...
-        paddedRawSpikes,psthPhaseEnds,'UniformOutput',false);
-    spCounts = cellfun(@(cb) [horzcat(cb{:})]' ,spCounts, 'UniformOutput',false);
+        cellfun(@(i) sum(hp(max(1,i(1)):max(1,i(end)))>0),tp), cellfun(@(s) num2cell(squeeze(s),1),...
+        num2cell(cat(3,a{1}{:}),[2 3]),'UniformOutput',false)',h,'UniformOutput',false)'), ...
+        num2cell(tt{1},2), 'UniformOutput',false),p,s,'UniformOutput',false),rawSpikes,psthPhaseEnds,'UniformOutput',false);
+    spCounts = cellfun(@(cb) vertcat(cb{:}) ,spCounts, 'UniformOutput',false);
     spCounts = cellfun(@(c) cellfun(@(a)num2cell(vertcat(a{:}),1),num2cell(c(goodInds),2),'UniformOutput',false),spCounts,'UniformOutput',false);
 end
 spCounts = cellfun(@(s) cellfun(@(t) squeeze(horzcat(t{:})),s,'UniformOutput',false), spCounts, 'UniformOutput',false);
 maxSitesPerCond = max(cellfun(@length, spCounts));
 spCounts = cellfun(@(c) cellfun(@(s) s(:,strcmp(phaseNames,"Reach")), c, 'UniformOutput',false),spCounts,'UniformOutput',false);
-if(any(cellfun(@length,spCounts)~=maxSitesPerCond))
-    spCounts(cellfun(@length,spCounts)~=maxSitesPerCond) = cellfun(@(s,r) vertcat(s,...
-        repmat(cellfun(@(t) NaN(size(t)), r(end-(size(r,1)-size(s,1)-1):end), 'UniformOutput',false),1,size(s,2))),...
-        spCounts(cellfun(@length,spCounts)~=maxSitesPerCond),spCounts(find(...
-        cellfun(@length,spCounts)==maxSitesPerCond,1)),'UniformOutput',false);
-    spCounts = cellfun(@(c1,c2,c3) cellfun(@(s1,s2,s3) [horzcat(squeeze(s1)',NaN(size(s1,3),...
-        max(cellfun(@(z) size(z,2),{s1,s2,s3}))-size(s1,2))),horzcat(squeeze(s2)',NaN(size(s2,3),...
-        max(cellfun(@(z) size(z,1),{s1,s2,s3}))-size(s2,2))),horzcat(squeeze(s3)',NaN(size(s3,3),...
-        max(cellfun(@(z) size(z,2),{s1,s2,s3}))-size(s3,2)))],vertcat(c1,repmat(c1,max(cellfun(@(m) size(m,1),{c1,c2,c3}))-size(c1,1),1)),...
-        vertcat(c2,repmat(c2,max(cellfun(@(m) size(m,1),{c1,c2,c3}))-size(c2,1),1)),vertcat(c3,repmat(c3,max(cellfun(@(m) size(m,1),{c1,c2,c3}))-size(c3,1),1)),'UniformOutput',false),...
-        spCounts(1), spCounts(2), spCounts(3), 'UniformOutput',false);
-end
-counts = horzcat(spCounts{:});
-allUnitsTrials = counts;%cellfun(@transpose,counts,'UniformOutput',false);
-clear rawCounts rawBCounts spCounts counts rawSpikes
+allUnitsTrials = horzcat(spCounts{:});
+clear spCounts
 %% decoder setup
-savePath = "S:\Lab\ngc14\Working\Decoding\";
+savePath = "S:\Lab\ngc14\Working\PSTHS\Decoding\";
 somatotopicLabs = unique(unitSomatotopy);
 if(~exist(savePath,'dir'))
     mkdir(savePath);
@@ -146,7 +140,7 @@ binning_parameters.the_bin_widths = repmat(diff([0,binning_parameters.the_bin_st
 trialUnits = cellfun(@(n,b) vertcat(n{:}), num2cell(allUnitsTrials,2), 'UniformOutput',false);
 trialUnitLabs = trialConds;
 subpopulations = cellfun(@(s) cellfun(@(b) contains(unitSomatotopy,strsplit(s))...
-    & sum(b,2)>0, fUnits,'UniformOutput',false), somatotopicLabs, 'UniformOutput',false);
+    & b(:,1)>0, fUnits,'UniformOutput',false), somatotopicLabs, 'UniformOutput',false);
 
 goodUnits = find_sites_with_k_label_repetitions(trialUnitLabs,num_cv_splits*num_repeated_labels,{'E','L','P'});
 trialUnits = trialUnits(goodUnits);
@@ -156,35 +150,33 @@ currSomatotopy = unitSomatotopy(goodUnits);
 trialInds =  cellfun(@(t) ~isnan(t), trialUnits, 'UniformOutput',false);
 trainingSet = cellfun(@(t,i) t(i,:), trialUnits, trialInds, 'UniformOutput',false);
 trainingLabs =  cellfun(@(t,i) t(i,:), trialLabs, trialInds, 'UniformOutput',false);
+fUnit = cellfun(@(f) sum(f(goodUnits,:),2)>0, fUnits, 'UniformOutput', false);
 
 dsr = avg_DS(trainingSet,trainingLabs,num_cv_splits,num_repeated_labels);
 dsr.the_basic_DS.binned_site_info.binning_parameters = binning_parameters;
 dsr.num_times_to_repeat_each_label_per_cv_split = num_repeated_labels;
 dsr.time_periods_to_get_data_from = arrayfun(@(a) unique([a,a+binning_parameters.bin_width-1]),...
     binning_parameters.start_time:binning_parameters.bin_width:binning_parameters.end_time,'UniformOutput',false);
-dsr.sites_to_use = -1;
-dsr.num_resample_sites = -1;
 dsr.sample_sites_with_replacement = 0;
 %%
 timepoints = length(binning_parameters.the_bin_start_times);
 iterAcc = NaN(num_cv_splits,timepoints,timepoints);
 unitAcc = cell(num_cv_splits,timepoints,timepoints);
-somaUnits = repmat({repmat({iterAcc},length(fTypes),1,length(somatotopicLabs))},numRuns,1);
-uUnits = repmat({repmat({iterAcc},length(fTypes),1,length(somatotopicLabs))},numRuns,1);
-[uUnits{:,end+1}] = deal({});
+somaUnits = repmat({repmat({iterAcc},length(fTypes),length(testUnits),length(somatotopicLabs))},numRuns,1);
+uUnits = repmat({repmat({iterAcc},length(fTypes),length(testUnits),length(somatotopicLabs))},numRuns,1);
+allUnits = cell(numRuns,1);
+dsr.sites_to_use = find(goodUnits);
+dsr.num_resample_sites = -1;%,testUnits(n);
 cl = poisson_naive_bayes_CL;
 hbar = parforProgress(numRuns);
 parfor iter = 1:numRuns
-    %%
     [all_XTr, all_YTr, all_XTrt, all_Ytrt] = dsr.get_data;
-    for s = 1:length(somatotopicLabs)
-        for f = 1:length(fTypes)
-            for n = 1:length(testUnits)
-                popInds = find(ismember(goodUnits,find(subpopulations{s}{f})));
-                unitSample = [1:length(goodUnits)]';
-                unitSample = popInds(randperm(length(popInds),min(testUnits(n), length(popInds))));
-                iterAcc = NaN(num_cv_splits,timepoints,timepoints);
-                unitAcc = cell(num_cv_splits,timepoints,timepoints);
+    for n = 1:length(testUnits)
+        for s = 1:length(somatotopicLabs)
+            for f = 1:length(fTypes)
+                popInds = find(ismember(find(goodUnits),find(subpopulations{s}{f})));
+                unitSample = popInds(randperm(length(popInds),min(testUnits(n), length(popInds))));%unitSample = transpose(1:length(goodUnits));
+                iterAcc = NaN(num_cv_splits,timepoints,timepoints);%unitAcc = cell(num_cv_splits,timepoints,timepoints);
                 for iCV = 1:num_cv_splits
                     for iTrainingInterval = 1:timepoints
                         XTrF = all_XTr{iTrainingInterval};
@@ -197,16 +189,16 @@ parfor iter = 1:numRuns
                                 [~,tr] = fp.set_properties_with_training_data(tr{iCV});
                                 [~,XTst] = fp.set_properties_with_training_data(XTst{iCV});
                             end
-                            XTst = fix(XTst);
-                            clT = cl.train(fix(tr), all_YTr);
-                            [ia,ui] = fastTest(clT.lambdas(unitSample,:),XTst(unitSample,:));
+                            XTst = fix(XTst(unitSample,:));
+                            clT= cl.train(fix(tr(unitSample,:)), all_YTr);
+                            [ia,~] = clT.test(XTst);
                             iterAcc(iCV,iTrainingInterval,iTestingInterval) = sum(ia-all_Ytrt==0)/length(all_Ytrt);
-                            ui = cellfun(@(u) sum((u-all_Ytrt==0))/length(all_Ytrt), ui, 'UniformOutput',false);
-                            unitAcc{iCV,iTrainingInterval,iTestingInterval} = cell2mat(ui);
+                            % [~,ui] = fastTest(clT.lambdas,XTst);
+                            % unitAcc{iCV,iTrainingInterval,iTestingInterval} = cell2mat(cellfun(@(u) sum((u-all_Ytrt==0))/length(all_Ytrt), ui, 'UniformOutput',false));
                         end
                     end
                 end
-                uUnits(iter,:)=[{unitAcc},unitSample];
+                uUnits{iter}{f,n,s} = unitSample;
                 somaUnits{iter}{f,n,s} = iterAcc;
             end
         end
@@ -214,32 +206,31 @@ parfor iter = 1:numRuns
     send(hbar, iter);
 end
 delete(gcp('nocreate'));
+uUnits = cellfun(@(p) cellfun(@(r) resize(r,[testUnits,num_cv_splits],'FillValue',NaN),p,'UniformOutput',false),uUnits,'UniformOutput',false);
 %%
-unitAccPhase = mean(cell2mat(reshape(cellfun(@(n) squeeze(mean(n,2)), cellfun(@(p) [p{:}], ...
-    uUnits(:,1), 'UniformOutput',false), 'UniformOutput',false),1,1,[])),3);
-somas = strsplit(string(somatotopicLabs));
+unitAccPhase = mean(cell2mat(reshape(cellfun(@(n) squeeze(mean(n,[1 2],'omitnan')), cellfun(@(p)  cell2mat(permute(p,[2 4 3 1])), ...
+    uUnits, 'UniformOutput',false), 'UniformOutput',false),1,1,[])),3);
+somas = (string(somatotopicLabs));
 close all;
 for s = 1:length(somas)
     subplot(3,length(somas),s);
     hold on;
     title(somas(s));
-    histogram(unitAccPhase(fUnit{s},2),0.3:.02:.7,"Normalization","percentage");
-    h = histogram(unitAccPhase(strcmp(currSomatotopy,somas(s)),2),0.3:.02:.7,"Normalization","cdf","Visible","off");
+    histogram(unitAccPhase(fUnit{s}),0.3:.02:.7,"Normalization","percentage");
+    h = histogram(unitAccPhase(strcmp(currSomatotopy,somas(s))),0.3:.02:.7,"Normalization","cdf","Visible","off");
     scatter(h.BinEdges(find(h.Values>.5,1)),0,100,'red','|',"LineWidth",2)
 end
-fUnit = cellfun(@(f) sum(f(goodUnits,:),2)>0, fUnits, 'UniformOutput', false);
 for s = 1:length(fUnit)
-    subplot(3,length(somas),s+3);
+    subplot(3,length(somas),s+length(somas));
     hold on;
     title(fTypes(s));
-    histogram(unitAccPhase(fUnit{s},2),0.3:.02:.7,"Normalization","percentage");
-    h = histogram(unitAccPhase(fUnit{s},2),0.3:.02:.7,"Normalization","cdf","Visible","off");
+    histogram(unitAccPhase(fUnit{s}),0.3:.02:.7,"Normalization","percentage");
+    h = histogram(unitAccPhase(fUnit{s}),0.3:.02:.7,"Normalization","cdf","Visible","off");
     scatter(h.BinEdges(find(h.Values>.5,1)),0,100,'red','|',"LineWidth",2)
 end
 close all
 clear clA clT all_XTr all_XTrt taskFR AUCVals trialsUnits trainingSet
 %%
-ss = cellfun(@(c) cell2mat(cellfun(@(n) n{1}, c,'UniformOutput', false)), siteSegs, 'UniformOutput',false);
 allAcc = cell2mat(reshape(cellfun(@(s) cell2mat(cellfun(@(t) ...
     reshape(mean(t,1,'omitnan'),[ones(1,length(size(s))),size(t,2)]), s, 'UniformOutput', false)), somaUnits, 'UniformOutput',false),...
     [ones(1,length(size(somaUnits{1}))+1),size(somaUnits,1)]));
@@ -247,20 +238,22 @@ avgSegs = cellfun(@(c) discretize([0, cumsum(abs(diff(mean(cell2mat(cellfun(@(n)
     0:params.binSize:length(params.bins)),siteSegs, 'UniformOutput',false);
 avgAlignments = arrayfun(@(n) cellfun(@(c) (c(strcmp(maxSegL, n))-c(1))/(windowPad*params.binSize), avgSegs), ...
     ["StartReach","StartHold","StartWithdraw"],'UniformOutput',false);
-cl = {'k','r'};
-scl = distinguishable_colors(4,[cl,'w']);
+clr = {'k','r'};
+scl = distinguishable_colors(4,[clr,'w']);
 for n = 1:length(testUnits)
     figure('Units','normalized','Position',[0 0 1 1]);
     for f = 1:length(fTypes)
-        subplot(2,2,f);
+        subplot(2,3,f);
         hold on;
         title(fTypes(f))
-        for s = [1,3,4]
-            e =errorbar(1:length(scl),100*squeeze(mean(allAcc(f,n,s,:,:),5)), squeeze(std(allAcc(f,n,s,:,:),0,5)).*100,...
-                'Color',scl(s,:),'LineWidth',2-double(mod(s,2)==0));
-            e.CapSize = 0;
-        end
-        ylim([30 100])
+        s = [1,3,4,2];
+        e =boxchart(100*squeeze(allAcc(f,n,s,:))','Notch','on','MarkerStyle','none');
+            %'Color',scl(s,:),'LineWidth',2-double(mod(s,2)==0));
+         set(e,'MarkerStyle','none');
+
+        ylim([30 100]); 
+        %xlim([.5 4.5]);xticks(1:4);
+        xticklabels(somas(s));
         % for a = 1:length(avgAlignments)-1
         %     if(a<2)
         %         avgP = mean(avgAlignments{a});
@@ -273,10 +266,10 @@ for n = 1:length(testUnits)
         %     end
         % end
         % xticklabels((windowPad.*(get(gca,'xtick')./params.binSize))./1000)
-        xlim([0 60]);
+        %xlim([0 60]);
     end
-    legend(somatotopicLabs([1,3,4]))
-    saveFigures(figure(n),savePath+"Summary\R+G\",num2str(testUnits(n)),[]);
+    %legend(somatotopicLabs([1,3,4]))
+    saveFigures(figure(n),savePath,"Units",[]);
 end
 %%
 close all;
@@ -291,7 +284,7 @@ for s = 1:length(somatotopicLabs)
             subplot(2,2,itrain);
             hold on;
             title(phaseNames(itrain))%(f) + " Units");
-            allAcc = cellfun(@(u) cell2mat(cellfun(@(v) v(:,itrain,itest), u(f,:,s), 'UniformOutput',false)), somaUnits, 'UniformOutput', false);
+            allAcc = cellfun(@(u) cell2mat(cellfun(@(v) v(:,itrain,itest), u{1}(f,:,s), 'UniformOutput',false)), somaUnits, 'UniformOutput', false);
             allAcc = cell2mat(reshape(allAcc,1,1,[]));
             errorbar(testUnits,mean(allAcc,[1,3],'omitnan'),std(allAcc,0,[1,3],'omitnan')./sqrt(numRuns*num_cv_splits),'color',cls(itest,:),'Linestyle',ls(1+(s>4)));
             inter = polyxpoly(testUnits,mean(allAcc,[1,3],'omitnan'),testUnits,repmat(0.9,size(testUnits)));

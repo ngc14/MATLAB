@@ -55,7 +55,6 @@ condXphase = cellfun(@(pc) cell2mat(cellfun(@(v) permute(mean(cat(3,v{:}),2,'omi
     cellfun(@(n) vertcat(n{:}),pc,'UniformOutput',false),'UniformOutput',false)),avgPhase,'UniformOutput',false);
 condXphase = cellfun(@(s) [s,NaN(size(s,1),length(phaseNames)-size(s,2))], condXphase, 'UniformOutput',false);
 chUnitMap = cellfun(@(m) m{end},chMaps,'UniformOutput',false);
-%chUnitMap(strcmp([siteDateMap.Monkey],"Gilligan"))= {[1:2:32,2:2:32]};chUnitMap(strcmp([siteDateMap.Monkey],"Skipper"))= {[32:-1:1]};
 %%
 tPhys = table();
 g = @(x,y,c)GetPointLineDistance(x,y,c(1),c(2),c(3),c(4));

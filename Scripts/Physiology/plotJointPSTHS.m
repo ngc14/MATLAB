@@ -22,7 +22,9 @@ if(~exist('plotColors','var'))
        plotColors  = struct("Both", [1 .9 0], "Reach", [1 0 0],...
            "GraspEx",[.75 .895 .5], "Grasp", [0 0 1]);
     else
-       plotColors = MotorMapping.repColors;
+       plotColors =struct("Arm", [.85 .85 .85], "Hand", [.15 .15 .15],...
+            "Forelimb",[.5 .5 .5], "Mixed", [225 150 165]./255,"Trunk",...
+            [.5 .25 .1],"Face",[155 9 144]./255,"Axial",[102 0 36]./255);
     end
 end
 plotNames = fieldnames(plotColors);

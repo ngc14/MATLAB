@@ -1,26 +1,22 @@
 conditions = ["Extra Small Sphere", "Large Sphere", "Photocell"];
-taskAlign = containers.Map(conditions,{{["GoSignal" "StartHold"]},{["GoSignal","StartHold"]},...
-    {["GoSignal","StartHold"]}});
-taskWindow =repmat({{[0.2, 0]}},1,length(conditions));
 params = PhysRecording(string(conditions),.01,.15,-6,5,containers.Map(conditions,...
     {"StartReach","StartReach","StartReach"}));
-phaseNames = categorical([ "Go", "Reach", "Hold","Withdraw"],'Ordinal',true);
-phaseAlignmentPoints = {["GoSignal","StartReach","StartHold","StartWithdraw"],...
-    ["GoSignal","StartReach","StartHold","StartWithdraw"],...
-    ["GoSignal","StartReach","StartHold","StartWithdraw"]};
-phaseWinSz = .2;
-phaseWindows = repmat({{[0, phaseWinSz],[-phaseWinSz*(3/4),phaseWinSz*(1/4)],...
-    [-phaseWinSz*(5/4), -phaseWinSz*(1/4)],[-phaseWinSz*(3/4),phaseWinSz*(1/4)]}},1,length(conditions));
-phaseWindows{end}{3} = [-.1 0];
-pVal=0.05;
+winSz = .2; pVal=0.05;
 savePath = "S:\Lab\ngc14\Working\PSTHS\";
+phaseNames = categorical([ "Go", "Reach", "Hold","Withdraw"],'Ordinal',true);
+taskAlign = containers.Map(conditions,{{["GoSignal" "StartHold"]},{["GoSignal","StartHold"]},...
+    {["GoSignal","StartHold"]}});
+taskWindow =repmat({{[winSz, 0]}},1,length(conditions));
+phaseWindows = repmat({{[0, winSz],[-winSz*(3/4),winSz*(1/4)],...
+    [-winSz*(5/4), -winSz*(1/4)],[-winSz*(3/4),winSz*(1/4)]}},1,length(conditions));
+phaseWindows{end}{3} = [-winSz/2 0];
 allSegs = params.condSegMap.values;
 [~,maxSegL]= max(cellfun(@length,allSegs));
 maxSegL = allSegs{maxSegL};
-condPhaseAlign = containers.Map(conditions,cellfun(@num2cell,phaseAlignmentPoints,'UniformOutput',false));
+condPhaseAlign = containers.Map(conditions,cellfun(@(s) arrayfun(@(p) s(~contains(s,"Replace") & contains(s,string(p))), phaseNames,'Uniformoutput',false),allSegs,'UniformOutput',false));
 %%
-[siteDateMap, siteSegs, siteTrialPSTHS, rawSpikes, siteChannels, siteActiveInd,...
-    siteRep,siteLocation,siteMasks,monkeys,vMask,conditions,chMaps,siteTrialInfo] = getAllSessions(params,"Single","M1","");
+[siteDateMap, siteSegs, siteTrialPSTHS, ~, siteChannels, ~,...
+    siteRep,~,~,~,~,~,chMaps,~] = getAllSessions(params,"Single","M1","");
 %%
 allCondCue = cellfun(@(c) cellfun(@(a) cellfun(@(t) findBins(mean(t(:,2)-4,'omitnan'),params.bins),a),...
     c,'UniformOutput',false),siteSegs,'UniformOutput',false);
@@ -50,7 +46,7 @@ gAUC = cellfun(@(c) cellfun(@(a) a{1}{:,contains(string(phaseNames),"Hold")},c,'
 [gsubr,rgInds] = cellfun(@(cr,cg) cellfun(@(r,g) ttestTrials({{r}},{{g}},1,true,0.05),cr,cg,'UniformOutput',false),rAUC,gAUC, 'UniformOutput',false);
 gsubr = cellfun(@(c) cellfun(@(v) mean([v{:}],2,'omitnan'), c, 'UniformOutput',false),gsubr,'UniformOutput',false);
 [~,tUnit] = cellfun(@(tb,tc) cellfun(@(b,cn) ttestTrials(b,cn,1,true,pVal),tb,tc,'UniformOutput',false),taskBaseline,taskFR,'UniformOutput', false);
-typeUnits = cellfun(@(rg,v,t) sum(cumprod([cell2mat(rg)>0 & cell2mat(v)<0, cell2mat(rg)>0 & cell2mat(v)>0, ...
+typeUnits = cellfun(@(rg,v,t) sum(cumprod([cell2mat(rg)==1 & cell2mat(t)==1 & cell2mat(v)<1, cell2mat(rg)>0 & cell2mat(t)==1 & cell2mat(v)>1, ...
     cell2mat(rg)==0 & cell2mat(t)==1] ==0,2),2)+1, rgInds,gsubr,tUnit, 'UniformOutput', false);
 for t = 1:length(typeUnits)
     typeUnits{t}(typeUnits{t}>3) = 0;

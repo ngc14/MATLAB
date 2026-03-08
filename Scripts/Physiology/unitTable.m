@@ -5,11 +5,11 @@ end
 allSegs = params.condSegMap.values;
 [~,maxSegL]= max(cellfun(@length,allSegs));
 maxSegL = allSegs{maxSegL};
-plotPSTHS = false;
 %%
-[siteDateMap, siteSegs, siteTrialPSTHS,rawSpikes, siteChannels, ~,...
-    siteRep,siteLocation,~,monkeys,~,conditions,chMaps,siteTrialInfo] = getAllSessions(params,"Single","M1","Face");
+[siteDateMap, siteSegs, siteTrialPSTHS,~, siteChannels,chMaps,~,~]=...
+    getAllSessions(params,"Single","M1","Face");
 %%
+siteRep = cellfun(@(r,t) r(t==min(t)),siteDateMap.SiteRep,siteDateMap.Thresh,'UniformOutput', false);
 mappedChannels = cellfun(@(ch,l) ch{2}(l(~isnan(l))), chMaps,siteChannels, 'Uniformoutput', false)';
 sumSegs = cellfun(@(c) cellfun(@(n) [n{:}], c, 'UniformOutput',false), siteSegs,'UniformOutput',false);
 goSegs = cellfun(@(c) cellfun(@(a) cell2mat(cellfun(@(t) findBins(t(:,strcmp(maxSegL,"GoSignal"))-.5,...
@@ -52,9 +52,8 @@ for c = 1:length(conditions)
     tPhys = [tPhys;condTable];
 end
 tPhys = unstack(tPhys,condTable.Properties.VariableNames(find(strcmp(condTable.Properties.VariableNames,"Condition"))+1:end),"Condition");
-clear PSTH condTable siteTrialPSTHS normPSTH sumSegs
 %%
-if(plotPSTHS)
+if(0)
     siteCondSegs = cell2mat(cellfun(@(c) cell2mat(cellfun(@(m) mean(m,1,'omitnan'),c,'UniformOutput',false)),sumSegs,'UniformOutput',false)');
     plotJointPSTHS(params,{cell2mat(cellfun(@(m) mean(m,2,'omitnan').*10,reshape(tPhys{:,contains(tPhys.Properties.VariableNames,"PSTH_")},[],1),'UniformOutput',false)')'},...
         {siteCondSegs},repmat(cellfun(@(s,t) s(find(t==min(t),1)),siteDateMap.SiteRep,siteDateMap.Thresh),length(conditions),1),...

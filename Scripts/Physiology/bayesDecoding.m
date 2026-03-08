@@ -1,24 +1,27 @@
 %% load data
 conditions = ["Extra Small Sphere","Large Sphere", "Photocell"];
-phaseNames = ["Go", "Reach", "Hold", "Withdraw"];
+phaseNames = ["Task"];
 phaseWinSz = 0.2;
-phaseWindows = repmat({{[0, phaseWinSz],[-phaseWinSz*(3/4),phaseWinSz*(1/4)],...
-    [-phaseWinSz*(5/4), -phaseWinSz*(1/4)],[-phaseWinSz*(3/4),phaseWinSz*(1/4)]}},1,length(conditions));
-phaseWindows{end}{3} = [-.1 0];
 taskAlign = containers.Map(conditions,repmat({{["GoSignal" "StartHold"]}},1,length(conditions)));
 phaseAlign = containers.Map(conditions,cellfun(@num2cell,repmat({["GoSignal","StartReach","StartHold","StartWithdraw"]},1,length(conditions)),'UniformOutput',false));
 fTypes = ["Reach","Grasp","Both","Shallow","Deep","Task"];
 taskPhase = false;
 numRuns = 500;
 savePath = "S:\Lab\ngc14\Working\PSTHS\Decoding\";
+if(taskPhase)
+    savePath = savePath+"Task\";
+end
 params = PhysRecording(conditions,.01,.15,-6,5,containers.Map(conditions,...
     repmat({"StartReach"},1,length(conditions))));
 %%
-[sdm,siteSegs,siteTrialPSTHS,rawSpikes,siteChannels,~,simpRep,siteLocation,~,monkeys,~,...
-    conditions,chUnitMap,siteTrialInfo] = getAllSessions(params,"Single","M1","");
+[siteDateMap,siteSegs,siteTrialPSTHS,rawSpikes,siteChannels,chUnitMap,~,~] = ...
+    getAllSessions(params,"Single","M1","");
 %%
+simpRep =  cellfun(@(r,t) r(find(t==min(t),1)),siteDateMap.SiteRep,siteDateMap.Thresh,'UniformOutput', false);
 [taskBaseline,taskFR] = calculatePhases(params,taskAlign,repmat({{[phaseWinSz, 0]}},1,length(conditions)),siteSegs,siteTrialPSTHS,false,true);
-[phaseBaseline,phaseFR] = calculatePhases(params,phaseAlign,phaseWindows,siteSegs,siteTrialPSTHS,false,true);
+[~,taskUnits] = cellfun(@(pb,pc) cellfun(@(b,p)  ttestTrials(b,p,1,true,0.01),...
+    pb,pc, 'UniformOutput', false),taskBaseline(1:length(conditions)),taskFR(1:length(conditions)),'UniformOutput',false);
+[~,phaseFR] = calculatePhases(params,phaseAlign,phaseWindows,siteSegs,siteTrialPSTHS,false,true);
 clear siteTrialPSTHS siteTrialInfo
 %%
 mappedChannels =  cell2mat(cellfun(@(ch,l) ch{end}(l(~isnan(l)))', chUnitMap,siteChannels, 'Uniformoutput', false)');
@@ -37,14 +40,7 @@ for cc = 1:length(rawSpikes)
 end
 unitSomatotopy = cellstr(mapSites2Units(cellfun(@length, siteChannels), simpRep));
 % xyLoc = num2cell(mapSites2Units(cellfun(@length,siteChannels),num2cell([sdm.x,sdm.y],2)),2);
-%% trial by trial condition labels organized by unit
-trialCondTable = getTrialPhaseTable(phaseFR(1:length(conditions)),phaseNames,arrayfun(@(a) a{1}(1),conditions,'UniformOutput',false),sdm);
-trialConds = trialCondTable(:,strcmp(trialCondTable.Properties.VariableNames,'Condition'));
-trialConds = arrayfun(@(t) table2cell(trialConds(trialCondTable.Unit==t & ~all(isnan(trialCondTable{:,...
-    contains(trialCondTable.Properties.VariableNames,phaseNames)}),2),:)),unique(trialCondTable.Unit),'UniformOutput',false);
 %% only use units that are task modulated according to the task phase window
-[~,taskUnits] = cellfun(@(pb,pc) cellfun(@(b,p)  ttestTrials(b,p,1,true,0.01),...
-    pb,pc, 'UniformOutput', false),taskBaseline(1:length(conditions)),taskFR(1:length(conditions)),'UniformOutput',false);
 taskUnits = cellfun(@cell2mat, taskUnits,'UniformOutput',false);
 tPhase = arrayfun(@(pn) cellfun(@(s) cellfun(@(a) cellfun(@(t) {t{strcmp(phaseNames,pn)}},...
     a,'UniformOutput',false), s,'UniformOutput', false),phaseFR(1:length(conditions)),'UniformOutput', false), phaseNames, 'UniformOutput',false);
@@ -61,49 +57,39 @@ goodInds = ~any(cell2mat(cellfun(@(n) all(isnan(n),2),AUCVals,'UniformOutput',fa
 unitSomatotopy = unitSomatotopy(goodInds);
 mappedChannels = mappedChannels(goodInds);
 fUnits = cellfun(@(f) f(goodInds,:), fUnits, 'UniformOutput',false);
+clear tPhase phaseFR
+%% trial by trial condition labels organized by unit
+% trialCondTable = getTrialPhaseTable(phaseFR(1:length(conditions)),phaseNames,arrayfun(@(a) a{1}(1),conditions,'UniformOutput',false),sdm);
+% trialConds = trialCondTable(:,strcmp(trialCondTable.Properties.VariableNames,'Condition'));
+% trialConds = arrayfun(@(t) table2cell(trialConds(trialCondTable.Unit==t & ~all(isnan(trialCondTable{:,...
+%     contains(trialCondTable.Properties.VariableNames,phaseNames)}),2),:)),unique(trialCondTable.Unit),'UniformOutput',false);
+trialConds = cellfun(@(s) num2cell(cell2mat(cellfun(@(c,t) repmat(c(1),size(t{1},1),1),params.condAbbrev.values,s,...
+    'UniformOutput',false)')),num2cell([siteSegs{:}],2),'UniformOutput',false);
+trialConds = mapSites2Units(cellfun(@length,siteChannels),trialConds');
 trialLabs = trialConds(goodInds);
-clear trialCondTable tPhase phaseFR taskBaseline
 %% get trial spike counts
 if(taskPhase)
-    windowPad = 200;
-    taskWindow = {[phaseWinSz, 0]};
-    taskAlignmentPoints = {["GoSignal" "StartLift"],["GoSignal","StartLift"],...
-        ["GoSignal","StartHold"]};
-    taskEnds = cellfun(@(a,pa) cellfun(@(ps) cellfun(@(ap)cellfun(@(p,pw) ...
-        findBins(ap(:,p)+pw,params.bins),{pa},taskWindow,'UniformOutput', false),ps,'UniformOutput',false),...
-        a, 'UniformOutput', false),siteSegs,cellfun(@(t,cs) arrayfun(@(ti) find(strcmp(ti,cs)), t), ...
-        taskAlignmentPoints, params.condSegMap.values,'UniformOutput', false),'UniformOutput',false);
-    spCounts = cellfun(@(p,s) cellfun(@(tt,a)cellfun(@(ha,pp)cellfun(@(h) (cellfun(@(tp,hp)...
-        conv2(tp(:,max(1,hp(1)):max(1,hp(1))+windowPad),ones(1,2),'valid').*...
-        [repmat([1 NaN], size(tp,1), windowPad/2)],squeeze(num2cell(cell2mat(reshape(pp,size(pp,1),1,size(pp,2))),[1 2])),...
-        num2cell(h,2),'UniformOutput',false))', ha, 'UniformOutput',false), a,tt,'UniformOutput',false),...
-        p(~cellfun(@isempty,p)),(s(~cellfun(@isempty,p),:)),'UniformOutput',false)',rawSpikes,taskEnds,'UniformOutput',false);
-    spCounts = cellfun(@(cb) cellfun(@(a) cell2mat(reshape(cat(1,a{:}),1,1,[],size(a,2))), ...
-        cellfun(@(c) [c{:}],cb,'UniformOutput',false), 'UniformOutput',false),spCounts, 'UniformOutput',false);
-    spCounts = cellfun(@(c) cellfun(@(m) median(m(:,1:2:end,:,:),4,'omitnan'),c,'UniformOutput',false),spCounts, 'UniformOutput',false);
-    spCounts = cellfun(@(s)cellfun(@(n) num2cell(n,[2 3]), s, 'UniformOutput', false), spCounts, 'UniformOutput',false);
+    phaseAlignmentPoints = repmat({["StartReach","StartHold"]},1,length(conditions));
+    phaseWindows = {[-phaseWinSz*(3/4), -phaseWinSz*(1/4)],[-phaseWinSz*(3/4), -phaseWinSz*(1/4)],...
+        [-phaseWinSz*(3/4), 0]};
 else
-    phaseAlignmentPoints = {["GoSignal","StartReach","StartHold","StartWithdraw"],...
-        ["GoSignal","StartReach","StartHold","StartWithdraw"],...
-        ["GoSignal","StartReach","StartHold","StartWithdraw"]};
-    phaseWindows = repmat({{[0, phaseWinSz],[-phaseWinSz*(3/4),phaseWinSz*(1/4)],...
-        [-phaseWinSz*(5/4), -phaseWinSz*(1/4)],[-phaseWinSz*(3/4),phaseWinSz*(1/4)]}},1,length(conditions));
-    phaseWindows{end}{3} = [-.1 0];
-    phaseInds = cellfun(@(p,cc) arrayfun(@(b)find(strcmp(string(cc),b)),...
-        p),phaseAlignmentPoints,values(params.condSegMap,...
-        params.condSegMap.keys()),'UniformOutput',false);
-    psthPhaseEnds = cellfun(@(a,pa,pw) cellfun(@(ps) cellfun(@(ap)cellfun(@(p,pw) ...
-        ap(:,p)+pw,num2cell(pa),pw,'UniformOutput', false),ps,'UniformOutput',false),...
-        a, 'UniformOutput', false),siteSegs,phaseInds,phaseWindows,'UniformOutput', false);
-    spCounts = cellfun(@(p,s) cellfun(@(tt,a)cellfun(@(h) cell2mat(cellfun(@(tp,hp)...
-        cellfun(@(i) sum(hp>=i(1) & hp<=i(end)),tp), cellfun(@(s) num2cell(squeeze(s),1),...
-        num2cell(cat(3,a{1}{:}),[2 3]),'UniformOutput',false)',h,'UniformOutput',false)'), ...
-        tt, 'UniformOutput',false),p,s,'UniformOutput',false),rawSpikes,psthPhaseEnds,'UniformOutput',false);
-    spCounts = cellfun(@(cb) [cb{:}]' ,spCounts, 'UniformOutput',false);
-    spCounts = cellfun(@(c) cellfun(@(a)num2cell(vertcat(a{:}),1),num2cell(c(goodInds),2),'UniformOutput',false),spCounts,'UniformOutput',false);
+    phaseAlignmentPoints = repmat({["GoSignal","StartReach","StartHold","StartWithdraw"]},1,length(conditions));
+    phaseWindows = repmat({[0, phaseWinSz],[-phaseWinSz*(3/4),phaseWinSz*(1/4)],...
+        [-phaseWinSz*(5/4), -phaseWinSz*(1/4)],[-phaseWinSz*(3/4),phaseWinSz*(1/4)]},1,length(conditions));
+    phaseWindows{end}{3} = [-phaseWinSz/2 0];
 end
-spCounts = cellfun(@(s) cellfun(@(t) squeeze(horzcat(t{:})),s,'UniformOutput',false), spCounts, 'UniformOutput',false);
-allUnitsTrials = cellfun(@round,horzcat(spCounts{:}),'UniformOutput',false);
+phaseInds = cellfun(@(p,cc) arrayfun(@(b)find(strcmp(string(cc),b)),p),phaseAlignmentPoints,...
+    values(params.condSegMap,params.condSegMap.keys()),'UniformOutput',false);
+phaseEnds = cellfun(@(a,pa,pw) cellfun(@(ps) cellfun(@(ap)cellfun(@(p,n) ...
+    ap(:,p)+n,{pa},{pw},'UniformOutput', false),ps,'UniformOutput',false),...
+    a, 'UniformOutput', false),siteSegs,phaseInds,phaseWindows,'UniformOutput', false);
+spCounts = cellfun(@(p,s) cellfun(@(tt,a)cellfun(@(h) cellfun(@(tp,hp)...
+    sum(hp>=tp(1) & hp<=tp(end)),num2cell(cat(3,a{:}{:}),[2 3]),h'),tt,'UniformOutput',false), ...
+    p,s,'UniformOutput',false),rawSpikes,phaseEnds,'UniformOutput',false);
+spCounts = cellfun(@(cb) [cb{:}]' ,spCounts, 'UniformOutput',false);
+spCounts = cellfun(@(c) cellfun(@(a)num2cell(vertcat(a{:}),1),num2cell(c(goodInds),2),'UniformOutput',false),spCounts,'UniformOutput',false);
+spCounts = cellfun(@(s) cellfun(@(t) squeeze(horzcat(t{:})),s,'UniformOutput',false), num2cell([spCounts{:}],2), 'UniformOutput',false);
+allUnitsTrials = cellfun(@(r) round(vertcat(r{:})),spCounts,'UniformOutput',false);
 clear spCounts
 %% decoder setup
 somatotopicLabs = unique(unitSomatotopy);
@@ -180,7 +166,7 @@ parfor iter = 1:numRuns
     send(hbar, iter);
 end
 delete(gcp('nocreate'));
-unitAccPhase = cellfun(@(p) cell2mat(permute(cellfun(@(m) mean(m,1,'omitnan'),p,'Uniformoutput',false),...
+unitAccPhase = cellfun(@(p) cell2mat(permute(cellfun(@(m) squeeze(mean(m,1,'omitnan')),p,'Uniformoutput',false),...
     (length(size(p{1}))+ length(size(p))):-1:1)),somaUnits,'UniformOutput',false);
 %uUnits = cellfun(@(p) cellfun(@(r) resize(r,[1,max(testUnits)],'FillValue',NaN),p,'UniformOutput',false),uUnits,'UniformOutput',false);
 %%
@@ -190,31 +176,31 @@ figure();hold on;
 for tr = 1:timepoints
     lnStyle = circshift(lnStyle,1);
     for ts = 1:timepoints
-        distCols = 100.*cell2mat(cellfun(@(i) squeeze(mean(i(:,tr,ts,:,:,:),[4 6],'omitnan')),unitAccPhase,'UniformOutput',false)');
+        distCols = 100.*cell2mat(cellfun(@(i) squeeze(mean(i(tr,ts,:,:,:,:),[3 5],'omitnan')),unitAccPhase,'UniformOutput',false)');
         errorbar(testUnits,mean(distCols,2,'omitnan')',std(distCols,0,2)','LineStyle',lnStyle{ts},'Color',trCl(tr,:));
     end
 end
 plot(get(gca,'XLim'),[85 85],'LineWidth',1,'Color','k'); ylim([25 100]);
 saveFigures(gcf,savePath,"NUnits_"+num2str(numRuns),[]);
 %%
-plotPhase = ["Go","Reach","Hold"];
-nUnits = 50;
-typeGroup = cellfun(@(s) squeeze(s)',num2cell(100.*cell2mat(reshape(cellfun(@(i) mean(cell2mat(reshape(arrayfun(@(p) squeeze(i(:,p,...
-p,:,testUnits==nUnits,:)),find(contains(string(phaseNames),plotPhase)),'UniformOutput',false),1,1,[])),3,'omitnan'),unitAccPhase,'UniformOutput',false),...
+plotPhase = ["Task"];
+nUnits = 5;
+typeGroup = cellfun(@(s) squeeze(s)',num2cell(100.*cell2mat(reshape(cellfun(@(i) mean(cell2mat(reshape(arrayfun(@(p) squeeze(i(p,p,...
+:,testUnits==nUnits,:)),find(contains(string(phaseNames),plotPhase)),'UniformOutput',false),1,1,[])),3,'omitnan'),unitAccPhase,'UniformOutput',false),...
 1,1,[])),[1 3]),'UniformOutput',false);
 accTable = cellfun(@(t,n) array2table(t,'VariableNames',n+"_"+string(somatotopicLabs)'),typeGroup,fTypes,UniformOutput=false);
 accTable = [accTable{:}];
 writetable(accTable,savePath+"Decoding_"+num2str(nUnits)+"_"+num2str(numRuns),'FileType','spreadsheet','UseExcel',true);
 
 figure(); hold on;
-bx=boxchart(100.*cell2mat(cellfun(@(i) cell2mat(arrayfun(@(n) squeeze(mean(i(:,n,n,:,testUnits==nUnits,:),[4 6],'omitnan')),...
+bx=boxchart(100.*cell2mat(cellfun(@(i) cell2mat(arrayfun(@(n) squeeze(mean(i(n,n,:,testUnits==nUnits,:),[3 5],'omitnan')),...
     1:timepoints,'UniformOutput',false)),unitAccPhase,'UniformOutput',false)),'Notch','on','MarkerStyle','none');
 xticklabels(string(phaseNames));plot(get(gca,'XLim'),[85 85],'LineWidth',1,'Color','k');ylim([25 100]);
 saveFigures(gcf,savePath,"Phases_"+num2str(numRuns)+"_"+num2str(nUnits),[]);
 
 
 figure(); hold on;
-bx=boxchart(100.*mean(cell2mat(cellfun(@(i) permute(mean(cell2mat(reshape(arrayfun(@(p) squeeze(i(:,p,p,:,testUnits==nUnits,:)),...
+bx=boxchart(100.*mean(cell2mat(cellfun(@(i) permute(mean(cell2mat(reshape(arrayfun(@(p) squeeze(i(p,p,:,testUnits==nUnits,:)),...
     find(contains(string(phaseNames),plotPhase)),'UniformOutput',false),1,1,[])),3,'omitnan'),[3 1 2]),unitAccPhase,'UniformOutput',false)),3,'omitnan'),'Notch','on','MarkerStyle','none');
 xticklabels(somatotopicLabs);plot(get(gca,'XLim'),[85 85],'LineWidth',1,'Color','k');ylim([25 100]);
 saveFigures(gcf,savePath,"Somatotopy_"+num2str(numRuns)+"_"+num2str(nUnits),[]);

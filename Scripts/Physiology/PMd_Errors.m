@@ -12,8 +12,7 @@ allSegs = params.condSegMap.values;
 maxSegL = allSegs{maxSegL};
 condSegMappedInds = cellfun(@(f) find(contains(maxSegL,f)), allSegs, 'UniformOutput', false);
 %%
-[siteDateMap, siteSegs, siteTrialPSTHS, rawSpikes, siteChannels, siteActiveInd,...
-    siteRep,siteLocation,siteMasks,monkeys,vMask,conditions,chMaps,siteTrialInfo] = getAllSessions(params,"Single","PMd");
+[siteDateMap, siteSegs, siteTrialPSTHS, ~, siteChannels, chMaps,~,~] = getAllSessions(params,"Single","PMd");
 clear rawSpikes
 %%
 [taskBaseline,taskFR] = calculatePhases(params,taskAlign,taskWindow,siteSegs,siteTrialPSTHS,false,true);

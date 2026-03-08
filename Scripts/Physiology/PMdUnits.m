@@ -10,14 +10,12 @@ params = PhysRecording(string(conditions),.01,.15,-6,15,containers.Map(condition
 plotUnits = false;
 MIN_BLOCKS_FOR_UNIT = 13;
 %%
-[siteDateMap, siteSegs, siteTrialPSTHS, rawSpikes, siteChannels, siteActiveInd,...
-    siteRep,siteLocation,siteMasks,monkeys,vMask,conditions,chMaps,siteTrialInfo] = getAllSessions(params,"Single","M1");
-clear rawSpikes;
+[siteDateMap, siteSegs, siteTrialPSTHS, ~, siteChannels,chMaps,~,~] = ...
+    getAllSessions(params,"Single","PMd","");
 %%
 [taskBaseline,taskFR] = calculatePhases(params,taskAlign,taskWindow,siteSegs,siteTrialPSTHS,false,true);
 [tVals,tUnit] = cellfun(@(tb,tc) cellfun(@(b,cn) ttestTrials(b,cn,1,true,pVal),...
     tb,tc,'UniformOutput',false),taskBaseline,taskFR,'UniformOutput', false);
-
 trialFR = cellfun(@(ct,cs,ta) cellfun(@(a,b) cell2mat(cellfun(@(m,tt) ...
     squeeze(mean(m(:,max(1,tt(1)):max(1,tt(end)),:),2,'omitnan').*(1*~all(isnan(tt)))),...
     squeeze(num2cell(a,[1,2])),cellfun(@(e) [cell2mat(e),repmat([NaN,NaN],isempty(cell2mat(e)),1)],num2cell(...
@@ -119,7 +117,7 @@ for c =1:length(conditions)
     unitChannelMaps = unitChannels(taskSiteInds);
     siteCondSegs = cellfun(@(a)  NaN(sum(strcmp(a(:,1),conditions(c)) & ...
         (~isnan(str2double(a(:,end-1))) | cellfun(@isempty,a(:,end-1)))),length(maxSegL)),siteTrialInfo(taskSiteInds)','UniformOutput',false);
-    unitLocation = mapSites2Units(cellfun(@length,unitChannelMaps)',siteLocation(taskSiteInds));
+    unitLocation = mapSites2Units(cellfun(@length,unitChannelMaps)',num2cell([siteDateMap(taskSiteInds,"x"),siteDateMap(taskSiteInds,"y")],2));
     siteUnitNo = mapSites2Units(cellfun(@length,unitChannelMaps)',[siteDateMap{taskSiteInds,'Site'}]);
     siteUnitNames = "SiteNo"+arrayfun(@num2str,siteUnitNo,'UniformOutput',false);
     % maxUnitFR = cell2mat(cellfun(@(m) cell2mat(m), maxCondsFR(taskSiteInds), 'UniformOutput',false));

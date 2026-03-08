@@ -1,13 +1,10 @@
-function [siteDateMap,siteSegs,siteTrialPSTHS,rawSpikes,siteChannels,siteActiveInd, simpRep,...
-    siteLocation, siteMasks, monkeys,vMask,conditions,channelMap,trialInfo] = ...
-    getAllSessions(params,singleOrAllUnits,domain,excludeRep)
+function [siteDateMap,siteSegs,siteTrialPSTHS,rawSpikes,siteChannels,channelMap,...
+    siteMasks,vMask] = getAllSessions(params,singleOrAllUnits,domain,excludeRep)
 %  assign parameters
-rawSpikes = [];
 drivePath = "S:\Lab\";
 monkeys = ["Gilligan", "Skipper"];
 % PSTH parameters: bin sizes, smoothing kernel, seconds prior to zero
-% alignment,seconds after zero alignment, alignment point(s) for each
-% condition (default value)
+% alignment,seconds after zero alignment, alignment point(s) for each condition
 bins = params.bins;
 conditions = cellstr(params.condNames);
 siteDateMap = table();
@@ -26,13 +23,11 @@ end
 siteDateMap = siteDateMap(~cellfun(@isempty, siteDateMap.Date),:);
 if(strcmp(domain,"PMd"))
     siteDateMap = siteDateMap([2,4:17,19,20,21,23,24,25,27,28,31,32,38,43,46,47,48,49,51,53,56],:);
-else
-    %siteDateMap = siteDateMap([51,82,5,10,11,32,43,46,62],:);%,,33,37,39,45,49,53,60,61,67,69,71,72,73,77,84,85,87,93,97,19,47,59],:)
 end
 % load info from all sites
 numSites = height(siteDateMap);
-[siteLocation, siteRep, siteThresh,siteSegs,siteChannels,...
-    siteTrialPSTHS,siteActiveInd,rawSpikes,channelMap] = deal(cell(1,numSites));
+[siteRep,siteThresh,siteSegs,siteChannels,siteTrialPSTHS,siteActiveInd,rawSpikes,channelMap] ...
+    = deal(cell(1,numSites));
 delete(gcp('nocreate'));
 parpool('local'); 
 parRun = size(gcp('nocreate'),1);
@@ -140,7 +135,6 @@ parfor  i = 1:numSites
         end
         % get current session joint label
         siteRep{i} = currSession.SiteRep{:};
-        siteThresh{i} = currSession.Thresh{:};
         siteLocation{i} = [currSession.x, currSession.y];
         siteChannels{i} = channels;
         siteActiveInd{i} = currActive;
@@ -162,38 +156,20 @@ else
     delete(gcp('nocreate'));
 end
 %% remove sessions that had no trial information
-emptyInds = cellfun(@isempty, siteLocation);
+nonEmptyInd = find(~cellfun(@(r)  isempty(r) | all(strcmp(r,excludeRep)), siteRep));
+nonEmptyInd =  nonEmptyInd(~cellfun(@isempty,cellfun(@(r,t) r(find((~strcmp(r,excludeRep).*t)==...
+    (min((~strcmp(r,excludeRep)./~strcmp(r,excludeRep)).*t)),1)),siteRep(nonEmptyInd),siteDateMap{nonEmptyInd,"Thresh"}','UniformOutput', false)));
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-excludeRepInd = find(cellfun(@(f) length(f)==1 & sum(strcmp(f, excludeRep))==...
-    length(f),siteRep(~emptyInds)));
-emptyInds(arrayfun(@(f) find(cumsum(~emptyInds)==f,1),excludeRepInd)) = 1;
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-siteDateMap = siteDateMap(~emptyInds,:);
-channelMap = channelMap(~emptyInds);
-siteLocation = vertcat(siteLocation(~emptyInds));
-siteRep = vertcat(siteRep(~emptyInds));
-siteThresh = vertcat(siteThresh(~emptyInds));
-siteSegs = num2cell(vertcat(siteSegs{~emptyInds}),1);
-rawSpikes = num2cell(vertcat(rawSpikes{~emptyInds}),1);
-trialInfo = vertcat(trialInfo(~emptyInds));
-siteChannels = siteChannels(~emptyInds);
-siteTrialPSTHS = num2cell(vertcat(siteTrialPSTHS{~emptyInds}),1);
-siteActiveInd = num2cell(vertcat(siteActiveInd{~emptyInds}),1);
-%%%%%%%%%% Replacing face sites with next best representation %%%%%%%%%%%%%
-nextBest = cellfun(@(r)  ~strcmp(r,excludeRep), siteRep,'UniformOutput',false);
-simpRep = string(cellfun(@(r,t,f) r{find((f.*t)==(min((f./f).*t)),1)},...
-    siteRep,siteThresh, nextBest,'UniformOutput', false));
-emptyInds = cellfun(@isempty, simpRep);
-siteDateMap = siteDateMap(~emptyInds,:);
-channelMap = channelMap(~emptyInds);
-siteLocation = vertcat(siteLocation(~emptyInds))';
-siteSegs = cellfun(@(ss) vertcat(ss(~emptyInds')),siteSegs,'UniformOutput',false);
-siteTrialPSTHS = cellfun(@(stp) stp(~emptyInds'),siteTrialPSTHS,'UniformOutput',false);
-siteActiveInd = cellfun(@(sa) sa(~emptyInds'),siteActiveInd,'UniformOutput',false);
-rawSpikes = cellfun(@(rs) rs(~emptyInds'), rawSpikes, 'UniformOutput',false);
-simpRep = simpRep(~emptyInds);
-channelMap = channelMap(~emptyInds);
-siteChannels = siteChannels(~emptyInds');
+siteDateMap = siteDateMap(nonEmptyInd,:);
+siteRep = vertcat(siteRep(nonEmptyInd));
+siteSegs = num2cell(vertcat(siteSegs{nonEmptyInd}),1);
+siteChannels = siteChannels(nonEmptyInd);
+siteLocation = siteLocation(nonEmptyInd);
+siteTrialPSTHS = num2cell(vertcat(siteTrialPSTHS{nonEmptyInd}),1);
+siteActiveInd = num2cell(vertcat(siteActiveInd{nonEmptyInd}),1);
+channelMap = channelMap(nonEmptyInd);
+trialInfo = vertcat(trialInfo(nonEmptyInd));
+rawSpikes = num2cell(vertcat(rawSpikes{nonEmptyInd}),1);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% voronoi tiles for each monkey
 siteMasks = repmat({},1,height(siteDateMap));
@@ -207,7 +183,7 @@ for m = 1:length(monkeys)
     mRefMask = mRefMask{1};
     mMap = find(strcmp(siteDateMap.Monkey,monkeys(m)));
     if(~isempty(mMap))
-        [verticies, vCells] = voronoin(fliplr([cell2mat(siteLocation(mMap)); ...
+        [verticies, vCells] = voronoin(fliplr([table2array(siteDateMap(mMap,["x","y"])); ...
             [0 size(mRefMask,2); size(mRefMask,1) 0; 0 0;size(mRefMask,1) size(mRefMask,2)]]));
         for i = 1:length(mMap)
             currSite = siteLocation{mMap(i)};
@@ -219,23 +195,6 @@ for m = 1:length(monkeys)
                 mm.tileBuffer:end-(mm.tileBuffer+1));
             siteMasks{mMap(i)} = tempCircle & poly2mask(verticies(vCells{i},2),...
                 verticies(vCells{i},1),size(tempCircle,1),size(tempCircle,2));
-        end
-    end
-end
-clear tempCircle verticies vCells poolCircle
-% group multiple representation sites/units accordingly
-remappedReps = cell(size(siteRep));
-for sr = 1:length(siteRep)
-    if(length(siteRep{sr})==1)
-        remappedReps{sr} = siteRep{sr};
-    else
-        allSiteReps = unique(siteRep{sr}(siteThresh{sr} <= min(siteThresh{sr})*1.1));
-        if(all(contains(allSiteReps, MotorMapping.forelimbRep)))
-            remappedReps{sr} = "Forelimb";
-        elseif(any(contains(allSiteReps, MotorMapping.forelimbRep)))
-            remappedReps{sr} = "Mixed";
-        else
-            remappedReps{sr} = "Axial";
         end
     end
 end

@@ -20,11 +20,13 @@ phaseAlignmentPoints = {["GoSignal","StartReach","StartHold","StartWithdraw"],..
     ["GoSignal","StartReach","StartHold","StartWithdraw"],...
     ["GoSignal","StartReach","StartHold","StartWithdraw"]};
 %%
-[siteDateMap, siteSegs, siteTrialPSTHS, rawSpikes, siteChannels, siteActiveInd,...
-    siteRep,siteLocation,siteMasks,monkeys,vMask,conditions,chMaps,siteTrialInfo] = getAllSessions(params,"Single","M1","");
+[siteDateMap, siteSegs, siteTrialPSTHS, rawSpikes, siteChannels,chMaps,...
+    siteMasks,vMask] = getAllSessions(params,"Single","M1","");
+siteRep = cellfun(@(r,t) r(t==min(t)),siteDateMap.SiteRep,siteDateMap.Thresh,'UniformOutput', false);
 taskAlign = containers.Map(conditions,taskAlignmentPoints);
 condPhaseAlign = containers.Map(conditions,cellfun(@num2cell,phaseAlignmentPoints,'UniformOutput',false));
 %%
+monkeys = unique(siteDateMap.Monkey);
 mappedChannels = cellfun(@(ch,l) ch{2}(l(~isnan(l))), chMaps,siteChannels, 'Uniformoutput', false)';
 allCondSegs = cellfun(@(c) cellfun(@(a) cell2mat(cellfun(@(t) findBins(t(:,2)-3,params.bins),a,'UniformOutput',false)),...
     c,'UniformOutput',false),siteSegs,'UniformOutput',false);
@@ -59,8 +61,7 @@ for c = 1:length(conditions)
     condDir = savePath+string(values(params.condAbbrev,{currCond}))+"\";
     condUnitMapping = cellfun(@(si) size(si,2),siteChannels{2})';
     condRep =  mapSites2Units(condUnitMapping,siteRep)';
-    unitLocation = cell2mat(mapSites2Units(condUnitMapping,siteLocation'));
-    activityInds = mapSites2Units(condUnitMapping,siteActiveInd{c}')';
+    unitLocation = cell2mat(mapSites2Units(condUnitMapping,[siteDateMap.x,siteDateMap.y]'));
     condPSTHS = num2cell(cellfun(@(m) mean(m,3,'omitnan'),vertcat(normPSTH{c}{:}),'UniformOutput',false),1);
     %% unit FR modulation per phase
     [tAUC,tUnits] = cellfun(@(b,cn) ttestTrials(b,cn,1,true,pVal),...

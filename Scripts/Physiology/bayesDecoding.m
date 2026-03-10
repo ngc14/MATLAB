@@ -11,10 +11,10 @@ rgAlign = containers.Map(conditions,cellfun(@num2cell,repmat({["StartReach","Sta
 rgWindow = repmat({{[-winSz*(3/4),winSz*(1/4)],[-winSz*(5/4), -winSz*(1/4)]}},1,length(conditions));
 rgWindow{3}{end} = [-winSz/2 0];
 phaseAlign = repmat({{"GoSignal","StartReach","StartHold","StartWithdraw"}},1,length(conditions));
-phaseWindows = repmat({{[0, winSz],[-winSz*(3/4),winSz*(1/4)],[-winSz*(5/4), -winSz*(1/4)]}},1,length(conditions));
-phaseWindows{end}{3} = [-winSz/2 0];
-for p = 1:length(phaseWindows)
-    phaseWindows{p}{end+1} = [phaseWindows{p}{2}(1),phaseWindows{p}{3}(end)];
+phaseWin = repmat({{[0, winSz],[-winSz*(3/4),winSz*(1/4)],[-winSz*(5/4), -winSz*(1/4)]}},1,length(conditions));
+phaseWin{end}{3} = [-winSz/2 0];
+for p = 1:length(phaseWin)
+    phaseWin{p}{end+1} = [phaseWin{p}{2}(1),phaseWin{p}{3}(end)];
 end
 savePath = "S:\Lab\ngc14\Working\PSTHS\Decoding\Task\";
 %%
@@ -73,7 +73,7 @@ phaseInds = cellfun(@(p,cc) cellfun(@(w) arrayfun(@(b)find(strcmp(string(cc),b))
     values(params.condSegMap,params.condSegMap.keys()),'UniformOutput',false);
 phaseEnds = cellfun(@(a,pa,pw) cellfun(@(ps) cellfun(@(ap)cellfun(@(p,n) ...
     ap(:,p)+n,pa,pw,'UniformOutput', false),ps,'UniformOutput',false),...
-    a, 'UniformOutput', false),siteSegs,phaseInds,phaseWindows,'UniformOutput', false);
+    a, 'UniformOutput', false),siteSegs,phaseInds,phaseWin,'UniformOutput', false);
 spCounts = cellfun(@(p,s) cellfun(@(tt,a)cellfun(@(h) cellfun(@(ap) cellfun(@(tp,hp)...
     sum(hp>=tp(1) & hp<=tp(end)),num2cell(ap(~all(isnan(ap),2),:),2),h(1,~all(isnan(ap),2))'),a{1},'UniformOutput',false),tt,'UniformOutput',false), ...
     p,s,'UniformOutput',false),rawSpikes,phaseEnds,'UniformOutput',false);

@@ -156,9 +156,7 @@ else
     delete(gcp('nocreate'));
 end
 %% remove sessions that had no trial information
-nonEmptyInd = find(~cellfun(@(r)  isempty(r) | all(strcmp(r,excludeRep)), siteRep));
-nonEmptyInd =  nonEmptyInd(~cellfun(@isempty,cellfun(@(r,t) r(find((~strcmp(r,excludeRep).*t)==...
-    (min((~strcmp(r,excludeRep)./~strcmp(r,excludeRep)).*t)),1)),siteRep(nonEmptyInd),siteDateMap{nonEmptyInd,"Thresh"}','UniformOutput', false)));
+nonEmptyInd = find(~cellfun(@(r)  isempty(r) | all(ismember(string(r),excludeRep)), siteRep));
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 siteDateMap = siteDateMap(nonEmptyInd,:);
 siteRep = vertcat(siteRep(nonEmptyInd));

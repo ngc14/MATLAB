@@ -16,10 +16,10 @@ maxSegL = allSegs{maxSegL};
 condPhaseAlign = containers.Map(conditions,cellfun(@(s) arrayfun(@(p) s(~contains(s,"Replace") & contains(s,string(p))), phaseNames,'Uniformoutput',false),allSegs,'UniformOutput',false));
 %%
 [siteDateMap, siteSegs, siteTrialPSTHS, ~, siteChannels, chMaps,~,~]=...
-    getAllSessions(params,"Single","M1","");
+    getAllSessions(params,"Single","M1","Face");
 %%
-siteRep =cellfun(@(r,t) r(t==min(t)),siteDateMap.SiteRep,siteDateMap.Thresh,'UniformOutput', false);
-allCondCue = cellfun(@(c) cellfun(@(a) cellfun(@(t) findBins(mean(t(:,2)-4,'omitnan'),params.bins),a),...
+siteRep =cell2mat(cellfun(@(r,t) r(find((t.*~contains(r,"Face"))==min(t),1)),siteDateMap.SiteRep,siteDateMap.Thresh,'UniformOutput', false))';
+allCondCue = cellfun(@(c) cellfun(@(a) cellfun(@(t) findBins(mean(t(:,contains(maxSegL,"Go"))-4,'omitnan'),params.bins),a),...
     c,'UniformOutput',false),siteSegs,'UniformOutput',false);
 normBaseline = cellfun(@(p,t) cellfun(@(a,n) max(1,mean(a(:,n(find(~isnan(n),1)):n(find(~isnan(n),1))+(3/params.binSize),:),2,'omitnan')),...
     p,t,'UniformOutput',false),num2cell([siteTrialPSTHS{:}],2),num2cell([allCondCue{:}],2),"UniformOutput",false);
@@ -89,6 +89,8 @@ for c = 1:length(conditions)
     condTable.gSI = condTable.Hold./(condTable.Reach+condTable.Hold);
     condTable.rgSI = (condTable.Reach - condTable.Hold)./(condTable.Reach+condTable.Hold);
     condTable.unitType = typeUnits{c};
+    [~,maxInd] = max(cell2mat(cellfun(@(m) mean(m,3),normPSTH{c},'UniformOutput',false)),[],2);
+    condTable.maxFRTime = params.bins(maxInd)'./~all(isnan(AUCVals),2);
     tPhys = [tPhys;condTable];
 end
 plotNames = arrayfun(@(p) arrayfun(@(c) string(p)+"_"+c{1}(1), conditions, 'UniformOutput', true), phaseNames, 'UniformOutput', false);

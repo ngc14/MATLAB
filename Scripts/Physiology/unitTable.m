@@ -9,7 +9,7 @@ maxSegL = allSegs{maxSegL};
 [siteDateMap, siteSegs, siteTrialPSTHS,~, siteChannels,chMaps,~,~]=...
     getAllSessions(params,"Single","M1","Face");
 %%
-siteRep = cellfun(@(r,t) r(t==min(t)),siteDateMap.SiteRep,siteDateMap.Thresh,'UniformOutput', false);
+siteRep =cell2mat(cellfun(@(r,t) r(find((t.*~contains(r,"Face"))==min(t),1)),siteDateMap.SiteRep,siteDateMap.Thresh,'UniformOutput', false));
 mappedChannels = cellfun(@(ch,l) ch{2}(l(~isnan(l))), chMaps,siteChannels, 'Uniformoutput', false)';
 sumSegs = cellfun(@(c) cellfun(@(n) [n{:}], c, 'UniformOutput',false), siteSegs,'UniformOutput',false);
 goSegs = cellfun(@(c) cellfun(@(a) cell2mat(cellfun(@(t) findBins(t(:,strcmp(maxSegL,"GoSignal"))-.5,...
@@ -29,7 +29,7 @@ for c = 1:length(conditions)
     condTable.Unit = (1:length(mLabs))';
     condTable.SiteNum = cell2mat(arrayfun(@(s,c) repmat(s,c,1), 1:length(condUnitMapping),condUnitMapping','UniformOutput',false)');
     condTable.Monkey = categorical(mLabs);
-    condTable.Somatotopy = categorical(mapSites2Units(condUnitMapping,siteRep'));
+    condTable.Somatotopy = categorical(mapSites2Units(condUnitMapping,siteRep));
     condTable.Channel =  [mappedChannels{:}]';
     condTable.X = mapSites2Units(condUnitMapping,siteDateMap.x);
     condTable.Y = mapSites2Units(condUnitMapping,siteDateMap.y);

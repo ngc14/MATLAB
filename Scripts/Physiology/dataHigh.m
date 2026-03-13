@@ -75,15 +75,14 @@ DataHigh(dHiStruct,'DimReduce');
 if(saveFig)
     save(savePath+"DStruct_"+model+".mat",'dHiStruct','-v7.3');
 end
-% all_h = findall(groot,'Type','Figure');
+% all_h = findall(groot,'Type','Figure');handles = guihandles(all_h(arrayfun(@(s) strcmp(s.Name,'DataHigh'),all_h)));D= D.D;
 % D = guidata(all_h(arrayfun(@(s) strcmp(s.Name,'DataHigh'),all_h)));
-% handles = guihandles(all_h(arrayfun(@(s) strcmp(s.Name,'DataHigh'),all_h)));D= D.D; 
 %%
 somaReps = unique(somaLabs);
 if(length(D)<sTrials)
     plotTrials = 0;
 end
-somaProj = cellfun(@(d)cellfun(@(s,e) e(somaLabs==s,:),cellstr(unique(somaLabs)),repmat({loadings*d},length(somaReps),1),'UniformOutput',false),...
+somaProj = cellfun(@(d)cellfun(@(s,e) e(somaLabs==s,:),num2cell(unique(somaLabs)),repmat({loadings*d},length(somaReps),1),'UniformOutput',false),...
     smoothedData,'UniformOutput',false);somaProj = reshape([somaProj{:}]',[],1);
 figure(); tiledlayout(2,1+num_dims);
 for n = 0:num_dims+1

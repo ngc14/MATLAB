@@ -81,7 +81,7 @@ for c = 1:length(conditions)
     condTable.Y(~mInds) = cellfun(@(x) x(end), unitLocation(~mInds)) - min(cellfun(@(x) x(end), unitLocation(~mInds)));
     condTable.Condition = categorical(repmat({params.condAbbrev(conditions{c})},length(allReps),1));
     condTable.TaskUnits =  logical(tUnits);
-    condTable.TaskFR = cell2mat(cellfun(@(t) mean(t{1}{1},2,'omitnan'), taskFR{c},'UniformOutput',false));
+    condTable.TaskFR = cell2mat(cellfun(@(t,b) mean(t{1}{1},2,'omitnan')./mean(b{1}{1},2,'omitnan'),taskFR{c},taskBaseline{c},'UniformOutput',false));
     for pn = 1:length(phaseNames)
         condTable.(string(phaseNames(pn))) = AUCVals(:,pn);
     end

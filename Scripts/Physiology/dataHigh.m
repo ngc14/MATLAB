@@ -8,7 +8,7 @@ saveDir = "S:\Lab\ngc14\Working\DataHi\Combined\";
 saveFig = true;
 num_dims=4;
 sTrials = 30;
-plotTrials = 0;
+plotTrials = 1;
 timeBins = [-.5, 2.5];
 splitGroup = "Condition";
 epochSegs = ["GoSignal","StartReach","StartHold","StartWithdraw"];
@@ -25,31 +25,35 @@ allSegsL = params.condSegMap.values;
 maxSegL = allSegsL{maxSegL};
 tableInds = contains(string(tPhys.Monkey),[regexp(extractBefore(model,"_"),'[A-Z]+[^A-Z]+','match')]) & contains(string(tPhys.Somatotopy),...
     [regexp(extractAfter(model,"_"),'[A-Z]+[^A-Z]+','match')]);
+somaTable = tPhys{tableInds,"Somatotopy"};
 allSegs= arrayfun(@(s) tPhys{tableInds,contains(tPhys.Properties.VariableNames,"Segs_"+extractAfter(s,"_"))},dimCond,'UniformOutput',false);%
 taskPSTHD= arrayfun(@(a) tPhys{tableInds,contains(tPhys.Properties.VariableNames,"PSTH_"+extractAfter(a,"_"))},dimCond,'UniformOutput',false);
-avgTrace = mean(cell2mat(vertcat(taskPSTHD{:})'),2,'omitnan');
+%avgTrace = mean(cell2mat(vertcat(taskPSTHD{:})'),2,'omitnan');
 avgTrace = zeros(size(avgTrace,1),size(avgTrace,2));
+numUnits = cell2mat(cellfun(@(a) cellfun(@(s) size(s,2),a), taskPSTHD,'UniformOutput',false));
 if(~plotTrials)
     taskPSTHD = cellfun(@(n) {cell2mat(cellfun(@(m) mean(max(0,m-avgTrace),2,'omitnan')',n,'UniformOutput',false))}, taskPSTHD, 'UniformOutput',false);
 else
     taskPSTHD= cellfun(@(a) squeeze(num2cell(permute(cell2mat(reshape(cellfun(@(d) downsampleTrials(max(0,d-avgTrace),sTrials),...
-        a(cellfun(@(s)size(s,2)>=sTrials,a)),'Uniformoutput',false),1,1,[])),[3 1 2]),[1,2])),vertcat(taskPSTHD), 'UniformOutput',false);
+        a(all(numUnits>=sTrials,2)),'Uniformoutput',false),1,1,[])),[3 1 2]),[1,2])),vertcat(taskPSTHD), 'UniformOutput',false);
 end
-numUnits = arrayfun(@(s) min(cellfun(@(m) size(m{1},1),taskPSTHD(contains(dimCond,s)))), unique(arrayfun(@(t) extractBefore(t,"_"),dimCond)));
-unitInds = arrayfun(@(u) repmat({randperm(u,min(numUnits))},1,size(dimCond,2)/length(numUnits)), numUnits,'UniformOutput',false);%repmat({}',1,size(currD,2)/(length(numUnits)));
-taskPSTHD = cellfun(@(a,i,b)cellfun(@(u)max(0,u(i,findBins(timeBins(1),params.bins):findBins(timeBins(end),params.bins))),a,'UniformOutput',false), ...
-    taskPSTHD, [unitInds{:}],allSegs,'UniformOutput',false);%cellfun(@(a,b) max(0,mean(b(max(1,findBins(mean(a(:,2))-5,params.bins)):max(1/params.binSize,findBins(mean(a(:,2))-4,params.bins))))),s(i),num2cell(u(i,:),2))),...
+unitInds = repmat({randperm(sum(all(numUnits>=sTrials,2)))},1,length(taskPSTHD));%repmat({}',1,size(currD,2)/(length(numUnits)));
+taskPSTHD =  cellfun(@(a,i,b)cellfun(@(u)max(0,u(i,findBins(timeBins(1),params.bins):findBins(timeBins(end),params.bins))),a,'UniformOutput',false), ...
+    taskPSTHD, unitInds,allSegs,'UniformOutput',false);%cellfun(@(a,b) max(0,mean(b(max(1,findBins(mean(a(:,2))-5,params.bins)):max(1/params.binSize,findBins(mean(a(:,2))-4,params.bins))))),s(i),num2cell(u(i,:),2))),...
 cls = cellfun(@(r) repmat({r},max(plotTrials*sTrials,1),1),cellfun(@hsv2rgb,cellfun(@(l) flipud([linspace(l(1),l(1),5);...
     linspace(1,.25,5);linspace(.85,1,5)]'),cellfun(@rgb2hsv,colors.values','UniformOutput',false),'UniformOutput',false),'UniformOutput',false),'UniformOutput',false);
-dHiStruct = struct('data',vertcat(taskPSTHD{:}),'epochStarts',cellfun(@(s) fix(mean(s,1,'omitnan')),cellfun(@(n) [ones(size(n,1),1),n(:,...
-    arrayfun(@(c)find(strcmp(maxSegL,c)),epochSegs(1:end-1))),min(n(:,strcmp(maxSegL,epochSegs(end))),length(timeBins(1):params.binSize:timeBins(end))-1)],...
-    cellfun(@(aa,i)cell2mat(cellfun(@(a) findBins(mean(a,1,'omitnan'),params.bins(findBins(timeBins(1),params.bins):findBins(timeBins(end),params.bins))),aa(i),...
-    'UniformOutput',false)),allSegs,[unitInds{:}],'UniformOutput',false),'UniformOutput',false),'UniformOutput',false)',...
-    'condition',cellstr(cell2mat(cellfun(@(d) repmat(string(d),max(plotTrials*sTrials,1),1),cellstr(dimCond),'UniformOutput',false)')),'epochColors',vertcat(cls{:}));
+segInds = cellfun(@(s) fix(mean(s,1,'omitnan')),cellfun(@(n) [ones(size(n,1),1),n(:,arrayfun(@(c)find(strcmp(maxSegL,c)),...
+    epochSegs(1:end-1))),min(n(:,strcmp(maxSegL,epochSegs(end))),length(timeBins(1):params.binSize:timeBins(end))-1)],...
+    cellfun(@(aa,i)cell2mat(cellfun(@(a) findBins(mean(a,1,'omitnan'),params.bins(findBins(timeBins(1),params.bins):...
+    findBins(timeBins(end),params.bins))),aa(i),'UniformOutput',false)),allSegs,unitInds,'UniformOutput',false),'UniformOutput',false),'UniformOutput',false)';
+segInds = cellfun(@(r) repmat(r,sTrials*plotTrials,1), segInds,'UniformOutput',false);
+dHiStruct = struct('data',vertcat(taskPSTHD{:}),'epochStarts',vertcat(segInds{:}),'condition',cellstr(cell2mat(...
+    cellfun(@(d) repmat(string(d),max(plotTrials*sTrials,1),1),cellstr(dimCond),'UniformOutput',false)')),'epochColors',vertcat(cls{:}));
 %%
 binWidth = 10;smoothWin = 100;
 trialLength = floor(size(dHiStruct(1).data, 2) / binWidth);
 mv = mean([dHiStruct.data],2) * 1000;
+somaLabs = somaTable(find(all(numUnits>=sTrials,2)).*double(mv>0));
 for n = 1:length(dHiStruct)
     smoothedData{n} = NaN(sum(mv>0),trialLength);
     for t = 1:trialLength
@@ -58,12 +62,10 @@ for n = 1:length(dHiStruct)
         smoothedData{n}(:,t) = sum(dHiStruct(n).data(mv>0,iStart:iEnd),2);
     end
 end
-somaLabs = find(tableInds).*double(mv>0);
-somaLabs = tPhys{somaLabs(somaLabs>0),"Somatotopy"};
 smoothedData = cellfun(@(s) sqrt(resize(conv2(s,transpose(gausswin(ceil(smoothWin/binWidth))./sum(gausswin(ceil(smoothWin/binWidth)))),'valid')...
     ./(binWidth/1000),size(s),'Pattern','edge','Side','both')),smoothedData,'UniformOutput',false);
 %smoothedData=cellfun(@(s)s(:,8+1:end-8),smoothedData,'UniformOutput',false);normpdf(ceil(3*smoothWin/binWidth)*binWidth:binWidth:binWidth*ceil(3*smoothWin/binWidth),0,smoothWin)
-[loadings, scores, eig] = pca([cell2mat(smoothedData)],'Economy',false,'Centered','off');
+[loadings, scores, eig] = pca([cell2mat(smoothedData)]','Economy',false,'Centered','off');
 index = 0;D = dHiStruct;
 for i=1:length(smoothedData)
     D(i).data= scores(index + (1:size(smoothedData{i},2)),:)';

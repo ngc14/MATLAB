@@ -1,25 +1,25 @@
 function [spikes,times,unitTrials,trials,conds,channel,eventNames,labels,chMap] = getAllTrials(folderName, singleOrAll,loadChannelMap)
 folderName = char(folderName);
-sessionDir = dir(folderName+"\*.mat");
+sessionDir = dir(folderName+"*.mat");
 if(~exist('loadChannelMap','var'))
     loadChannelMap = false;
 end
 if(isempty(sessionDir))
     [spikes,times,unitTrials,trials,conds,channel,eventNames,labels,chMap] = deal([]);
 else
-    pathInds = regexp(folderName,'\');
-    hFilePath = dir([folderName(1:pathInds(end)),'*.nev']);
-    dirPath = dir(hFilePath(1).folder);
-    hFilePath = hFilePath(cellfun(@(s) ~contains(s,"withdraw",'IgnoreCase',true) & ...
-        ~contains(s,'stim','IgnoreCase',true) & ~contains(s,'sort','IgnoreCase',true) & ...
-        contains(s,folderName(pathInds(2)+1:pathInds(3)-1)), {hFilePath.name}));
-    noteFiles = dirPath(find(cellfun(@(f) contains(f,extract(hFilePath.name,wildcardPattern+lookAheadBoundary(characterListPattern("_")+...
-        digitsPattern+characterListPattern(".")))+"_Note"),{dirPath.name}),1)).name;
-    notesLines = readlines(hFilePath.folder+"\"+noteFiles);
-    infoLines = notesLines(contains(notesLines,"Channel")|contains(notesLines,"Electrode"));
     chMap{1} = {};
     chMap{2} = {};
     if(loadChannelMap)
+        pathInds = regexp(folderName,'\');
+        hFilePath = dir([folderName(1:pathInds(end)),'*.nev']);
+        hFilePath = hFilePath(cellfun(@(s) ~contains(s,"withdraw",'IgnoreCase',true) & ...
+            ~contains(s,'stim','IgnoreCase',true) & ~contains(s,'sort','IgnoreCase',true) & ...
+            contains(s,folderName(pathInds(2)+1:pathInds(3)-1)), {hFilePath.name}));
+        dirPath = dir(hFilePath(1).folder);
+        noteFiles = dirPath(find(cellfun(@(f) contains(f,extract(hFilePath.name,wildcardPattern+lookAheadBoundary(characterListPattern("_")+...
+            digitsPattern+characterListPattern(".")))+"_Note"),{dirPath.name}),1)).name;
+        notesLines = readlines(hFilePath.folder+"\"+noteFiles);
+        infoLines = notesLines(contains(notesLines,"Channel")|contains(notesLines,"Electrode"));
         [res,hFile] = ns_OpenFile([hFilePath.folder,'\',hFilePath.name],'single');
         if(strcmp(res, 'ns_OK'))
             oldCI = [];

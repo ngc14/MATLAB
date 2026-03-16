@@ -26,7 +26,7 @@ if(strcmp(domain,"PMd"))
 end
 % load info from all sites
 numSites = height(siteDateMap);
-[siteRep,siteThresh,siteSegs,siteChannels,siteTrialPSTHS,siteActiveInd,rawSpikes,channelMap] ...
+[siteRep,siteSegs,siteChannels,siteTrialPSTHS,siteActiveInd,rawSpikes,channelMap] ...
     = deal(cell(1,numSites));
 delete(gcp('nocreate'));
 parpool('local'); 
@@ -36,6 +36,7 @@ if(~parRun)
 else
     hbar = parforProgress(numSites);
 end
+%%
 parfor  i = 1:numSites
     currSession = siteDateMap(i,:);
     if(strcmpi(currSession.Monkey,"Gilligan"))
@@ -48,7 +49,6 @@ parfor  i = 1:numSites
     currSession.Date = char(du);
     physDir = strcat(drivePath,currSession.Monkey,"\All Data\", currSession.Monkey,...
         "_",string(currSession.Date),"\Physiology\");
-    %delete(fullfile(fullfile(physDir,'*.cache')));
     physDir = strcat(physDir,"Results");
     if(isempty(dir(physDir+"\*.mat")))
         if(~ismember(currSession.Date,{'05_02_2019','11_11_2019','2021_09_20','2022_06_22','2022_06_28','2022_07_11','2022_07_12'}))
@@ -60,6 +60,7 @@ parfor  i = 1:numSites
         end
     end
     dirChannels = dir(physDir+"\*.mat");
+    %physDir = "C:\Users\ngc14\OneDrive - University of Pittsburgh\Physiology\Physiology\Results\"+currSession.Monkey+"_"+currSession.Date; %delete(fullfile(fullfile(physDir,'*.cache')));
     if(~isempty(dirChannels))
         firstChannel = load([strcat(physDir,'\',dirChannels(1).name)]);
         if(~isfield(firstChannel,'label') && ~contains(fieldnames(firstChannel,'-full'),'label') ...

@@ -25,7 +25,7 @@ if(strcmp(domain,"PMd"))
 end
 % load info from all sites
 numSites = height(siteDateMap);
-[siteRep,siteSegs,siteChannels,siteTrialPSTHS,siteActiveInd,rawSpikes,channelMap] ...
+[siteRep,siteSegs,siteChannels,siteTrialPSTHS,siteActiveInd,trialInfo,rawSpikes,channelMap] ...
     = deal(cell(1,numSites));
 delete(gcp('nocreate'));
 parpool('local'); 
@@ -135,7 +135,6 @@ parfor  i = 1:numSites
         end
         % get current session joint label
         siteRep{i} = currSession.SiteRep{:};
-        siteLocation{i} = [currSession.x, currSession.y];
         siteChannels{i} = channels;
         siteActiveInd{i} = currActive;
         channelMap{i} = chMap;
@@ -162,7 +161,6 @@ siteDateMap = siteDateMap(nonEmptyInd,:);
 siteRep = vertcat(siteRep(nonEmptyInd));
 siteSegs = num2cell(vertcat(siteSegs{nonEmptyInd}),1);
 siteChannels = siteChannels(nonEmptyInd);
-siteLocation = siteLocation(nonEmptyInd);
 siteTrialPSTHS = num2cell(vertcat(siteTrialPSTHS{nonEmptyInd}),1);
 siteActiveInd = num2cell(vertcat(siteActiveInd{nonEmptyInd}),1);
 channelMap = channelMap(nonEmptyInd);
@@ -184,7 +182,7 @@ for m = 1:length(monkeys)
         [verticies, vCells] = voronoin(fliplr([table2array(siteDateMap(mMap,["x","y"])); ...
             [0 size(mRefMask,2); size(mRefMask,1) 0; 0 0;size(mRefMask,1) size(mRefMask,2)]]));
         for i = 1:length(mMap)
-            currSite = siteLocation{mMap(i)};
+            currSite = siteDateMap{mMap(i),["x","y"]};
             tempCircle = zeros(size(mRefMask)+2*mm.tileBuffer);
             tempCircle((currSite(2)-mm.siteRadius+mm.tileBuffer):(currSite(2)+...
                 mm.siteRadius+mm.tileBuffer),(currSite(1)-mm.siteRadius+mm.tileBuffer):...

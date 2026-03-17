@@ -5,7 +5,6 @@ drivePath = "S:\Lab\";
 monkeys = ["Gilligan", "Skipper"];
 % PSTH parameters: bin sizes, smoothing kernel, seconds prior to zero
 % alignment,seconds after zero alignment, alignment point(s) for each condition
-bins = params.bins;
 conditions = cellstr(params.condNames);
 siteDateMap = table();
 allActivityMaps = containers.Map();
@@ -108,7 +107,7 @@ parfor  i = 1:numSites
                     NaN(1,length(condEvents)-length(t)),t(end)-t(ap)], times(condInds),...
                     'UniformOutput', false)'), condAlign, 'UniformOutput', false);
                 trialHists{c} = cellfun(@(ac) cellfun(@(a) histcounts(vertcat(a(:)),...
-                    [bins(1)-(params.sigmaSize/2):params.binSize:bins(end)+...
+                    [params.bins(1)-(params.sigmaSize/2):params.binSize:params.bins(end)+...
                     (params.sigmaSize/2)]),ac,'UniformOutput',false),alignedSpikes{c},'UniformOutput', false);
                 %{alignedPSTHS}{units,trials}{bins}
                 smoothHists = cellfun(@(ac)  cellfun(@(a) conv(a,gausswin(params.sigma)/...
@@ -130,7 +129,7 @@ parfor  i = 1:numSites
                 % pad stored info with empty arrays and NaN pad indicies for missing conditions
                 alignments = mode(cellfun(@length,params.PSTHAlignments.values));
                 currSeg{c} = repmat({NaN(size(params.condSegMap(currCond)))},1,alignments);
-                currTrialPSTHS{c} = repmat(NaN(numUnits,length(bins),1),1,alignments);
+                currTrialPSTHS{c} = repmat(NaN(numUnits,length(params.bins),1),1,alignments);
                 alignedSpikes{c} = repmat({NaN},numUnits,1,alignments);
             end
         end

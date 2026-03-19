@@ -1822,7 +1822,7 @@ function [structOk msg modified_orig_data] = performChecks(D)
             msg = ['epochStarts must contain integer values, trial ' num2str(itrial)];
             structOk = false; return;
         end
-        if (size(D(itrial).epochStarts,1) ~= 1 && size(D(trial).epochStarts,2) ~= 1)
+        if (size(D(itrial).epochStarts,1) ~= 1 && size(D(itrial).epochStarts,2) ~= 1)
             msg = ['epochStarts must be a row vector. trial ' num2str(itrial)];
             structOk = false; return;  % epochStarts is not a row vector
         end

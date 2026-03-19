@@ -46,7 +46,7 @@ segInds = cellfun(@(s) fix(mean(s,1,'omitnan')),cellfun(@(n) n(:,arrayfun(@(c)fi
     allSegs,unitInds,'UniformOutput',false),'UniformOutput',false),'UniformOutput',false)';
 cls = cellfun(@(r) repmat({r},max(plotTrials*sTrials,1),1),cellfun(@hsv2rgb,cellfun(@(l) flipud([linspace(l(1),l(1),5);...
     linspace(1,.25,5);linspace(.85,1,5)]'),cellfun(@rgb2hsv,colors.values','UniformOutput',false),'UniformOutput',false),'UniformOutput',false),'UniformOutput',false);
-%%
+%% smooth data and remove non-modulated units
 timePCA =  1; binWidth = 10;smoothWin = 150;
 trialLength = floor(size(taskPSTHD{1}{1}, 2) / binWidth);
 mv = mean(cell2mat(cellfun(@(n) cell2mat(n),taskPSTHD,'UniformOutput',false)),2,'omitnan').*1000>1;
@@ -72,7 +72,7 @@ else
 end
 [loadings, scores, eig] = pca(pcaMatrix,'Economy',false,'Centered','on','NumComponents',num_dims);
 %smoothedData=cellfun(@(s)s(:,8+1:end-8),smoothedData,'UniformOutput',false);normpdf(ceil(3*smoothWin/binWidth)*binWidth:binWidth:binWidth*ceil(3*smoothWin/binWidth),0,smoothWin)
-%%
+%% plot single dimension PCA
 if(timePCA)
     somaProj = cellfun(@(s)arrayfun(@(c)s((1+(c-1)*size(s,1)/length(dimCond)):c*size(s,1)/length(dimCond),:)',1:length(dimCond),'UniformOutput',false),...
         cellfun(@(s,e) scores(repmat(somaLabs,length(dimCond),1)==s,:),num2cell(somaReps),'UniformOutput',false),'UniformOutput',false);
@@ -127,7 +127,7 @@ xticklabels(1:4);ylim([-2 2]);
 if(saveFig)
     saveFigures(gcf,savePath,"Projections_"+num2str(num_dims)+"_Bsz"+num2str(binWidth)+"_Sm"+num2str(smoothWin),[]);
 end
-%%
+%% Dim Reduce
 dHiStruct = struct('data',cellfun(@(t) t,vertcat(taskPSTHD{:}),'UniformOutput',false),'epochStarts',...
     cellfun(@(r) repmat([1,r],max(1,sTrials*plotTrials),1), segInds,'UniformOutput',false),'condition',cellstr(cell2mat(...
     cellfun(@(d) repmat(string(d),max(plotTrials*sTrials,1),1),cellstr(dimCond),'UniformOutput',false)')),'epochColors',cellfun(@cell2mat,cls,'UniformOutput',false));
@@ -135,10 +135,10 @@ DataHigh(dHiStruct,'DimReduce');
 if(saveFig)
     save(savePath+"DStruct_"+model+".mat",'dHiStruct','-v7.3');
 end
-%%
+%% Get dHi data
 all_h = findall(groot,'Type','Figure');handles = guihandles(all_h(arrayfun(@(s) strcmp(s.Name,'DataHigh'),all_h)));
 D = guidata(all_h(arrayfun(@(s) strcmp(s.Name,'DataHigh'),all_h)));D= D.D;
-%%
+%% Plot dHi Single dimension
 conds = unique({D.condition});
 figure(); tax=tiledlayout(1,max(1,num_dims/2)*2);
 ylimT = [min(arrayfun(@(m) min(m.data,[],'all'),D)),max(arrayfun(@(m) max(m.data,[],'all'),D))];

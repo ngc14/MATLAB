@@ -47,7 +47,7 @@ segInds = cellfun(@(s) fix(mean(s,1,'omitnan')),cellfun(@(n) n(:,arrayfun(@(c)fi
 cls = cellfun(@(r) repmat({r},max(plotTrials*sTrials,1),1),cellfun(@hsv2rgb,cellfun(@(l) flipud([linspace(l(1),l(1),5);...
     linspace(1,.25,5);linspace(.85,1,5)]'),cellfun(@rgb2hsv,colors.values','UniformOutput',false),'UniformOutput',false),'UniformOutput',false),'UniformOutput',false);
 %% smooth data and remove non-modulated units
-timePCA =  1; binWidth = 10;smoothWin = 150;
+timePCA =  0; binWidth = 10;smoothWin = 150;
 trialLength = floor(size(taskPSTHD{1}{1}, 2) / binWidth);
 mv = mean(cell2mat(cellfun(@(n) cell2mat(n),taskPSTHD,'UniformOutput',false)),2,'omitnan').*1000>1;
 if(length(taskPSTHD)<sTrials)
@@ -79,6 +79,8 @@ if(timePCA)
 else
     somaProj = cellfun(@(s)arrayfun(@(c) scores((1+(c-1)*size(scores,1)/length(dimCond)):c*size(scores,1)/length(dimCond),:)',1:length(dimCond),'UniformOutput',false),...
         num2cell(somaReps),'UniformOutput',false);
+    somaProj = cellfun(@(s)arrayfun(@(c) cell2mat(arrayfun(@(n)mean(pcaMatrix((1+(c-1)*size(pcaMatrix,1)/length(dimCond)):c*size(pcaMatrix,1)/length(dimCond),somaLabs==s)'.*...
+        loadings(somaLabs==s,n),1,'omitnan'),1:num_dims,'UniformOutput',false)').*1000,1:length(dimCond),'UniformOutput',false),num2cell(somaReps),'UniformOutput',false);
 end
 bc = num2cell([1 0 0;1 .7 0; 0 0 1],2);
 lc = flipud(num2cell([0 0 0; .7 .7 .7;],2));

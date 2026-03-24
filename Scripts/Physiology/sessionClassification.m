@@ -3,10 +3,10 @@ cnds = ["Extra Small Sphere","Large Sphere","Photocell"];
 params = PhysRecording(string(cnds),.001,.001,-1,3,containers.Map(cnds,{"StartReach","StartReach","StartReach"}));
 phases = ["StartReach","StartHold"];
 phaseWindows = {[-100 100], [-200 0]};
-tPhys = unitTable(cnds,params);
 MIN_NUM_TRIALS = 20;
 plotSessionDiscriminants = false;
 saveDir = "S:\Lab\ngc14\Working\DataHi\Sessions\";
+tPhys = unitTable(cnds,params);
 %%
 for p = 1:length(phases)
     phaseConds = cellfun(@(t) find(strcmp(phases(p),t)), params.condSegMap.values(params.condSegMap.keys),'UniformOutput',false);

@@ -186,7 +186,7 @@ end
 if isempty(h.axis)
     h.axis = gca();
 end
-h.figure = ancestor(h.axis,'figure');
+%h.figure = ancestor(h.axis,'figure');
 isTiledLayout = strcmpi(h.axis.Parent.Type,'tiledlayout');
 if isTiledLayout % [6]
     origTLOState = warning('query', 'MATLAB:handle_graphics:Layout:NoPositionSetInTiledChartLayout');
@@ -279,7 +279,7 @@ if ~isempty(p.Results.secondarylabels)
             end
             secondaryX = (nMembers : nMembers + p.Results.interGroupSpace : maxX) - (nMembers-1)/2;
             secondaryLabels = strcat(horizSecondaryLabelAddon,p.Results.secondarylabels); %[2]
-            h.axis2 = axFcn(h.figure,'Units',h.axis.Units, 'OuterPosition', h.axis.OuterPosition, ...
+            h.axis2 = axFcn('Units',h.axis.Units, 'OuterPosition', h.axis.OuterPosition, ...
                 'ActivePositionProperty', h.axis.ActivePositionProperty,'xlim', h.axis.XLim, ...
                 'TickLength', [0 0], 'ytick', [], 'Color', 'none', 'XTick', secondaryX, ...
                 'TickLabelInterpreter','tex','XTickLabel', secondaryLabels,'HitTest','off',...
@@ -288,7 +288,7 @@ if ~isempty(p.Results.secondarylabels)
             h.axis.(posProp)([2,4]) = h.axis2.(posProp)([2,4]); % make room in original axes for 2ndary labels.
             h.axis2.(posProp)([1,3]) = h.axis.(posProp)([1,3]); % let original axis control lateral placement
             h.axis2.UserData.hlink = linkprop([h.axis, h.axis2],...
-                {'Units',posProp,'ActivePositionProperty','Parent'}); % [5]
+                {'Units',posProp}); % [5]
             linkaxes([h.axis, h.axis2], 'xy')
             if ~isUIFigure % [4]
                 uistack(h.axis2, 'down')
@@ -299,7 +299,7 @@ if ~isempty(p.Results.secondarylabels)
             h.axis2.XRuler.Axle.Visible = 'off';
             h.axis2.YRuler.Axle.Visible = 'off';
             h.axis.DeleteFcn = @(~,~)delete(h.axis2); % Delete axis2 if main axis is deleted
-            set(h.figure,'CurrentAxes',h.axis)
+            %set(h.figure,'CurrentAxes',h.axis)
         end
     end
     if any(strcmpi(groupLabelType, {'vertical','both'})) && ~verLessThan('Matlab','9.5') % r18b

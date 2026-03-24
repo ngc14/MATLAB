@@ -34,7 +34,7 @@ for i = 1:length(unique([tPhys.SiteNum]))
             cellfun(@(t) m(tPhys.SiteNum==i & contains(params.condAbbrev.values,t) & goodUnits),...
             params.condAbbrev.values,'UniformOutput',false),'UniformOutput',false),trialFRMat,...
             cellfun(@(p) cellfun(@(s) size(s,2),p), trialFRMat,'UniformOutput',false),'UniformOutput',false);
-        currD = [cellfun(@(t) cell2mat(cellfun(@(s) sqrt(sum(s,2)),t,'UniformOutput',false)')',[currD{:}]', 'UniformOutput',false)];
+        currD = [cellfun(@(t) cell2mat(cellfun(@(s) (sum(s,2)),t,'UniformOutput',false)')',[currD{:}]', 'UniformOutput',false)];
         [pri,sci,eigi] = pca(vertcat(currD{:}));
         newD{i} = permute(reshape(sci(:,1:min(num_dims,size(sci,2))),sTrials,length(currD),min(num_dims,size(sci,2))),[3,2,1]);
         projMat{i} = pri;
@@ -52,7 +52,7 @@ for i = 1:length(unique([tPhys.SiteNum]))
             end
             gm{icond} = cell2mat(dist(icond,:));
         end
-        parfor n=1:100
+        parfor n=1:10
             cvIdx=cvpartition(size(projD,3),'Holdout',0.2);
             trIdx = training(cvIdx);
             tsIdx = test(cvIdx);
@@ -178,13 +178,14 @@ end
 [~,sig]= arrayfun(@(c) cellfun(@(a) ttest2(a(:,1),a(:,2)),{cell2mat(cellfun(@(r) resize(r,[length(siteSomatotopy),1],'FillValue',NaN),...
     arrayfun(@(r) condC(siteSomatotopy==r,c),reps,'UniformOutput',false),'UniformOutput',false)')}),1:size(condC,2));
 arrayfun(@(a) text(((1+length(sig))*(find(sig==a)-1))+1.5,.15,"p= "+num2str(a,3),'HorizontalAlignment','center'),sig);
-boxplotGroup(plotAcc,'groupLabelType','both','primaryLabels',string(reps),'secondaryLabels',["Conditions","Phases"],'Notch','on');
+boxplotGroup(gca,plotAcc,'groupLabelType','both','primaryLabels',string(reps),'secondaryLabels',["Conditions","Phases"],'Notch','on');
 ylim([0 1]);
 ylabel("Accuracy");
 title("Accuracy by Somatotopy");
+saveFigures(gcf,saveDir+"\Site_Classifiers\","Summary",[]);
 %%
 figure(); tax=tiledlayout(1,max(1,num_dims/2)*2);
-for icond = 1:length(conds)
+for icond = 1:length(cnds)
     for idim = 1:num_dims
         epochs = [find(ismember({D.condition}, conds)),NaN];
         nexttile(idim); hold on; title(idim); ylim(ylimT);

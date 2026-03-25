@@ -18,7 +18,6 @@ for p = 1:length(phases)
 end
 clear trialFR;
 %%
-close all;
 [newD,projMat,lat] = deal({}); condC = NaN(max(tPhys.SiteNum),2,100);
 goodUnits = all(cell2mat(cellfun(@(p) all(cellfun(@(s) size(s,2),p)>=MIN_NUM_TRIALS,2),trialFRMat,'UniformOutput',false)),2);
 conditions = cell2mat(arrayfun(@(r) string(params.condAbbrev.values)+ "-" + r, phases,'UniformOutput',false));
@@ -35,7 +34,7 @@ for i = 1:length(unique([tPhys.SiteNum]))
             params.condAbbrev.values,'UniformOutput',false),'UniformOutput',false),trialFRMat,...
             cellfun(@(p) cellfun(@(s) size(s,2),p), trialFRMat,'UniformOutput',false),'UniformOutput',false);
         currD = [cellfun(@(t) cell2mat(cellfun(@(s) (sum(s,2)),t,'UniformOutput',false)')',[currD{:}]', 'UniformOutput',false)];
-        [pri,sci,eigi] = pca(vertcat(currD{:}));
+        [pri,sci,eigi] = pca(vertcat(currD{:}),'Centered','on','Algorithm','eig');
         newD{i} = permute(reshape(sci(:,1:min(num_dims,size(sci,2))),sTrials,length(currD),min(num_dims,size(sci,2))),[3,2,1]);
         projMat{i} = pri;
         lat{i} = cumsum(eigi) ./ sum(eigi);
@@ -52,7 +51,7 @@ for i = 1:length(unique([tPhys.SiteNum]))
             end
             gm{icond} = cell2mat(dist(icond,:));
         end
-        parfor n=1:10
+        parfor n=1:100
             cvIdx=cvpartition(size(projD,3),'Holdout',0.2);
             trIdx = training(cvIdx);
             tsIdx = test(cvIdx);
@@ -88,7 +87,7 @@ for i = 1:length(unique([tPhys.SiteNum]))
                         fs.EdgeColor='none';
                         fs.FaceAlpha=0.15;
                     end
-                    saveFigures(gcf,saveDir+"\Site_Classifiers\Sessions\","Site_"+num2str(i),[]);
+                    saveFigures(gcf,saveDir+"\Site_Classifiers\","Site_"+num2str(i),[]);
                 end
                 CM = confusionmat(cellstr(cell2mat(cellfun(@(c) repmat(string(c),1,size(gtData{1},1)),cellfun(@(o) ...
                     strcat(conditions{o}),condInds,'UniformOutput',false),'UniformOutput',false))),MdLinear.predict(cell2mat(gtData')));
@@ -182,7 +181,7 @@ boxplotGroup(gca,plotAcc,'groupLabelType','both','primaryLabels',string(reps),'s
 ylim([0 1]);
 ylabel("Accuracy");
 title("Accuracy by Somatotopy");
-saveFigures(gcf,saveDir+"\Site_Classifiers\","Summary",[]);
+saveFigures(gcf,saveDir,"Summary",[]);
 %%
 figure(); tax=tiledlayout(1,max(1,num_dims/2)*2);
 for icond = 1:length(cnds)

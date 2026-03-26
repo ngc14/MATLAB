@@ -2,35 +2,40 @@ num_dims = 4;
 cnds = ["Extra Small Sphere","Large Sphere","Photocell"];
 params = PhysRecording(string(cnds),.001,.001,-1,3,containers.Map(cnds,{"StartReach","StartReach","StartReach"}));
 phases = ["StartReach","StartHold"];
-phaseWindows = {[-100 100], [-200 0]};
+winSz = 200;
 MIN_NUM_TRIALS = 20;
 plotSessionDiscriminants = false;
 saveDir = "S:\Lab\ngc14\Working\DataHi\Sessions\";
 tPhys = unitTable(cnds,params);
+phaseWin = repmat({{[-winSz*(3/4),winSz*(1/4)],[-winSz*(5/4), -winSz*(1/4)]}},1,length(cnds));
+phaseWin{end}{2} = [-winSz/2 0];
 %%
 for p = 1:length(phases)
     phaseConds = cellfun(@(t) find(strcmp(phases(p),t)), params.condSegMap.values(params.condSegMap.keys),'UniformOutput',false);
     trialFR = cellfun(@(ct,cs,ta,tw) cellfun(@(a,b) cellfun(@(m,tt) m(max(1,tt+tw(1)):max(range(tw)+1,tt+tw(end))),...,
         num2cell(a,1)',arrayfun(@(bb) [find(isalmost(params.bins,bb,params.binSize/1.99),1),NaN(isnan(bb),1)],b(:,ta),'UniformOutput',false),...
         'UniformOutput',false)',ct,cs,'UniformOutput',false),num2cell(tPhys{:,contains(tPhys.Properties.VariableNames,"PSTH_")},1),...
-        num2cell(tPhys{:,contains(tPhys.Properties.VariableNames,"Segs_")},1),phaseConds,repmat({phaseWindows{p}},1,length(phaseConds)),'UniformOutput',false);
+        num2cell(tPhys{:,contains(tPhys.Properties.VariableNames,"Segs_")},1),phaseConds,cellfun(@(pw) pw{p}, phaseWin, 'UniformOutput',false),'UniformOutput',false);
     trialFRMat{p} = cellfun(@(m) cat(2,m{~cellfun(@isempty,m)}), [trialFR{:}], 'UniformOutput',false);
 end
-clear trialFR;
+siteNos = tPhys.SiteNum;
+unitSomatotopy = tPhys.Somatotopy;
+monkey = tPhys.Monkey;
+clear trialFR tPhys;
 %%
-[newD,projMat,lat] = deal({}); condC = NaN(max(tPhys.SiteNum),2,100);
+[newD,projMat,lat] = deal({}); condC = NaN(max(siteNos),2,100);
 goodUnits = all(cell2mat(cellfun(@(p) all(cellfun(@(s) size(s,2),p)>=MIN_NUM_TRIALS,2),trialFRMat,'UniformOutput',false)),2);
 conditions = cell2mat(arrayfun(@(r) string(params.condAbbrev.values)+ "-" + r, phases,'UniformOutput',false));
 condColors = containers.Map(params.condAbbrev.values,{[1 0 0],[1 .8 0 ],[0 0 1]});
 condColorKeys = condColors.keys;
 mks = {'square','pentagram'};
 mksz = [70,120];
-for i = 1:length(unique([tPhys.SiteNum]))
-    if(sum(goodUnits(tPhys.SiteNum==i))>2)
-        sTrials = min(cellfun(@(n) min(n(tPhys.SiteNum==i & goodUnits,:),[],'all'),cellfun(@(p) cellfun(@(s) size(s,2),p), trialFRMat,'UniformOutput',false)));
+for i = 1:length(unique(siteNos))
+    if(sum(goodUnits(siteNos==i))>2)
+        sTrials = min(cellfun(@(n) min(n(siteNos==i & goodUnits,:),[],'all'),cellfun(@(p) cellfun(@(s) size(s,2),p), trialFRMat,'UniformOutput',false)));
         currD = cellfun(@(m,n)cellfun(@(c)squeeze(num2cell(permute(cell2mat(reshape(cellfun(@(r) ...
             downsampleTrials(r,sTrials),c,'UniformOutput',false),1,1,[])),[3 1 2]),[1 2])),...
-            cellfun(@(t) m(tPhys.SiteNum==i & contains(params.condAbbrev.values,t) & goodUnits),...
+            cellfun(@(t) m(siteNos==i & contains(params.condAbbrev.values,t) & goodUnits),...
             params.condAbbrev.values,'UniformOutput',false),'UniformOutput',false),trialFRMat,...
             cellfun(@(p) cellfun(@(s) size(s,2),p), trialFRMat,'UniformOutput',false),'UniformOutput',false);
         currD = [cellfun(@(t) cell2mat(cellfun(@(s) (sum(s,2)),t,'UniformOutput',false)')',[currD{:}]', 'UniformOutput',false)];
@@ -57,7 +62,7 @@ for i = 1:length(unique([tPhys.SiteNum]))
             tsIdx = test(cvIdx);
             trData = cellfun(@(m) m(trIdx,:),gm,'UniformOutput',false);
             tsData = cellfun(@(m) m(tsIdx,:),gm,'UniformOutput',false);
-            if(plotSessionDiscriminants)
+            if(plotSessionDiscriminants & n==1)
                 figure(); hold on;
                 h1 = cellfun(@(s,n) scatter3(s(:,1),s(:,2),s(:,3),mksz(strcmp(extractAfter(n,"-"),phases)),'MarkerFaceColor',cell2mat(condColors.values(cellstr(...
                     extractBefore(n,"-")))),'MarkerEdgeColor','none','Marker',mks(strcmp(extractAfter(n,"-"),phases))),trData,conditions);
@@ -77,7 +82,7 @@ for i = 1:length(unique([tPhys.SiteNum]))
                 end
                 MdLinear=fitcdiscr(vertcat(gData{:}),cell2mat(cellfun(@(c) repmat(string(c),1,size(gData{1},1)),...
                     cellfun(@(o) strcat(conditions{o}),condInds,'UniformOutput',false),'UniformOutput',false)));
-                if(plotSessionDiscriminants)
+                if(plotSessionDiscriminants & n==1)
                     for p = 1:size(nPairs,1)
                         K=MdLinear.Coeffs(nPairs(p,1),nPairs(p,2)).Const;
                         L=MdLinear.Coeffs(nPairs(p,1),nPairs(p,2)).Linear;
@@ -100,11 +105,9 @@ err = std(condC,0,3,'omitnan');
 condC = mean(condC,3,'omitnan');
 nonEmptySessions = ~cellfun(@isempty,projMat);
 weights = projMat(nonEmptySessions);
-[~,ui,~] = unique(tPhys.SiteNum);
-siteSomatotopy = tPhys.Somatotopy(ui);
+[~,ui,~] = unique(siteNos);
+siteSomatotopy = unitSomatotopy(ui);
 siteSomatotopy = siteSomatotopy(nonEmptySessions);
-monkeys = tPhys.Monkey(ui);
-monkeys = monkeys(nonEmptySessions);
 lat = lat(nonEmptySessions);
 reps = unique(siteSomatotopy);
 somatotopyColors = containers.Map(string(reps),{[.75 .3 .75],[1 .85 0],[0 0 1]});
@@ -134,8 +137,8 @@ for d =1:num_dims
     end
     allLines = get(gca,'Children');
     groupInds = cellfun(@(u) strcmp(cellfun(@num2str,{allLines.Color},'UniformOutput',false),u),unique(cellfun(@num2str,{allLines.Color},'UniformOutput',false)),'UniformOutput',false);
-    cellfun(@(a) scatter(1:max([allLines.XData]),mean(cell2mat(cellfun(@(r) resize(r,[1,max(cellfun(@length,{allLines.YData}))]),...
-        {allLines(a).YData}','UniformOutput',false)),1,'omitnan'),'MarkerFaceColor',max([0 0 0],allLines(find(a,1)).Color-[.2 .4 .2]),...
+    cellfun(@(a) scatter(1:max([allLines.XData]),mean(abs(cell2mat(cellfun(@(r) resize(r,[1,max(cellfun(@length,{allLines.YData}))]),...
+        {allLines(a).YData}','UniformOutput',false))),1,'omitnan'),'MarkerFaceColor',max([0 0 0],allLines(find(a,1)).Color-[.2 .4 .2]),...
         'Marker','o','MarkerEdgeColor','none','SizeData',35),groupInds,'UniformOutput',false);
 end
 nexttile();hold on;title("Variance Explained")

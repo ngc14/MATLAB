@@ -1,4 +1,4 @@
-num_dims = 4;
+num_dims = 8;
 cnds = ["Extra Small Sphere","Large Sphere","Photocell"];
 params = PhysRecording(string(cnds),.001,.001,-1,3,containers.Map(cnds,{"StartReach","StartReach","StartReach"}));
 phases = ["StartReach","StartHold"];
@@ -113,7 +113,8 @@ reps = unique(siteSomatotopy);
 somatotopyColors = containers.Map(string(reps),{[.75 .3 .75],[1 .85 0],[0 0 1]});
 reps = reps(reps~="Trunk");
 %%
-figure(); tiledlayout();
+nUnits = cellfun(@length,lat);
+figure(); tiledlayout(3,num_dims/2);
 for d =1:num_dims
     nexttile;hold on;title(['Factor ',num2str(d)]);
     for k = 1:length(weights)
@@ -125,7 +126,7 @@ for d =1:num_dims
             plot(1:length(sessionW),sort(w,'descend'),'color',[cell2mat(somatotopyColors.values({string(siteSomatotopy(k))})) 0.35],'LineWidth',0.15);
         end
         ylim([0 1]);
-        xlim([.5 max(cellfun(@length,weights))]);
+        xlim([1 mean(nUnits)+std(nUnits)]);
         if(d==1)
             ylabel("Abs value of projection weights");
             xlabel('Neuron number');
@@ -152,7 +153,7 @@ l1 = cellfun(@(p) plot(NaN,NaN,'Color',p),somatotopyColors.values);
 legend(l1,string(reps),'AutoUpdate','off','Location','southeast');
 plot(1:size(varEx,2),repmat(0.9,1,size(varEx,2)),'k:','LineWidth',2);
 ylim([0 1]);
-xlim([.5 max(cellfun(@length,lat))]);
+xlim([1 mean(nUnits)+std(nUnits)]);
 ylabel("%");
 xlabel("Latent Factor");
 nexttile([1,2]); hold on;title("Discriminant Analysis");
@@ -162,7 +163,7 @@ e=errorbar(repmat([1:sum(all(~isnan(condC),2))]',1,2)+[-0 0],condC(all(~isnan(co
 arrayfun(@(ee) set(ee,'CapSize',0,'MarkerFaceColor',ee.Color),e);
 ylabel("Accuracy");
 xlabel("Session");
-ylim([0 1]);
+ylim([0 .75]);
 yyaxis('right');
 ylabel("# of units");
 plot(cellfun(@length,projMat(~cellfun(@isempty,projMat))),'k-' );
@@ -170,7 +171,7 @@ ax = gca();
 ax.YAxis(1).Color = 'b';
 ax.YAxis(2).Color = 'k';
 ylim([3 35]);
-xlim([1 max(sum(~isnan(condC),1))]);
+xlim([.5 max(sum(~isnan(condC),1))+.5]);
 legend(["Conditions","Phases","# of units"],'Location','southwest','AutoUpdate','off');
 plot([1 max(sum(~isnan(condC),1))],repmat(mean(cellfun(@length,projMat(~cellfun(@isempty,projMat)))),1,2),'Color',[.5 .5 .5],'LineStyle',':','LineWidth',.5);
 nexttile(); hold on;
@@ -181,8 +182,7 @@ end
     arrayfun(@(r) condC(siteSomatotopy==r,c),reps,'UniformOutput',false),'UniformOutput',false)')}),1:size(condC,2));
 arrayfun(@(a) text(((1+length(sig))*(find(sig==a)-1))+1.5,.15,"p= "+num2str(a,3),'HorizontalAlignment','center'),sig);
 boxplotGroup(gca,plotAcc,'groupLabelType','both','primaryLabels',string(reps),'secondaryLabels',["Conditions","Phases"],'Notch','on');
-ylim([0 1]);
-ylabel("Accuracy");
+ylim([0 .75]);
 title("Accuracy by Somatotopy");
 saveFigures(gcf,saveDir,"Summary",[]);
 %%

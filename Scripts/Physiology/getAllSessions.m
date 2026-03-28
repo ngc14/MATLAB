@@ -58,8 +58,7 @@ parfor  i = 1:numSites
             disp(['Bad session: ', currSession.Date]);
         end
     end
-    dirChannels = dir(physDir+"\*.mat");
-    %physDir = "C:\Users\ngc14\OneDrive - University of Pittsburgh\Physiology\Physiology\Results\"+currSession.Monkey+"_"+currSession.Date; %delete(fullfile(fullfile(physDir,'*.cache')));
+    dirChannels = dir(physDir+"\*.mat");%delete(fullfile(fullfile(physDir,'*.cache')));
     if(~isempty(dirChannels))
         firstChannel = load([strcat(physDir,'\',dirChannels(1).name)]);
         if(~isfield(firstChannel,'label') && ~contains(fieldnames(firstChannel,'-full'),'label') ...
@@ -107,12 +106,12 @@ parfor  i = 1:numSites
                     NaN(1,length(condEvents)-length(t)),t(end)-t(ap)], times(condInds),...
                     'UniformOutput', false)'), condAlign, 'UniformOutput', false);
                 trialHists{c} = cellfun(@(ac) cellfun(@(a) histcounts(vertcat(a(:)),...
-                    [params.bins(1)-(params.sigmaSize/2):params.binSize:params.bins(end)+...
-                    (params.sigmaSize/2)]),ac,'UniformOutput',false),alignedSpikes{c},'UniformOutput', false);
+                    params.bins(1)-params.sigmaSize/2:params.binSize:params.bins(end)+...
+                    params.sigmaSize/2),ac,'UniformOutput',false),alignedSpikes{c},'UniformOutput', false);
                 %{alignedPSTHS}{units,trials}{bins}
                 smoothHists = cellfun(@(ac)  cellfun(@(a) conv(a,gausswin(params.sigma)/...
-                    sum(gausswin(params.sigma)),'valid')./max(params.binSize,params.sigmaSize==params.binSize),...
-                    ac,'UniformOutput', false),trialHists{c},'UniformOutput',false);
+                    sum(gausswin(params.sigma)),'valid')./max(params.binSize,params.sigma==1),...
+                    ac,'UniformOutput',false),trialHists{c},'UniformOutput',false);
                 %{alignedPSTHS}{units,bins,trials}
                 unitTrialPSTH = cellfun(@(s) ... %condWeights.*
                     cat(3,s{:}),smoothHists,'UniformOutput', false);

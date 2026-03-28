@@ -51,7 +51,7 @@ classdef PhysRecording < BehavioralTask
         end
         function b = get.bins(obj)
             b = obj.secondsBeforePSTHAlignmentPoint:obj.binSize:...
-                (obj.secondsAfterPSTHAlignmentPoint-obj.binSize);
+                (obj.secondsAfterPSTHAlignmentPoint);
         end
     end
 end

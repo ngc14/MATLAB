@@ -103,28 +103,25 @@ for i = 1:length(unique(siteNos))
 end
 err = std(condC,0,3,'omitnan');
 condC = mean(condC,3,'omitnan');
-nonEmptySessions = ~cellfun(@isempty,projMat);
-weights = projMat(nonEmptySessions);
 [~,ui,~] = unique(siteNos);
 siteSomatotopy = unitSomatotopy(ui);
-siteSomatotopy = siteSomatotopy(nonEmptySessions);
+nonEmptySessions = ~cellfun(@isempty,projMat) & siteSomatotopy'~="Trunk";
+weights = projMat(nonEmptySessions);
 lat = lat(nonEmptySessions);
+siteSomatotopy = siteSomatotopy(nonEmptySessions);
 reps = unique(siteSomatotopy);
 somatotopyColors = containers.Map(string(reps),{[.75 .3 .75],[1 .85 0],[0 0 1]});
-reps = reps(reps~="Trunk");
 %%
 nUnits = cellfun(@length,lat);
 figure(); tiledlayout(3,num_dims/2);
 for d =1:num_dims
     nexttile;hold on;title(['Factor ',num2str(d)]);
     for k = 1:length(weights)
-        if(siteSomatotopy(k)~="Trunk")
-            sessionW = cell2mat(weights(k)); w=[];
-            for n = 1:length(sessionW)
-                w(n,1) = abs(sessionW(n,min(size(sessionW,2),d)));
-            end
-            plot(1:length(sessionW),sort(w,'descend'),'color',[cell2mat(somatotopyColors.values({string(siteSomatotopy(k))})) 0.35],'LineWidth',0.15);
+        sessionW = cell2mat(weights(k)); w=[];
+        for n = 1:length(sessionW)
+            w(n,1) = abs(sessionW(n,min(size(sessionW,2),d)));
         end
+        plot(1:length(sessionW),sort(w,'descend'),'color',[cell2mat(somatotopyColors.values({string(siteSomatotopy(k))})) 0.35],'LineWidth',0.15);
         ylim([0 1]);
         xlim([1 mean(nUnits)+std(nUnits)]);
         if(d==1)
@@ -143,8 +140,8 @@ for d =1:num_dims
         'Marker','o','MarkerEdgeColor','none','SizeData',35),groupInds,'UniformOutput',false);
 end
 nexttile();hold on;title("Variance Explained")
-varEx = cell2mat(cellfun(@(r) resize(r',max(cellfun(@length,lat)),FillValue=NaN),lat(siteSomatotopy~="Trunk"),'UniformOutput',false)');
-cellfun(@(v,c) plot(v,'LineWidth',1,'Color',[cell2mat(somatotopyColors.values({c})),.5]),num2cell(varEx,2),cellstr(string(siteSomatotopy(siteSomatotopy~="Trunk"))));
+varEx = cell2mat(cellfun(@(r) resize(r',max(cellfun(@length,lat)),FillValue=NaN),lat,'UniformOutput',false)');
+cellfun(@(v,c) plot(v,'LineWidth',1,'Color',[cell2mat(somatotopyColors.values({c})),.5]),num2cell(varEx,2),cellstr(string(siteSomatotopy)));
 allLines = get(gca,'Children');
 groupInds = cellfun(@(u) strcmp(cellfun(@num2str,{allLines.Color},'UniformOutput',false),u),unique(cellfun(@num2str,{allLines.Color},'UniformOutput',false)),'UniformOutput',false);
 cellfun(@(a) scatter(1:max([allLines.XData]),mean(cell2mat({allLines(a).YData}'),1,'omitnan'),'SizeData',35,...

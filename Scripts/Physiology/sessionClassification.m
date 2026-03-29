@@ -5,7 +5,7 @@ phases = ["StartReach","StartHold"];
 winSz = 200;
 MIN_NUM_TRIALS = 20;
 plotSessionDiscriminants = false;
-saveDir = "S:\Lab\ngc14\Working\DataHi\Sessions\";
+saveDir = "S:\Lab\ngc14\Working\DataHi\State\Sessions\";
 tPhys = unitTable(cnds,params);
 phaseWin = repmat({{[-winSz*(3/4),winSz*(1/4)],[-winSz*(5/4), -winSz*(1/4)]}},1,length(cnds));
 phaseWin{end}{2} = [-winSz/2 0];
@@ -163,7 +163,7 @@ e=errorbar(repmat([1:sum(all(~isnan(condC),2))]',1,2)+[-0 0],condC(all(~isnan(co
 arrayfun(@(ee) set(ee,'CapSize',0,'MarkerFaceColor',ee.Color),e);
 ylabel("Accuracy");
 xlabel("Session");
-ylim([0 .75]);
+ylim([0 1]);
 yyaxis('right');
 ylabel("# of units");
 plot(cellfun(@length,projMat(~cellfun(@isempty,projMat))),'k-' );
@@ -182,7 +182,7 @@ end
     arrayfun(@(r) condC(siteSomatotopy==r,c),reps,'UniformOutput',false),'UniformOutput',false)')}),1:size(condC,2));
 arrayfun(@(a) text(((1+length(sig))*(find(sig==a)-1))+1.5,.15,"p= "+num2str(a,3),'HorizontalAlignment','center'),sig);
 boxplotGroup(gca,plotAcc,'groupLabelType','both','primaryLabels',string(reps),'secondaryLabels',["Conditions","Phases"],'Notch','on');
-ylim([0 .75]);
+ylim([0 1]);
 title("Accuracy by Somatotopy");
 saveFigures(gcf,saveDir,"Summary",[]);
 %%

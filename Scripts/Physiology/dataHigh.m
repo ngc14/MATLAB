@@ -9,7 +9,7 @@ saveFig = true;
 num_dims=5;
 sTrials = 20;
 plotTrials = 1;
-timeBins = [-.5, 1];
+timeBins = [-.5, 3];
 epochSegs = ["GoSignal","StartReach","StartHold","StartWithdraw"];
 dimCond = reshape(extractAfter(model,"_")+"_"+params.condAbbrev.values',1,[]);
 colors =containers.Map(dimCond,{[.7 0 0],[1 .65 0 ],[0 0 .75]}');%regexp(model,'[A-Z]+[^A-Z]+','match')
@@ -40,7 +40,7 @@ avgTrace = cellfun(@(c) mean(cell2mat(cellfun(@(u)mean(u,2,'omitnan'),c,'Uniform
 if(~plotTrials)
     taskPSTHD = cellfun(@(n,a) {cell2mat(cellfun(@(m) mean(max(0,m-a),2,'omitnan')',n(numUnits),'UniformOutput',false))},tablePSTHD,avgTrace,'UniformOutput',false);
 else
-    taskPSTHD= cellfun(@(v,a) squeeze(num2cell(permute(cell2mat(reshape(cellfun(@(d) downsampleTrials(max(0,d-a),sTrials),...
+    taskPSTHD= cellfun(@(v,a) squeeze(num2cell(permute(cell2mat(reshape(cellfun(@(d) downsampleTrials(max(0,d-0),sTrials),...
         v(numUnits),'Uniformoutput',false),1,1,[])),[3 1 2]),[1,2])),vertcat(tablePSTHD),avgTrace, 'UniformOutput',false);
 end
 taskPSTHD =  cellfun(@(a)cellfun(@(u)max(0,u(unitInds,:)),a,'UniformOutput',false), taskPSTHD,'UniformOutput',false);
@@ -64,7 +64,7 @@ end
 smoothedData = cellfun(@(c) cellfun(@(s) (conv2(resize(s,[size(s,1),size(s,2)-1+floor(smoothWin/binWidth)],'Pattern','edge','side','both'),...
     transpose(gausswin(ceil(smoothWin/binWidth)))./sum(gausswin(ceil(smoothWin/binWidth))),'valid')),c,'UniformOutput',false),smoothedData,'UniformOutput',false);
 [loadings, scores, eig,~,exp] = pca(cell2mat(cellfun(@(s) cell2mat(cellfun(@(t) t(:,unique(round(ms_bins./binWidth))),s,'UniformOutput',false)'),...
-    smoothedData, 'UniformOutput',false))','Economy',false,'Centered','off','NumComponents',num_dims,'Algorithm','eig');%%cell2mat(smoothedData')
+    smoothedData, 'UniformOutput',false))','Economy',false,'Centered','on','NumComponents',num_dims,'Algorithm','eig');%%cell2mat(smoothedData')
 clear taskPSTHD;
 %% plot single dimension PCA
 %somaProj = cellfun(@(s)arrayfun(@(c)s((1+(c-1)*size(s,1)/length(dimCond)):c*size(s,1)/length(dimCond),:)',1:length(dimCond),'UniformOutput',false),...
@@ -131,7 +131,7 @@ for n = 1:3
     cellfun(@(a) arrayfun(@(x) plot(a,[x,x], get(a,'YLim'),[char('k'-(4*double(x==max(0)))),'--']),condSegs(1:end-2)),ax);
     cellfun(@(a) set(a,'XLim',[1 250]),ax);
     if(saveFig)
-        rootSave = "MEANSUB_WeightedPSTHS";
+        rootSave = "NOMEAN_WeightedPSTHS";
         if(n==1)
             fileNameSave = rootSave+"_DIM";
         elseif(n==2)
@@ -139,7 +139,7 @@ for n = 1:3
         else
             fileNameSave=rootSave+"_SOMA";
         end
-        saveFigures(gcf,savePath,fileNameSave+"_Sm"+num2str(smoothWin),[]);
+        saveFigures(gcf,savePath+"Full_Signal\",fileNameSave+"_Sm"+num2str(smoothWin),[]);
     end
 end
 %% DATAHIGH Dim Reduce

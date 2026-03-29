@@ -1,9 +1,9 @@
-num_dims = 8;
 cnds = ["Extra Small Sphere","Large Sphere","Photocell"];
 params = PhysRecording(string(cnds),.001,.001,-1,3,containers.Map(cnds,{"StartReach","StartReach","StartReach"}));
 phases = ["StartReach","StartHold"];
 winSz = 200;
 MIN_NUM_TRIALS = 20;
+num_dims = 8;
 plotSessionDiscriminants = false;
 saveDir = "S:\Lab\ngc14\Working\DataHi\State\Sessions\";
 tPhys = unitTable(cnds,params);

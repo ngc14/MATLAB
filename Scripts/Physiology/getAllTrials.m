@@ -11,7 +11,7 @@ else
     chMap{2} = {};
     if(loadChannelMap)
         pathInds = regexp(folderName,'\');
-        hFilePath = dir([folderName(1:pathInds(end)),'*.nev']);
+        hFilePath = dir([folderName(1:pathInds(end-1)),'*.nev']);
         hFilePath = hFilePath(cellfun(@(s) ~contains(s,"withdraw",'IgnoreCase',true) & ...
             ~contains(s,'stim','IgnoreCase',true) & ~contains(s,'sort','IgnoreCase',true) & ...
             contains(s,folderName(pathInds(2)+1:pathInds(3)-1)), {hFilePath.name}));

@@ -48,8 +48,8 @@ parfor  i = 1:numSites
     currSession.Date = char(du);
     physDir = strcat(drivePath,currSession.Monkey,"\All Data\", currSession.Monkey,...
         "_",string(currSession.Date),"\Physiology\");
-    physDir = strcat(physDir,"Results");
-    if(isempty(dir(physDir+"\*.mat")))
+    physDir = strcat(physDir,"Results\");
+    if(isempty(dir(physDir+"*.mat")))
         if(~ismember(currSession.Date,{'05_02_2019','11_11_2019','2021_09_20','2022_06_22','2022_06_28','2022_07_11','2022_07_12'}))
             disp(['Parsing and labeling session: ',currSession.Date,'...']);
             Spike_SortRawData(currSession.Date,char(currSession.Monkey));
@@ -58,9 +58,9 @@ parfor  i = 1:numSites
             disp(['Bad session: ', currSession.Date]);
         end
     end
-    dirChannels = dir(physDir+"\*.mat");%delete(fullfile(fullfile(physDir,'*.cache')));
+    dirChannels = dir(physDir+"*.mat");%delete(fullfile(fullfile(physDir,'*.cache')));
     if(~isempty(dirChannels))
-        firstChannel = load([strcat(physDir,'\',dirChannels(1).name)]);
+        firstChannel = load([strcat(dirChannels(1).folder,dirChannels(1).name)]);
         if(~isfield(firstChannel,'label') && ~contains(fieldnames(firstChannel,'-full'),'label') ...
                 && ~ismember(currSession.Date,{'04_05_2019','04_09_2019'}))
             disp(['Labeling session: ',currSession.Date,'...']);

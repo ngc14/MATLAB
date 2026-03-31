@@ -9,7 +9,7 @@ saveFig = true;
 num_dims=5;
 sTrials = 20;
 plotTrials = 1;
-timeBins = [-.5, 3];
+timeBins = [-.5, 1];
 epochSegs = ["GoSignal","StartReach","StartHold","StartWithdraw"];
 dimCond = reshape(extractAfter(model,"_")+"_"+params.condAbbrev.values',1,[]);
 colors =containers.Map(dimCond,{[.7 0 0],[1 .65 0 ],[0 0 .75]}');%regexp(model,'[A-Z]+[^A-Z]+','match')
@@ -129,7 +129,9 @@ for n = 1:3
         cellfun(@(pc) pc(:,contains(epochSegs,["Hold","Withdraw"])),condSegs(p),'UniformOutput',false)),2)',colors.values(cellstr(dimCond(p)))),ax,plotSegs);
     condSegs = round(mean(cell2mat(condSegs),1,'omitnan'));
     cellfun(@(a) arrayfun(@(x) plot(a,[x,x], get(a,'YLim'),[char('k'-(4*double(x==max(0)))),'--']),condSegs(1:end-2)),ax);
-    cellfun(@(a) set(a,'XLim',[1 250]),ax);
+    cellfun(@(a) set(a,'XLim',[0 250]),ax);
+    cellfun(@(a) set(a,'XTick',0:50:250),ax);
+    cellfun(@(a) set(a,'XTickLabels',linspace(timeBins(1),timeBins(end),length(get(a,'XTick')))),ax);
     if(saveFig)
         rootSave = "NOMEAN_WeightedPSTHS";
         if(n==1)

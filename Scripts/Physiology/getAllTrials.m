@@ -1,6 +1,6 @@
 function [spikes,times,unitTrials,trials,conds,channel,eventNames,labels,chMap] = getAllTrials(folderName, singleOrAll,loadChannelMap)
 folderName = char(folderName);
-sessionDir = dir(folderName+"\*.mat");
+sessionDir = dir(folderName+"*.mat");
 if(~exist('loadChannelMap','var'))
     loadChannelMap = false;
 end

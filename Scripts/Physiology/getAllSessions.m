@@ -60,7 +60,7 @@ parfor  i = 1:numSites
     end
     dirChannels = dir(physDir+"*.mat");%delete(fullfile(fullfile(physDir,'*.cache')));
     if(~isempty(dirChannels))
-        firstChannel = load([strcat(dirChannels(1).folder,dirChannels(1).name)]);
+        firstChannel = load([strcat(dirChannels(1).folder,"\",dirChannels(1).name)]);
         if(~isfield(firstChannel,'label') && ~contains(fieldnames(firstChannel,'-full'),'label') ...
                 && ~ismember(currSession.Date,{'04_05_2019','04_09_2019'}))
             disp(['Labeling session: ',currSession.Date,'...']);

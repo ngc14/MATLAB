@@ -24,7 +24,7 @@ tPhys = unitTable(conditions,params);
 tableInds = contains(string(tPhys.Monkey),[regexp(extractBefore(model,"_"),'[A-Z]+[^A-Z]+','match')]) & contains(string(tPhys.Somatotopy),...
     [regexp(extractAfter(model,"_"),'[A-Z]+[^A-Z]+','match')]);
 somaTable = tPhys{tableInds,"Somatotopy"};
-allLocations = tPhys{tableInds,["X","Y"]};
+allLocations = tPhys{tableInds,["XT","YT"]};
 allSegs= arrayfun(@(s) tPhys{tableInds,contains(tPhys.Properties.VariableNames,"Segs_"+extractAfter(s,"_"))},dimCond,'UniformOutput',false);%
 tablePSTHD= arrayfun(@(a) tPhys{tableInds,contains(tPhys.Properties.VariableNames,"PSTH_"+extractAfter(a,"_"))},dimCond,'UniformOutput',false);
 numUnits = all(cell2mat(cellfun(@(a) cellfun(@(s) size(s,2),a), tablePSTHD,'UniformOutput',false))>=sTrials,2);%
@@ -103,7 +103,7 @@ somaProj = cellfun(@(s)cellfun(@(c) cellfun(@(t) cell2mat(arrayfun(@(n)mean(t(so
 segInds = cellfun(@(s) fix(s(:,~all(isnan(s),1))),cellfun(@(n) n(:,arrayfun(@(c)find(strcmp(maxSegL,c)),epochSegs)),...
     cellfun(@(aa)cell2mat(cellfun(@(a) findBins(mean(a,1,'omitnan'),params.bins),aa(unitInds),'UniformOutput',false)),...
     allSegs,'UniformOutput',false),'UniformOutput',false),'UniformOutput',false)';
-figure(); tl1=tiledlayout(5,4);
+figure(); tl1=tiledlayout(6,4);
 nexttile(tl1,[1,1]); hold on; title("Variance Explained");plot(cumsum(exp),'LineWidth',2);ylim([0 100]);xlim([0 sum(mv)]);
 plot([0 sum(mv)],[90 90],'r--','LineWidth',1);xlim([0,200]);
 bx=nexttile(tl1,[1 1]);
@@ -132,19 +132,23 @@ else
         smoothedData,num2cell(1:length(smoothedData)),repmat(colors.values,1,length(phases)),[repmat({'o'},1,length(conditions)),repmat({'square'},1,length(conditions))]);
 end
 
-[~,sortR] = sort(location(:,1));
-[~,sortM] = sort(location(:,2));
+[locRC,sortR] = sort(location(:,1).*ImagingParameters.px2mm);
+[locML,sortM] = sort(location(:,2).*ImagingParameters.px2mm);
 minLoadings = mean(loadings)-1*std(loadings,0,1);
 maxLoadings = mean(loadings)+1*std(loadings,0,1);
 
-loadingsSplit = cell2mat(arrayfun(@(s) loadings(sortR(somaLabs(sortR)==s),:),somaReps,'UniformOutput',false));
-ct=nexttile(tl1,[4 1]); hold on; title("Loadings R/C"); imagesc(loadingsSplit);axis ij;axis tight;colormap(ct,'jet');clim([-.1 .1]);
+ct=nexttile(tl1,[5 1]); hold on; title("Loadings R/C"); imagesc(cell2mat(arrayfun(@(s) loadings(sortR(somaLabs(sortR)==s),:),somaReps,'UniformOutput',false)));
+axis ij;axis tight;colormap(ct,'jet');clim([-.1 .1]);
 line([0+.5 num_dims+.5],repmat(sum(somaLabs=="Arm"),1,2),'Color','k','LineWidth',1.5,'LineStyle','--');colorbar;
-loadingsSplit = cell2mat(arrayfun(@(s) loadings(sortM(somaLabs(sortM)==s),:),somaReps,'UniformOutput',false));
-ct=nexttile(tl1,[4 1]); hold on; title("Loadings M/L"); imagesc(loadingsSplit);axis ij;axis tight;colormap(ct,'jet');clim([-.1 .1]);
+for d = 1:num_dims
+bx=nexttile(tl1,tilenum(tl1,1+d,2),[1 1]); hold on; title("Binned R/C Loadings "+num2str(d)); 
+boxplotGroup(bx,arrayfun(@(s) cell2mat(arrayfun(@(n) resize(loadings(fix(locRC(somaLabs==s))==n,d),[sum(somaLabs==s),1],'FillValue',NaN),...
+    unique(fix(locRC)),'UniformOutput',false)'),somaReps,'UniformOutput',false)','Symbol','','SecondaryLabels',arrayfun(@num2str,1:unique(fix(locRC)),'Uniformoutput',false),'Notch','on');
+end
+ct=nexttile(tl1,[5 1]); hold on; title("Loadings M/L"); imagesc(cell2mat(arrayfun(@(s) loadings(sortM(somaLabs(sortM)==s),:),somaReps,'UniformOutput',false)));
+axis ij;axis tight;colormap(ct,'jet');clim([-.1 .1]);
 line([0+.5 num_dims+.5],repmat(sum(somaLabs=="Arm"),1,2),'Color','k','LineWidth',1.5,'LineStyle','--');colorbar;
 [~,rankedWeight] = arrayfun(@(s) sort(loadings(somaLabs==s,:),1,'ascend'), somaReps, 'UniformOutput',false);
-loadings = cell2mat(cellfun(@(r) loadings(r), rankedWeight, 'UniformOutput',false));
 sortR = cell2mat(cellfun(@(r,s) cell2mat(cellfun(@(c,t) t(c),num2cell(r,1),repmat({sortR(somaLabs==s)},[1,size(r,2)]),'UniformOutput',false)), rankedWeight,num2cell(somaReps),'UniformOutput',false));
 sortM = cell2mat(cellfun(@(r,s) cell2mat(cellfun(@(c,t) t(c),num2cell(r,1),repmat({sortM(somaLabs==s)},[1,size(r,2)]),'UniformOutput',false)), rankedWeight,num2cell(somaReps),'UniformOutput',false));
 rankedWeight = cell2mat(cellfun(@(r) (r-1)./(size(r,1)-1),rankedWeight,'UniformOutput',false));
@@ -161,77 +165,88 @@ if(saveFig)
 end
 avgDim = {};
 statePlot = contains(type,'state','IgnoreCase',1);
-for n = 1:3
-    figure();
-    lc = {'-','-'};ax = {};plotSegs={};
-    tl=tiledlayout(n+statePlot,ceil((num_dims+(n==1))/(statePlot+1)),'TileIndexing','rowmajor');
-    for c = 1:length(dimCond)
-        for s =1:length(somaReps)
-            co = repmat(colors(dimCond(c)),num_dims,1);
-            weightedPSTHS = cell2mat(somaProj{s}{c});%(pcaMatrix.*loadings(:,n)').*(condSomaInd./condSomaInd),2,'omitnan');
-            weightedPSTHS = permute(reshape(weightedPSTHS,size(weightedPSTHS,1)/(max(1,plotTrials*sTrials)),[],size(weightedPSTHS,2)),[3 2 1]);
-            if(n==1)
-                ax{end+1}=nexttile();hold on;title(conditions(c)+"- " + string(somaReps(s)));
-                plotSegs{end+1} = c;
-                cl = rgb2hsv(colors(dimCond(c)));
-                co = hsv2rgb([linspace(cl(1),cl(1),num_dims);linspace(1,.5,num_dims);linspace(.3,1,num_dims)]');
-                avgDim{s,c} = squeeze(mean(weightedPSTHS,2,'omitnan'));
-            elseif(n==2)
-            elseif(n==3)
-                lc = {'--',':'};
-                if(s==length(somaReps))
-                    co = rgb2hsv(colors(dimCond(c)));
-                    co = repmat(hsv2rgb(co(1), 1, .5),num_dims,1);
-                end
-                weightedPSTHS = permute(cell2mat(cellfun(@(p) cell2mat(reshape(p{c}',1,1,[])), somaProj(s), 'UniformOutput',false)),[2 3 1]);
-            end
-            for d = 1:size(weightedPSTHS,3)
-                if(n>=2)
-                    if(n==2)
-                        ax{end+1}=nexttile(((s-1)*tl.GridSize(end))+d);
-                        plotSegs{end+1} = 1:length(dimCond);
-                        titleName = "Dim " + num2str(d) + " - " + string(somaReps(s));
-                    else
-                        ax{end+1}=nexttile((c-1)*tl.GridSize(end)+d);
-                        plotSegs{end+1} = c;
-                        titleName = "Dim "+ num2str(d);
+if(statePlot)
+    pf = length(phases);
+    allSomaProj = somaProj;
+else
+    pf = 1;
+end
+for pI = 1:pf
+    for n = 1:3
+        figure();
+        lc = {'-','-'};ax = {};plotSegs={};
+        if(statePlot)
+            somaProj = cellfun(@(a) a((length(conditions)*(pI-1))+[1:length(conditions)]), allSomaProj, 'UniformOutput',false);
+        end
+        tl=tiledlayout(n+statePlot,ceil((num_dims+(n==1))/(statePlot+1)),'TileIndexing','rowmajor');
+        for c = 1:length(dimCond)
+            for s =1:length(somaReps)
+                co = repmat(colors(dimCond(c)),num_dims,1);
+                weightedPSTHS = cell2mat(somaProj{s}{c});%(pcaMatrix.*loadings(:,n)').*(condSomaInd./condSomaInd),2,'omitnan');
+                weightedPSTHS = permute(reshape(weightedPSTHS,size(weightedPSTHS,1)/(max(1,plotTrials*sTrials)),[],size(weightedPSTHS,2)),[3 2 1]);
+                if(n==1)
+                    ax{end+1}=nexttile();hold on;title(conditions(c)+"- " + string(somaReps(s)));
+                    plotSegs{end+1} = c;
+                    cl = rgb2hsv(colors(dimCond(c)));
+                    co = hsv2rgb([linspace(cl(1),cl(1),num_dims);linspace(1,.5,num_dims);linspace(.3,1,num_dims)]');
+                    avgDim{s,c} = squeeze(mean(weightedPSTHS,2,'omitnan'));
+                elseif(n==2)
+                elseif(n==3)
+                    lc = {'--',':'};
+                    if(s==length(somaReps))
+                        co = rgb2hsv(colors(dimCond(c)));
+                        co = repmat(hsv2rgb(co(1), 1, .5),num_dims,1);
                     end
-                    hold on;title(titleName);
+                    weightedPSTHS = permute(cell2mat(cellfun(@(p) cell2mat(reshape(p{c}',1,1,[])), somaProj(s), 'UniformOutput',false)),[2 3 1]);
                 end
-                if(~statePlot)
-                    p=plot(squeeze(weightedPSTHS(:,:,d)),'LineWidth',.5,'LineStyle',lc{s});
-                    arrayfun(@(pc) set(pc,'Color',[co(d,:),.35*s]),p);
-                else
-                    [bins centers] = hist(squeeze(weightedPSTHS(:,:,d)),linspace(...
-                        mean(weightedPSTHS(:,:,:),'all')-std(weightedPSTHS(:,:,d),0,'all'),...
-                        mean(weightedPSTHS(:,:,:),'all')+std(weightedPSTHS(:,:,d),0,'all'),10));
-                    bins = bins ./ sum(bins);
-                    bar(centers, bins, 'FaceColor',co(d,:));
+                for d = 1:size(weightedPSTHS,3)
+                    if(n>=2)
+                        if(n==2)
+                            ax{end+1}=nexttile(((s-1)*tl.GridSize(end))+d);
+                            plotSegs{end+1} = 1:length(dimCond);
+                            titleName = "Dim " + num2str(d) + " - " + string(somaReps(s));
+                        else
+                            ax{end+1}=nexttile((c-1)*tl.GridSize(end)+d);
+                            plotSegs{end+1} = c;
+                            titleName = "Dim "+ num2str(d);
+                        end
+                        hold on;title(titleName);
+                    end
+                    if(~statePlot)
+                        p=plot(squeeze(weightedPSTHS(:,:,d)),'LineWidth',.5,'LineStyle',lc{s});
+                        arrayfun(@(pc) set(pc,'Color',[co(d,:),.35*s]),p);
+                    else
+                        [bins centers] = hist(squeeze(weightedPSTHS(:,:,d)),linspace(...
+                            min(weightedPSTHS(:,:,d),[],'all'),...%mean(weightedPSTHS(:,:,d),'all')-std(weightedPSTHS(:,:,d),0,'all')
+                            max(weightedPSTHS(:,:,d),[],'all'),5));
+                        bins = bins ./ sum(bins);
+                        bar(centers, bins, 'FaceColor',co(d,:));
+                    end
                 end
             end
         end
-    end
-    if(~statePlot)
-        condSegs = cellfun(@(i) resize(findBins(params.bins(i),timeBins(1):1/(1000/binWidth):max(params.bins)),[1,length(epochSegs)],'FillValue',NaN),segInds,'UniformOutput',false);
-        cellfun(@(a,p) cellfun(@(x,s) plot(a,[x;x], repmat(get(a,'YLim'),size(x,2),1)','LineStyle',':','Color',s,'LineWidth',1.5),num2cell(cell2mat(...
-            cellfun(@(pc) pc(:,contains(epochSegs,["Hold","Withdraw"])),condSegs(p),'UniformOutput',false)),2)',colors.values(cellstr(dimCond(p)))),ax,plotSegs);
-        condSegs = round(mean(cell2mat(condSegs),1,'omitnan'));
-        cellfun(@(a) arrayfun(@(x) plot(a,[x,x], get(a,'YLim'),'k--','LineWidth', 1.5),condSegs(1:end-2)),ax);
-        cellfun(@(a) set(a,'XLim',[0 trialLength-min(round(ms_bins./binWidth))]),ax);
-        cellfun(@(a) set(a,'XTick',0:50:trialLength-min(round(ms_bins./binWidth))),ax);
-        cellfun(@(a) set(a,'XTickLabels',linspace(timeBins(1),max(params.bins),length(get(a,'XTick')))),ax);
-    end
-    if(saveFig)
-        rootSave = "WeightedPSTHS";
-        if(n==1)
-            fileNameSave = rootSave+"_DIM";
-        elseif(n==2)
-            fileNameSave = rootSave+"_COND";
-        else
-            fileNameSave=rootSave+"_SOMA";
+        if(~statePlot)
+            condSegs = cellfun(@(i) resize(findBins(params.bins(i),timeBins(1):1/(1000/binWidth):max(params.bins)),[1,length(epochSegs)],'FillValue',NaN),segInds,'UniformOutput',false);
+            cellfun(@(a,p) cellfun(@(x,s) plot(a,[x;x], repmat(get(a,'YLim'),size(x,2),1)','LineStyle',':','Color',s,'LineWidth',1.5),num2cell(cell2mat(...
+                cellfun(@(pc) pc(:,contains(epochSegs,["Hold","Withdraw"])),condSegs(p),'UniformOutput',false)),2)',colors.values(cellstr(dimCond(p)))),ax,plotSegs);
+            condSegs = round(mean(cell2mat(condSegs),1,'omitnan'));
+            cellfun(@(a) arrayfun(@(x) plot(a,[x,x], get(a,'YLim'),'k--','LineWidth', 1.5),condSegs(1:end-2)),ax);
+            cellfun(@(a) set(a,'XLim',[0 trialLength-min(round(ms_bins./binWidth))]),ax);
+            cellfun(@(a) set(a,'XTick',0:50:trialLength-min(round(ms_bins./binWidth))),ax);
+            cellfun(@(a) set(a,'XTickLabels',linspace(timeBins(1),max(params.bins),length(get(a,'XTick')))),ax);
         end
-        saveFigures(gcf,savePath,fileNameSave+"_Sm"+num2str(smoothWin),[]);
-        save(savePath+"AvgDimTraj_Sm"+num2str(smoothWin),'avgDim');
+        if(saveFig)
+            rootSave = phases(pI) + "WeightedUnits";
+            if(n==1)
+                fileNameSave = rootSave+"_DIM";
+            elseif(n==2)
+                fileNameSave = rootSave+"_COND";
+            else
+                fileNameSave=rootSave+"_SOMA";
+            end
+            saveFigures(gcf,savePath,fileNameSave+"_Sm"+num2str(smoothWin),[]);
+            save(savePath+"AvgDimTraj_Sm"+num2str(smoothWin),'avgDim');
+        end
     end
 end
 %% DATAHIGH Dim Reduce

@@ -22,6 +22,9 @@ normPSTH = cellfun(@(cp,nb) num2cell(cellfun(@(p,b)permute(permute(p,[1 3 2])./r
 clear normBaseline;
 %%
 tPhys = [];
+g = @(x,y,c)GetPointLineDistance(x,y,c(1),c(2),c(3),c(4));
+unitLocation = cell2mat(arrayfun(@(x,y,c) [g(x,y,OrthogonalLines(c).RCLine), g(x,y,OrthogonalLines(c).MLLine)],...
+    siteDateMap.x,siteDateMap.y,siteDateMap.Monkey,'UniformOutput',false));
 for c = 1:length(conditions)
     condTable = table();
     condUnitMapping = cellfun(@(si) size(si,2),siteChannels)';
@@ -33,6 +36,8 @@ for c = 1:length(conditions)
     condTable.Channel =  [mappedChannels{:}]';
     condTable.X = mapSites2Units(condUnitMapping,siteDateMap.x);
     condTable.Y = mapSites2Units(condUnitMapping,siteDateMap.y);
+    condTable.XT = mapSites2Units(condUnitMapping,unitLocation(:,1));
+    condTable.YT = mapSites2Units(condUnitMapping,unitLocation(:,2));
     condTable.Condition = categorical(repmat({params.condAbbrev(conditions{c})},length(mLabs),1));
     PSTH = cellfun(@(m) num2cell(m{1},[2 3]), normPSTH{c},'UniformOutput',false);
     nanSegs = find(sum(isnan(cell2mat(sumSegs{c}(~cellfun(@(a) all(isnan(a),'all'),sumSegs{c})))),1)>=...

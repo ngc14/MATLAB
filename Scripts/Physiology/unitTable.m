@@ -23,8 +23,6 @@ clear normBaseline;
 %%
 tPhys = [];
 g = @(x,y,c)GetPointLineDistance(x,y,c(1),c(2),c(3),c(4));
-unitLocation = cell2mat(arrayfun(@(x,y,c) [g(x,y,OrthogonalLines(c).RCLine), g(x,y,OrthogonalLines(c).MLLine)],...
-    siteDateMap.x,siteDateMap.y,siteDateMap.Monkey,'UniformOutput',false));
 for c = 1:length(conditions)
     condTable = table();
     condUnitMapping = cellfun(@(si) size(si,2),siteChannels)';
@@ -36,8 +34,14 @@ for c = 1:length(conditions)
     condTable.Channel =  [mappedChannels{:}]';
     condTable.X = mapSites2Units(condUnitMapping,siteDateMap.x);
     condTable.Y = mapSites2Units(condUnitMapping,siteDateMap.y);
-    condTable.XT = mapSites2Units(condUnitMapping,unitLocation(:,1));
-    condTable.YT = mapSites2Units(condUnitMapping,unitLocation(:,2));
+    mInds = mLabs=="Skipper";
+    unitLocation = mapSites2Units(condUnitMapping,num2cell(cell2mat(....
+        arrayfun(@(x,y,c) [g(x,y,OrthogonalLines(c).RCLine), g(x,y,OrthogonalLines(c).MLLine)],...
+        siteDateMap.x,siteDateMap.y,siteDateMap.Monkey,'UniformOutput',false)),2));
+    condTable.XT(mInds) = cellfun(@(x) x(1), unitLocation(mInds)) - min(cellfun(@(x) x(1), unitLocation(mInds)));
+    condTable.XT(~mInds) = cellfun(@(x) x(1), unitLocation(~mInds)) - min(cellfun(@(x) x(1), unitLocation(~mInds)));
+    condTable.YT(mInds) = cellfun(@(x) x(end), unitLocation(mInds)) - min(cellfun(@(x) x(end), unitLocation(mInds)));
+    condTable.YT(~mInds) = cellfun(@(x) x(end), unitLocation(~mInds)) - min(cellfun(@(x) x(end), unitLocation(~mInds)));
     condTable.Condition = categorical(repmat({params.condAbbrev(conditions{c})},length(mLabs),1));
     PSTH = cellfun(@(m) num2cell(m{1},[2 3]), normPSTH{c},'UniformOutput',false);
     nanSegs = find(sum(isnan(cell2mat(sumSegs{c}(~cellfun(@(a) all(isnan(a),'all'),sumSegs{c})))),1)>=...

@@ -211,7 +211,10 @@ for i = 1:nMembers
     temp(:,x{i}) = p.Results.x{i};
     boxplot(h.axis, temp, unmatchNameVal{:})
 end
-
+sig = cell(1,size(p.Results.x{1},2));
+for s = 1:size(p.Results.x{1},2)
+    sig{s} = anova(cell2mat(cellfun(@(k) resize(k(:,s),[max(cellfun(@length,p.Results.x)),1],'FillValue',NaN), p.Results.x,'UniformOutput',false)));
+end
 % Remove dummy boxplots placeholders
 bpobjNew = findobj(h.axis,'tag',bptag);
 bpobjNew(ismember(bpobjNew, bpobjPre)) = [];
@@ -249,6 +252,7 @@ end
 % Set secondary labels if provided
 vertLinesDrawn = false;
 groupLabelType = p.Results.groupLabelType;
+secondaryX = (nMembers : nMembers + p.Results.interGroupSpace : maxX) - (nMembers-1)/2;
 if ~isempty(p.Results.secondarylabels)
     if any(strcmpi(groupLabelType, {'horizontal','both'}))
         % Try to detect figure type [4]
@@ -277,7 +281,6 @@ if ~isempty(p.Results.secondarylabels)
             else
                 posProp = 'InnerPosition';
             end
-            secondaryX = (nMembers : nMembers + p.Results.interGroupSpace : maxX) - (nMembers-1)/2;
             secondaryLabels = strcat(horizSecondaryLabelAddon,p.Results.secondarylabels); %[2]
             h.axis2 = axFcn('Units',h.axis.Units, 'OuterPosition', h.axis.OuterPosition, ...
                 'ActivePositionProperty', h.axis.ActivePositionProperty,'xlim', h.axis.XLim, ...
@@ -312,7 +315,12 @@ if ~isempty(p.Results.secondarylabels)
         vertLinesDrawn = true;
     end
 end
-
+pSig = find(cellfun(@(s) any(s.stats("component").pValue<.05),sig));
+if(any(pSig))
+    for a=1:length(pSig)
+        h.axis2.XTickLabel{pSig(a)} = "\bf "+h.axis2.XTickLabel{pSig(a)}+"*";
+    end
+end
 % Draw vertical lines if requested and if they don't already exist.
 if p.Results.groupLines && ~vertLinesDrawn && ~verLessThan('Matlab','9.5') %r18b
     spaces = setdiff(1:maxX+p.Results.interGroupSpace, [x{:}]);
@@ -320,7 +328,6 @@ if p.Results.groupLines && ~vertLinesDrawn && ~verLessThan('Matlab','9.5') %r18b
     midSpace = spaces(endSpaceIdx) - (p.Results.interGroupSpace-1)/2;
     h.xline = arrayfun(@(x)xline(h.axis, x,'-k'),midSpace);
 end
-
 clear('returnHoldState','TLOcleanup')
 
 %% Return output only if requested

@@ -83,7 +83,7 @@ else
             end
         end
     end
-    smoothedData = cellfun(@(c) cellfun(@(s) (conv2(resize(s,[size(s,1),size(s,2)-1+floor(smoothWin/binWidth)],'Pattern','edge','side','both'),...
+    smoothedData = cellfun(@(c) cellfun(@(s) sqrt(conv2(resize(s,[size(s,1),size(s,2)-1+floor(smoothWin/binWidth)],'Pattern','edge','side','both'),...
         transpose(gausswin(ceil(smoothWin/binWidth)))./sum(gausswin(ceil(smoothWin/binWidth))),'valid')),c,'UniformOutput',false),smoothedData,'UniformOutput',false);
     taskPSTHD = cellfun(@(s) cell2mat(cellfun(@(t) t(:,unique(round(ms_bins./binWidth))),s,'UniformOutput',false)'),smoothedData, 'UniformOutput',false);
 end
@@ -117,7 +117,8 @@ for pI = 1:pf
     'Economy',false,'Centered','off','NumComponents',num_dims,'Algorithm','eig');
 somaProj = cellfun(@(s)cellfun(@(c) cellfun(@(t) cell2mat(arrayfun(@(n)mean(t(somaLabs==s,min(round(ms_bins./binWidth)):end)...
     .*loadings(somaLabs==s,n),1,'omitnan'),1:num_dims,'UniformOutput',false)').*binWidth,c,'UniformOutput',false),smoothedData,'UniformOutput',false),num2cell(somaReps),'UniformOutput',false);
-    figure(); tl1=tiledlayout(6,4);
+%%
+figure(); tl1=tiledlayout(6,4);
     nexttile(tl1,[1,1]); hold on; title("Variance Explained");plot(cumsum(exp),'LineWidth',2);ylim([0 100]);xlim([0 sum(mv)]);
     plot([0 sum(mv)],[90 90],'r--','LineWidth',1);xlim([0,200]);
     bx=nexttile(tl1,[1 1]);
@@ -178,7 +179,7 @@ somaProj = cellfun(@(s)cellfun(@(c) cellfun(@(t) cell2mat(arrayfun(@(n)mean(t(so
         ylim([-.05 .05]+(d==1*[.05 .05]));
     end
     if(saveFig)
-        saveFigures(gcf,savePath,"_Variance+Loadings",[]);
+        saveFigures(gcf,savePath,"SQRT_Variance+Loadings",[]);
     end
     tl1 = tiledlayout(4,2);
     [~,rankedWeight] = arrayfun(@(s) sort(loadings(somaLabs==s,:),1,'ascend'), somaReps, 'UniformOutput',false);
@@ -194,8 +195,9 @@ somaProj = cellfun(@(s)cellfun(@(c) cellfun(@(t) cell2mat(arrayfun(@(n)mean(t(so
     ct=nexttile(tl1,[4 1]); hold on; title("Ranked Loadings M/L"); imagesc(mlLoadings);axis ij;axis tight;colormap(ct,'jet');clim([0 1]);
     line([0+.5 num_dims+.5],repmat(sum(somaLabs=="Arm"),1,2),'Color','w','LineWidth',1.5,'LineStyle','--');colorbar;
     if(saveFig)
-        saveFigures(gcf,savePath,"_RankedLoadings",[]);
+        saveFigures(gcf,savePath,"SQRT_RankedLoadings",[]);
     end
+    %%
     for n = 1:3
         figure();
         lc = {'-','-'};ax = {};plotSegs={};
@@ -262,7 +264,7 @@ somaProj = cellfun(@(s)cellfun(@(c) cellfun(@(t) cell2mat(arrayfun(@(n)mean(t(so
             cellfun(@(a) set(a,'XTickLabels',linspace(timeBins(1),max(params.bins),length(get(a,'XTick')))),ax);
         end
         if(saveFig)
-            rootSave = "WeightedUnits";
+            rootSave = "SQRT_WeightedUnits";
             if(n==1)
                 fileNameSave = rootSave+"_DIM";
             elseif(n==2)

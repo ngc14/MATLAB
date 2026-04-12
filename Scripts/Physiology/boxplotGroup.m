@@ -318,7 +318,7 @@ end
 pSig = find(cellfun(@(s) any(s.stats("component").pValue<.05),sig));
 if(any(pSig))
     for a=1:length(pSig)
-        h.axis2.XTickLabel{pSig(a)} = "\bf "+h.axis2.XTickLabel{pSig(a)}+"*";
+        h.axis2.XTickLabel{pSig(a)} = "\bf "+p.Results.secondarylabels{pSig(a)}+"*";
     end
 end
 % Draw vertical lines if requested and if they don't already exist.

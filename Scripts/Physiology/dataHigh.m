@@ -88,7 +88,6 @@ else
     end
     smoothedPSTH = cellfun(@(c) cellfun(@(s) (conv2(resize(s,[sum(mv),trialLength-1+floor(smoothWin/binWidth)],'Pattern','edge','side','both'),...
         transpose(gausswin(ceil(smoothWin/binWidth)))./sum(gausswin(ceil(smoothWin/binWidth))),'valid')),c,'UniformOutput',false),smoothedPSTH,'UniformOutput',false);
-    taskPSTHD = cellfun(@(s) cell2mat(cellfun(@(t) t(:,unique(round(ms_bins./binWidth))),s,'UniformOutput',false)'),smoothedPSTH, 'UniformOutput',false);
 end
 somaLabs = somaTable(mv);
 channels = allChannels(mv);
@@ -97,18 +96,23 @@ somaReps = unique(somaLabs);
 segInds = cellfun(@(s) fix(s(mv,~all(isnan(s),1))),cellfun(@(n) n(:,arrayfun(@(c)find(strcmp(maxSegL,c)),epochSegs)),cellfun(@(aa)cell2mat(cellfun(@(a) ...
     findBins(mean(a,1,'omitnan'),params.bins),aa(unitInds),'UniformOutput',false)),allSegs,'UniformOutput',false),'UniformOutput',false),'UniformOutput',false)';
 %% plot single dimension PCA
-if(1)
-    dims = sum(mv);
-    [loadings, scores, eig,~,exp] = pca(cell2mat(msBinPSTH)','Economy',false,'Centered','off','NumComponents',sum(mv),'Algorithm','eig');
+if(0)
+    taskPSTHD = cellfun(@(s) cell2mat(cellfun(@(t) t(:,unique(round(ms_bins./binWidth))),s,'UniformOutput',false)'),smoothedPSTH, 'UniformOutput',false);
+    [loadings, ~, eig,~,exp] = pca(cell2mat(taskPSTHD)','Economy',false,'Centered','off','Algorithm','eig');
+    somaProj = arrayfun(@(s) cellfun(@(c) cellfun(@(t) cell2mat(arrayfun(@(n)mean(t(somaLabs==s,unique(round(ms_bins./binWidth)))...
+        .*loadings(somaLabs==s,n),1,'omitnan'),1:num_dims,'UniformOutput',false)').*binWidth,c,'UniformOutput',false),smoothedPSTH,'UniformOutput',false),somaReps,'UniformOutput',false);
 else
-    dims = length(unique(round(ms_bins./binWidth)));
-    [loadings, scores, eig,~,exp] = pca(cell2mat(cellfun(@transpose,taskPSTHD,'UniformOutput',false)),'Economy',false,'Centered','on','Algorithm','eig');
-    smoothedPSTH = cellfun(@(c) {loadings([1:size(taskPSTHD{1},1)]+(size(taskPSTHD{1},1)*c),:)},num2cell(0:length(conditions)-1),'UniformOutput',false);
+    taskPSTHD = cellfun(@(s) cell2mat(cellfun(@(t) t(:,unique(round(ms_bins./binWidth))'),s,'UniformOutput',false)),smoothedPSTH, 'UniformOutput',false);
+    [loadings, scores, eig,~,exp] = pca(cell2mat(taskPSTHD'),'Economy',false,'Centered','off','Algorithm','eig');
+    scores = arrayfun(@(c)reshape(scores([1:size(taskPSTHD{1},1)]+(size(taskPSTHD{1},1)*c),:),...
+        [size(taskPSTHD{1},1)/max(1,plotTrials*sTrials),max(1,plotTrials*sTrials),size(scores,2)]),0:length(conditions)-1,'UniformOutput',false);
+    somaProj = arrayfun(@(s) cellfun(@(c) cellfun(@(t) cell2mat(arrayfun(@(n)loadings(:,n)*squeeze(mean(t(somaLabs==s,:,n),1,'omitnan')),1:num_dims,...
+        'UniformOutput',false))',num2cell(c,[1 3])', 'UniformOutput',false),scores,'UniformOutput',false), somaReps,'UniformOutput',false);
+    loadings = cellfun(@(m) cell2mat(cellfun(@(l) squeeze(mean(m,2,'omitnan'))*l, num2cell(loadings(:,1:num_dims),1),'UniformOutput',false)), scores, 'UniformOutput',false);
+    loadings = mean(cat(3,loadings{:}),3,'omitnan');
 end
-somaProj = arrayfun(@(s) cellfun(@(c) cellfun(@(t) cell2mat(arrayfun(@(n)mean(t(somaLabs==s,min(round(ms_bins./binWidth)):end)...
-    .*loadings(somaLabs==s,n),1,'omitnan'),1:num_dims,'UniformOutput',false)').*binWidth,c,'UniformOutput',false),smoothedPSTH,'UniformOutput',false),somaReps,'UniformOutput',false);
-indBins = cellfun(@(i) findBins(params.bins(i),timeBins(1):1/(1000/binWidth):timeBins(end)),segInds,'UniformOutput',false);
-plotProj(loadings,exp,indBins,somaProj,somaLabs,location,num_dims,conditions,timeBins,false,"S:\Lab\ngc14\Working\DataHi\"+type+"\Full_Population\");
+segVals = cellfun(@(i) findBins(params.bins(i),timeBins(1):1/(1000/binWidth):timeBins(end)),segInds,'UniformOutput',false);
+plotProj(loadings,exp,eig,segVals,somaProj,somaLabs,location,num_dims,conditions,timeBins,true,"S:\Lab\ngc14\Working\PCA_Time\"+type+"\");
 %%
 [epochGroups,dataGrouped,condNames]= deal(cell(length(somaReps),2,length(conditions)));
 for s = 1:length(somaReps)
@@ -116,8 +120,7 @@ for s = 1:length(somaReps)
         currInds = somaLabs==somaReps(s) & (channels<=(16*(l+1)) & channels>(16*l));
         dataGrouped(s,l+1,:) = cellfun(@(c) cellfun(@(t) cell2mat(arrayfun(@(n) mean(t(currInds,min(round(ms_bins./binWidth)):end).*...
             loadings(currInds,n),1,'omitnan'),1:dims,'UniformOutput',false)').*binWidth,c,'UniformOutput',false),smoothedPSTH,'UniformOutput',false);
-        epochGroups(s,l+1,:) = cellfun(@(s) findBins(repmat(params.bins(round(mean(s(currInds,:),1,'omitnan'))),max(1,sTrials*plotTrials),1),...
-            timeBins(1):1/(1000/binWidth):max(params.bins)), segInds,'UniformOutput',false);
+        epochGroups(s,l+1,:) = cellfun(@(s) s(currInds,:), segInds,'UniformOutput',false);
         channelSpan = [min([1:16]+(16*l)), max([1:16]+(16*l))];
         condNames(s,l+1,:) = arrayfun(@(r) repmat(cellstr(r),max(1,sTrials*plotTrials),1), string(somaReps(s))+"_"+num2str(channelSpan)+"_"+conditions,'UniformOutput',false);
     end
@@ -147,8 +150,7 @@ end
 %% DATAHIGH Dim Reduce
 cls = cellfun(@(r) repmat({r},max((plotTrials*sTrials)/4,1),1),cellfun(@hsv2rgb,cellfun(@(l) flipud([linspace(l(1),l(1),4);...
     linspace(1,.25,4);linspace(.85,1,4)]'),cellfun(@rgb2hsv,colors.values','UniformOutput',false),'UniformOutput',false),'UniformOutput',false),'UniformOutput',false);
-epochStarts = num2cell(cell2mat(cellfun(@(s) min(findBins(repmat(params.bins(round(mean(s,1,'omitnan'))),...
-    max(1,sTrials*plotTrials),1),timeBins(1):1/(1000):timeBins(end)),1500), segInds,'UniformOutput',false)),2);
+epochStarts = num2cell(cell2mat(cellfun(@(s) min(s,1500), segInds,'UniformOutput',false)),2);
 dHiStruct = struct('data',cellfun(@(s) s(:,ms_bins)',vertcat(msBinPSTH{:}),'UniformOutput',false),'epochStarts',epochStarts,'condition',cellstr(cell2mat(cellfun(@(d) repmat(string(d),max(plotTrials*sTrials,1),1),cellstr(dimCond),'UniformOutput',false)')),...
     'epochColors',cellfun(@(r) repmat(r,1,1),num2cell(cell2mat(cellfun(@cell2mat,cls,'UniformOutput',false)),2),'UniformOutput',false));
 DataHigh(dHiStruct,'DimReduce');

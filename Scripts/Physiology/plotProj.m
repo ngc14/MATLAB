@@ -4,14 +4,14 @@ somaReps = unique(somaLabs);
 conditions = colors.keys;
 
 figure(); tl1=tiledlayout(2,1);
-nexttile(tl1,[1,1]); hold on; title("Variance"); yyaxis left; plot(cumsum(exp),'LineWidth',2);ylim([0 100]);
-plot([0 length(somaLabs)],[90 90],'r--','LineWidth',1);xlim([0,length(exp)]./4);
-yyaxis right; bar(eig); ylim([0 max(eig(2:end))])
+nexttile(tl1,[1,1]); hold on; title("Variance"); yyaxis right; plot(cumsum(exp),'LineWidth',2);ylim([0 100]);
+plot([0 length(somaLabs)],[90 90],'r--','LineWidth',1);xlim([0,length(exp)]);
+yyaxis left; bar(eig); ylim([0 max(eig(2:end))])
 
 bx=nexttile(tl1,[1 1]);
 boxplotGroup(bx,arrayfun(@(s) loadings(somaLabs==s,1:num_dims),somaReps,'UniformOutput',false)','PrimaryLabels',...
     repmat({''},num_dims*length(somaReps),1),'Symbol','','SecondaryLabels',arrayfun(@num2str,1:num_dims,'Uniformoutput',false),'Notch','on');
-hold on; title("Loadings Distributions");ylim([-.5 3]); xlabel("Factor");
+hold on; title("Loadings Distributions");ylim([-.5 .5]); xlabel("Factor");
 if(0)
     nexttile(tl1,[1,2]); hold on;
     [locRC,sortR] = sort(location(:,1).*ImagingParameters.px2mm);
@@ -63,7 +63,7 @@ if(0)
     end
 end
 %%
-plotTraj=size(somaProj{1},2)~=1;
+plotTraj=size(somaProj{1}{1}{1},2)~=1;
 for n = 1:3
     figure();
     lc = {'-','-'};ax = {};plotSegs={};
@@ -72,7 +72,7 @@ for n = 1:3
     else
         tileorder = 'columnmajor';
     end
-    tl=tiledlayout(num_dims-(2*(n==1)),max(2,n),'TileIndexing',tileorder,'TileSpacing','none','Padding','tight');
+    tl=tiledlayout(length(conditions)*(n==1)+((n>1)*num_dims),max(2,n),'TileIndexing',tileorder,'TileSpacing','none','Padding','tight');
     for c = 1:length(conditions)
         for s =1:length(somaReps)
             weightedPSTHS = cell2mat(somaProj{s}{c});%(pcaMatrix.*loadings(:,n)').*(condSomaInd./condSomaInd),2,'omitnan');

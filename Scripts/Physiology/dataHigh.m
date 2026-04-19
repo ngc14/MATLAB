@@ -108,7 +108,8 @@ else
         [size(taskPSTHD{1},1)/max(1,plotTrials*sTrials),max(1,plotTrials*sTrials),size(scores,2)]),0:length(conditions)-1,'UniformOutput',false);
     somaProj = arrayfun(@(s) cellfun(@(c) cellfun(@(t) cell2mat(arrayfun(@(n)loadings(:,n)*squeeze(mean(t(somaLabs==s,:,n),1,'omitnan')),1:num_dims,...
         'UniformOutput',false))',num2cell(c,[1 3])', 'UniformOutput',false),scores,'UniformOutput',false), somaReps,'UniformOutput',false);
-    loadings = cellfun(@(m) cell2mat(cellfun(@(l) squeeze(mean(m,2,'omitnan'))*l, num2cell(loadings(:,1:num_dims),1),'UniformOutput',false)), scores, 'UniformOutput',false);
+    loadings = cellfun(@(m) cell2mat(cellfun(@(l) squeeze(mean(m(:,:,l),2,'omitnan')),...*l,
+        num2cell((1:num_dims),1),'UniformOutput',false)),scores, 'UniformOutput',false);
     loadings = mean(cat(3,loadings{:}),3,'omitnan');
 end
 segVals = cellfun(@(i) findBins(params.bins(i),timeBins(1):1/(1000/binWidth):timeBins(end)),segInds,'UniformOutput',false);

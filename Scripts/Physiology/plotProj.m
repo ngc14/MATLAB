@@ -116,7 +116,7 @@ for n = 1:3
                         min(weightedPSTHS(:,:,d),[],'all'),...
                         max(weightedPSTHS(:,:,d),[],'all'),10));
                     bins = bins ./ sum(bins);
-                    bar(centers, bins, 'FaceColor',co(d,:));
+                    bar(centers, bins, 'FaceColor',co(d,:));ylim([0 .5]);
                 end
             end
         end

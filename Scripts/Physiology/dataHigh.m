@@ -1,5 +1,7 @@
 model = "GilliganSkipper_ArmHand";
-type = 'State';
+type = 'Traj';
+centered="on";
+PCATime = true;
 num_dims=5;
 sTrials = 20;
 plotTrials = 1;
@@ -96,16 +98,22 @@ somaReps = unique(somaLabs);
 segInds = cellfun(@(s) fix(s(mv,~all(isnan(s),1))),cellfun(@(n) n(:,arrayfun(@(c)find(strcmp(maxSegL,c)),epochSegs)),cellfun(@(aa)cell2mat(cellfun(@(a) ...
     findBins(mean(a,1,'omitnan'),params.bins),aa(unitInds),'UniformOutput',false)),allSegs,'UniformOutput',false),'UniformOutput',false),'UniformOutput',false)';
 %% plot single dimension PCA
-if(1)
+saveDir = "S:\Lab\ngc14\Working\";
+if(PCATime)
+    savePath = saveDir + "PCA_Time\";
+else
+    savePath = saveDir + "DataHigh\";
+end
+if(~PCATime)
     taskPSTHD = cellfun(@(s) cell2mat(cellfun(@(t) t(:,unique(round(ms_bins./binWidth))),s,'UniformOutput',false)'),smoothedPSTH, 'UniformOutput',false);
-    [loadings, scores, eig,~,exp] = pca(cell2mat(taskPSTHD)','Economy',false,'Centered','off','Algorithm','eig');
+    [loadings, scores, eig,~,exp] = pca(cell2mat(taskPSTHD)','Economy',false,'Centered',centered,'Algorithm','eig');
     scores = arrayfun(@(c)reshape(scores([1:size(taskPSTHD{1},2)]+(size(taskPSTHD{1},2)*c),:),...
         [size(taskPSTHD{1},2)/max(1,plotTrials*sTrials),max(1,plotTrials*sTrials),size(scores,2)]),0:length(conditions)-1,'UniformOutput',false);
     somaProj = arrayfun(@(s) cellfun(@(c) cellfun(@(t) cell2mat(arrayfun(@(n)mean(t(somaLabs==s,unique(round(ms_bins./binWidth)))...
         .*loadings(somaLabs==s,n),1,'omitnan'),1:num_dims,'UniformOutput',false)').*binWidth,c,'UniformOutput',false),smoothedPSTH,'UniformOutput',false),somaReps,'UniformOutput',false);
 else
     taskPSTHD = cellfun(@(s) cell2mat(cellfun(@(t) t(:,unique(round(ms_bins./binWidth))'),s,'UniformOutput',false)),smoothedPSTH, 'UniformOutput',false);
-    [loadings, scores, eig,~,exp] = pca(cell2mat(taskPSTHD'),'Economy',false,'Centered','on','Algorithm','eig');
+    [loadings, scores, eig,~,exp] = pca(cell2mat(taskPSTHD'),'Economy',false,'Centered',centered,'Algorithm','eig');
     scores = arrayfun(@(c)reshape(scores([1:size(taskPSTHD{1},1)]+(size(taskPSTHD{1},1)*c),:),...
         [size(taskPSTHD{1},1)/max(1,plotTrials*sTrials),max(1,plotTrials*sTrials),size(scores,2)]),0:length(conditions)-1,'UniformOutput',false);
     somaProj = arrayfun(@(s) cellfun(@(c) cellfun(@(t) cell2mat(arrayfun(@(n)loadings(:,n)*squeeze(mean(t(somaLabs==s,:,n),1,'omitnan')),1:num_dims,...
@@ -115,12 +123,17 @@ else
     loadings = mean(cat(3,loadings{:}),3,'omitnan');
 end
 segVals = cellfun(@(i) findBins(params.bins(i),timeBins(1):1/(1000/binWidth):timeBins(end)),segInds,'UniformOutput',false);
-for p = 0:1
-    savePath = "S:\Lab\ngc14\Working\DataHigh\Non-Centered\"+type+"\";
+for p = 0:(double(~contains(type,"traj",'IgnoreCase',true)))
+    if(strcmpi(centered,'on'))
+        savePath = savePath+"Centered\";
+    else
+        savePath = savePath+"Non-Centered\";
+    end
+    savePath = savePath + type +"\";
     if(~plotTrials)
         savePath = savePath{1}(1:end-1)+"_AVG\";
     end
-    if(~contains(type,"traj"))
+    if(~contains(type,"traj",'IgnoreCase',true))
         savePath = savePath+phases(p+1)+"\";
     end
     plotProj(loadings,exp,eig,segVals,cellfun(@(s) s([1:length(conditions)]+(length(conditions)*p)),somaProj,'UniformOutput',false),...

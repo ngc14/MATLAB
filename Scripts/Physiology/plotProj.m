@@ -1,17 +1,17 @@
-function plotProj(loadings,exp,eig,epochSegs,somaProj,somaLabs,location,num_dims,conditions,timeBins,saveFig,savePath)
+function plotProj(loadings,exp,epochSegs,somaProj,somaLabs,location,num_dims,conditions,timeBins,saveFig,savePath)
 colors =containers.Map(conditions,{[.7 0 0],[1 .65 0 ],[0 0 .75] }');% regexp(model,'[A-Z]+[^A-Z]+','match')
 somaReps = unique(somaLabs);
 conditions = colors.keys;
 
 figure(); tl1=tiledlayout(2,1);
 nexttile(tl1,[1,1]); hold on; title("Variance"); yyaxis right; plot(cumsum(exp),'LineWidth',2);ylim([0 100]);
-plot([0 length(somaLabs)],[90 90],'r--','LineWidth',1);xlim([0,length(exp)]);
-yyaxis left; bar(eig); ylim([0 max(eig(2:end))])
+plot([0 length(somaLabs)],[90 90],'r--','LineWidth',1);xlim([0,length(exp)/4]);
+yyaxis left; bar(exp); ylim([0 min(max(exp),100)])
 
 bx=nexttile(tl1,[1 1]);
-boxplotGroup(bx,arrayfun(@(s) loadings(somaLabs==s,1:num_dims),somaReps,'UniformOutput',false)','PrimaryLabels',...
-    repmat({''},num_dims*length(somaReps),1),'Symbol','','SecondaryLabels',arrayfun(@num2str,1:num_dims,'Uniformoutput',false),'Notch','on');
-hold on; title("Loadings Distributions");ylim([-.5 .5]); xlabel("Factor");
+boxplotGroup(bx,arrayfun(@(s) loadings(somaLabs==s,1:2*num_dims),somaReps,'UniformOutput',false)','PrimaryLabels',...
+    repmat({''},2*num_dims*length(somaReps),1),'Symbol','','SecondaryLabels',arrayfun(@num2str,1:2*num_dims,'Uniformoutput',false),'Notch','on');
+hold on; title("Loadings Distributions");ylim([min(loadings(:,1:2*num_dims),[],'all'), max(loadings(:,1:2*num_dims),[],'all')]); xlabel("Factor");
 if(0)
     nexttile(tl1,[1,2]); hold on;
     [locRC,sortR] = sort(location(:,1).*ImagingParameters.px2mm);
@@ -44,7 +44,7 @@ if(0)
     end
 end
 if(saveFig)
-    saveFigures(gcf,savePath,"Variance+Loadings",[]);
+    saveFigures(gcf,savePath,"Cropped_Variance+Loadings",[]);
 end
 if(0)
     tl1 = tiledlayout(4,2);
@@ -109,7 +109,7 @@ for n = 1:3
                     hold on;if(d==1);title(titleName);end;
                 end
                 if(plotTraj)
-                    p=plot(squeeze(weightedPSTHS(:,:,d)),'LineWidth',.5,'LineStyle',lc{s});
+                    p=plot(squeeze(weightedPSTHS(:,:,d)),'LineWidth',1.5*double(size(squeeze(weightedPSTHS(:,:,d)),2)==1)+.5,'LineStyle',lc{s});
                     arrayfun(@(pc) set(pc,'Color',[co(d,:),.9-(.35*(double(n==3)*(s-1)))]),p);
                 else
                     [bins centers] = hist(squeeze(weightedPSTHS(:,:,d)),linspace(...

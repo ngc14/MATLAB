@@ -1,16 +1,18 @@
 function plotProj(loadings,exp,epochSegs,somaProj,somaLabs,location,num_dims,conditions,timeBins,saveFig,savePath)
 colors =containers.Map(conditions,{[.7 0 0],[1 .65 0 ],[0 0 .75] }');% regexp(model,'[A-Z]+[^A-Z]+','match')
+pg = [0 .8 .4;.4 0 .5];
 somaReps = unique(somaLabs);
 conditions = colors.keys;
 
 figure(); tl1=tiledlayout(2,1);
 nexttile(tl1,[1,1]); hold on; title("Variance"); yyaxis right; plot(cumsum(exp),'LineWidth',2);ylim([0 100]);
-plot([0 length(somaLabs)],[90 90],'r--','LineWidth',1);xlim([0,length(exp)/4]);
-yyaxis left; bar(exp); ylim([0 min(max(exp),100)])
+plot([0 length(somaLabs)],[90 90],'r--','LineWidth',1);xlim([0,15]);
+yyaxis left; bar(exp); ylim([0 100])
 
 bx=nexttile(tl1,[1 1]);
-boxplotGroup(bx,arrayfun(@(s) loadings(somaLabs==s,1:2*num_dims),somaReps,'UniformOutput',false)','PrimaryLabels',...
-    repmat({''},2*num_dims*length(somaReps),1),'Symbol','','SecondaryLabels',arrayfun(@num2str,1:2*num_dims,'Uniformoutput',false),'Notch','on');
+bg=boxplotGroup(bx,arrayfun(@(s) loadings(somaLabs==s,1:2*num_dims),somaReps,'UniformOutput',false)','PrimaryLabels',...
+    repmat({''},2*num_dims*length(somaReps),1),'Symbol','','SecondaryLabels',arrayfun(@num2str,1:2*num_dims,'Uniformoutput',false),...
+    'Notch','on','colors',pg,'GroupType','BetweenGroups');
 hold on; title("Loadings Distributions");ylim([min(loadings(:,1:2*num_dims),[],'all'), max(loadings(:,1:2*num_dims),[],'all')]); xlabel("Factor");
 if(0)
     nexttile(tl1,[1,2]); hold on;
@@ -44,7 +46,7 @@ if(0)
     end
 end
 if(saveFig)
-    saveFigures(gcf,savePath,"Cropped_Variance+Loadings",[]);
+    saveFigures(gcf,savePath,"Variance+Loadings",[]);
 end
 if(0)
     tl1 = tiledlayout(4,2);
@@ -63,6 +65,7 @@ if(0)
     end
 end
 %%
+lg={};
 plotTraj=size(somaProj{1}{1}{1},2)~=1;
 for n = 1:3
     figure();
@@ -87,11 +90,12 @@ for n = 1:3
                 co = repmat(colors(conditions{c}),num_dims,1);
                 if(n==2)
                 elseif(n==3)
-                    lc = {'--','-'};
-                    if(s==length(somaReps))
-                        co = rgb2hsv(colors(conditions{c}));
-                        co = repmat(hsv2rgb(co(1), 1, .5),num_dims,1);
-                    end
+                    lc = {'-','-'};
+                    co = repmat(pg(s,:,:),num_dims,1);
+                    % if(s==length(somaReps))
+                    %     co = rgb2hsv(colors(conditions{c}));
+                    %     co = repmat(hsv2rgb(co(1), 1, .5),num_dims,1);
+                    % end
                     weightedPSTHS = permute(cell2mat(cellfun(@(p) cell2mat(reshape(p{c}',1,1,[])), somaProj(s), 'UniformOutput',false)),[2 3 1]);
                 end
             end
@@ -107,10 +111,17 @@ for n = 1:3
                         titleName = "Dim "+ num2str(d);
                     end
                     hold on;if(d==1);title(titleName);end;
+                    if(n==3 & s==1 & d==1 & c==1)
+                        lg = cellfun(@(rg) plot([NaN,NaN],[NaN,NaN],'Color',rg),num2cell(pg,2),'UniformOutput',false);
+                        legend([lg{:}],somaReps,'AutoUpdate','off');
+                    end
                 end
                 if(plotTraj)
-                    p=plot(squeeze(weightedPSTHS(:,:,d)),'LineWidth',1.5*double(size(squeeze(weightedPSTHS(:,:,d)),2)==1)+.5,'LineStyle',lc{s});
-                    arrayfun(@(pc) set(pc,'Color',[co(d,:),.9-(.35*(double(n==3)*(s-1)))]),p);
+                    % p=plot(mean(meanP,2,'omitnan'),'LineWidth',1.5*double(size(squeeze(weightedPSTHS(:,:,d)),2)==1)+.5,'LineStyle',lc{s});
+                    % arrayfun(@(pc) set(pc,'Color',[co(d,:),.9-(.35*(double(n==3)*(s-1)))]),p);
+                    meanP = squeeze(weightedPSTHS(:,:,d));
+                    shadedErrorBar(1:size(meanP,1),meanP',std(meanP,0,2),'lineProps',...
+                        {'Color',[co(d,:),.95-(.35*double(n==3)*(s-1))],'LineWidth',1.5*double(size(meanP,2)==1)+.5,'LineStyle',lc{s}});
                 else
                     [bins centers] = hist(squeeze(weightedPSTHS(:,:,d)),linspace(...
                         min(weightedPSTHS(:,:,d),[],'all'),...
@@ -128,10 +139,10 @@ for n = 1:3
         cellfun(@(a) set(a,'XTickLabels',[]),ex(setdiff(1:prod(tl.GridSize),tilenum(tl,tl.GridSize(1),1:tl.GridSize(end)))));
         cellfun(@(a) set(a,'XLim',[0 size(weightedPSTHS,1)]),ax);
         cellfun(@(a) set(a,'YAxisLocation','right'),ex(tilenum(tl,1:tl.GridSize(1),tl.GridSize(end))));
-        cellfun(@(a,p) cellfun(@(x,s) plot(a,[x;x], repmat(get(a,'YLim'),size(x,2),1)','LineStyle',':','Color',s,'LineWidth',1.5),num2cell(cell2mat(...
-            cellfun(@(pc) round(mean(pc(:,end-1:end),1,'omitnan')),epochSegs(p),'UniformOutput',false)),2)',colors.values(cellstr(conditions(p)))),ax,plotSegs);
+        %cellfun(@(a,p) cellfun(@(x,s) plot(a,[x;x], repmat(get(a,'YLim'),size(x,2),1)','LineStyle',':','Color',s,'LineWidth',1.5),num2cell(cell2mat(...
+        %    cellfun(@(pc) round(mean(pc(:,end-1:end),1,'omitnan')),epochSegs(p),'UniformOutput',false)),2)',colors.values(cellstr(conditions(p)))),ax,plotSegs);
         condSegs = round(mean(cell2mat(epochSegs),1,'omitnan'));
-        cellfun(@(a) arrayfun(@(x) plot(a,[x,x], get(a,'YLim'),'k--','LineWidth', 1.5),condSegs(1:end-2)),ax);
+        cellfun(@(a) arrayfun(@(x) plot(a,[x,x], get(a,'YLim'),'k--','LineWidth', 1.5),condSegs(1:end-1)),ax);
         cellfun(@(a,s) set(a,'DataAspectRatio',[1 (1+tl.GridSize(1)/tl.GridSize(end))*(1/(2*s{1}(1))),s{1}(3)],'PlotBoxAspectRatio',[1 2.5*s{2}(2) 1]),ax,...
             cellfun(@(a) get(a,{'DataAspectRatio','PlotBoxAspectRatio'}),ax,'UniformOutput',false));
     end

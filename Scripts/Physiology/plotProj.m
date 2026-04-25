@@ -1,6 +1,6 @@
 function plotProj(loadings,exp,epochSegs,somaProj,somaLabs,location,num_dims,conditions,timeBins,saveFig,savePath)
 colors =containers.Map(conditions,{[.7 0 0],[1 .65 0 ],[0 0 .75] }');% regexp(model,'[A-Z]+[^A-Z]+','match')
-pg = [0 .8 .4;.4 0 .5];
+pg = [0 .8 .4;.4 0 .5; 0.5 0.5 0.5];
 somaReps = unique(somaLabs);
 conditions = colors.keys;
 
@@ -12,7 +12,7 @@ yyaxis left; bar(exp); ylim([0 100])
 bx=nexttile(tl1,[1 1]);
 bg=boxplotGroup(bx,arrayfun(@(s) loadings(somaLabs==s,1:2*num_dims),somaReps,'UniformOutput',false)','PrimaryLabels',...
     repmat({''},2*num_dims*length(somaReps),1),'Symbol','','SecondaryLabels',arrayfun(@num2str,1:2*num_dims,'Uniformoutput',false),...
-    'Notch','on','colors',pg,'GroupType','BetweenGroups');
+    'Notch','on','colors',pg(1:length(somaReps),:),'GroupType','BetweenGroups');
 hold on; title("Loadings Distributions");ylim([min(loadings(:,1:2*num_dims),[],'all'), max(loadings(:,1:2*num_dims),[],'all')]); xlabel("Factor");
 if(0)
     nexttile(tl1,[1,2]); hold on;
@@ -77,7 +77,7 @@ for n = 1:3
     end
     tl=tiledlayout(length(conditions)*(n==1)+((n>1)*num_dims),max(2,n),'TileIndexing',tileorder,'TileSpacing','none','Padding','tight');
     for c = 1:length(conditions)
-        for s =1:length(somaReps)
+        for s =1:length(somaReps)+double(n==3)
             weightedPSTHS = cell2mat(somaProj{s}{c});%(pcaMatrix.*loadings(:,n)').*(condSomaInd./condSomaInd),2,'omitnan');
             weightedPSTHS = permute(reshape(weightedPSTHS,num_dims,[],size(weightedPSTHS,2)),[3 2 1]);
             if(n==1)
@@ -90,7 +90,7 @@ for n = 1:3
                 co = repmat(colors(conditions{c}),num_dims,1);
                 if(n==2)
                 elseif(n==3)
-                    lc = {'-','-'};
+                    lc = {'-','-','-'};
                     co = repmat(pg(s,:,:),num_dims,1);
                     % if(s==length(somaReps))
                     %     co = rgb2hsv(colors(conditions{c}));
@@ -113,7 +113,7 @@ for n = 1:3
                     hold on;if(d==1);title(titleName);end;
                     if(n==3 & s==1 & d==1 & c==1)
                         lg = cellfun(@(rg) plot([NaN,NaN],[NaN,NaN],'Color',rg),num2cell(pg,2),'UniformOutput',false);
-                        legend([lg{:}],somaReps,'AutoUpdate','off');
+                        legend([lg{:}],[somaReps;"All"],'AutoUpdate','off');
                     end
                 end
                 if(plotTraj)

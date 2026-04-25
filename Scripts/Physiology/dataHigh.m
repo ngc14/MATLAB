@@ -63,9 +63,13 @@ else
     ms_bins = findBins(timeBins(1),params.bins):findBins(timeBins(end),params.bins);
     if(~plotTrials)
         msBinPSTH = cellfun(@(n) {cell2mat(cellfun(@(m) mean(max(0,m-0),2,'omitnan')',n(unitInds),'UniformOutput',false))},tablePSTHD,'UniformOutput',false);
+        dSegs = cellfun(@(v) {squeeze(cell2mat(reshape(cellfun(@(d) mean(d,1,'omitnan'),...
+            v,'Uniformoutput',false),1,1,[])))'},vertcat(allSegs), 'UniformOutput',false);
     else
         msBinPSTH= cellfun(@(v) squeeze(num2cell(permute(cell2mat(reshape(cellfun(@(d) downsampleTrials(max(0,d-0),sTrials),...
             v,'Uniformoutput',false),1,1,[])),[3 1 2]),[1,2])),vertcat(tablePSTHD), 'UniformOutput',false);
+        dSegs = cellfun(@(v) squeeze(num2cell(permute(cell2mat(reshape(cellfun(@(d) downsampleTrials(d',sTrials),...
+            v,'Uniformoutput',false),1,1,[])),[3 1 2]),[1,2])),vertcat(allSegs), 'UniformOutput',false);
     end
     msBinPSTH =  cellfun(@(a)cellfun(@(u)max(0,u(unitInds,:)),a,'UniformOutput',false), msBinPSTH,'UniformOutput',false);
     if(plotTrials)
@@ -87,6 +91,11 @@ else
     end
     smoothedPSTH = cellfun(@(c) cellfun(@(s) (conv2(resize(s,[sum(mv),trialLength-1+floor(smoothWin/binWidth)],'Pattern','edge','side','both'),...
         transpose(gausswin(ceil(smoothWin/binWidth)))./sum(gausswin(ceil(smoothWin/binWidth))),'valid')),c,'UniformOutput',false),smoothedPSTH,'UniformOutput',false);
+    normBaseline = cellfun(@(p,t)cellfun(@(a,n) [max(1,median(cell2mat(reshape(cellfun(@(c,s) ...
+        permute(mean(c(:,findBins(s-5,params.bins(1:binWidth:end)):findBins(s-(1+rand(1)*3),params.bins(1:binWidth:end))),2,'omitnan').*binWidth,[1 3 2]),...
+        squeeze(num2cell(a,[2])),num2cell([ones(1,all(isnan(n(mv,1))));n(~isnan(n(mv,1)),1)]),'UniformOutput',false),...
+        [1,max(1,sum(~isnan(n(mv,1))))])),3,'omitnan'));],p,t,'UniformOutput',false),smoothedPSTH,dSegs,"UniformOutput",false);
+    smoothedPSTH = cellfun(@(c,n) cellfun(@(s,b) s./b', c,n,'UniformOutput', false),smoothedPSTH, normBaseline, 'UniformOutput',false);
 end
 somaLabs = somaTable(mv);
 channels = allChannels(mv);
@@ -111,6 +120,7 @@ if(~PCATime)
     somaProj = arrayfun(@(s) cellfun(@(c) cellfun(@(b) cell2mat(arrayfun(@(n)...
         mean(b'.*loadings(somaLabs==s,n),1,'omitnan'),1:num_dims,'UniformOutput',false)').*binWidth,...
         num2cell(c(:,:,n),1),'UniformOutput',false)',scores,'UniformOutput',false),somaReps,'UniformOutput',false);
+    somaProj{end+1} = cellfun(@(s) cellfun(@(t) squeeze(t)'./binWidth,num2cell(s(:,:,1:num_dims),[1 3]),'UniformOutput',false)',scores,'UniformOutput',false);
 else
     taskPSTHD = cellfun(@(s) cell2mat(cellfun(@(t) t(:,unique(round(ms_bins./binWidth))'),s,'UniformOutput',false)),smoothedPSTH, 'UniformOutput',false);
     [loadings, scores, eig,~,exp] = pca(cell2mat(taskPSTHD'),'Economy',false,'Centered',centered,'Algorithm','eig');
@@ -129,7 +139,7 @@ for p = 0:(double(~contains(type,"traj",'IgnoreCase',true)))
     else
         savePath = savePath+"Non-Centered\";
     end
-    savePath = savePath + type +"\";
+    savePath = savePath + type +"\Normalized\";
     if(~plotTrials)
         savePath = savePath{1}(1:end-1)+"_AVG\";
     end
@@ -137,7 +147,7 @@ for p = 0:(double(~contains(type,"traj",'IgnoreCase',true)))
         savePath = savePath+phases(p+1)+"\";
     end
     plotProj(loadings,exp,segVals,cellfun(@(s) s([1:length(conditions)]+(length(conditions)*p)),somaProj,'UniformOutput',false),...
-        somaLabs,location,num_dims,conditions,timeBins,true,savePath);
+        somaLabs,location,num_dims,conditions,timeBins,false,savePath);
 end
     %%
 [epochGroups,dataGrouped,condNames]= deal(cell(length(somaReps),2,length(conditions)));

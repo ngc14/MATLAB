@@ -115,12 +115,14 @@ else
 end
 if(~PCATime)
      taskPSTHD= cellfun(@(s) cellfun(@(t) t(:,unique(round(ms_bins./binWidth))),s,'UniformOutput',false)',smoothedPSTH, 'UniformOutput',false);
-    [loadings,scores,eig,ts,exp] = pca(zscore(cell2mat(cellfun(@cell2mat,taskPSTHD,'UniformOutput',false))'),'Economy',false,'Centered',centered,'Algorithm','eig');
+     mZ = mean((cell2mat(cellfun(@cell2mat,taskPSTHD,'UniformOutput',false))'));
+     sZ=std((cell2mat(cellfun(@cell2mat,taskPSTHD,'UniformOutput',false))'));
+     [loadings,scores,eig,ts,exp] = pca(zscore(cell2mat(cellfun(@cell2mat,taskPSTHD,'UniformOutput',false))'),'Economy',false,'Centered',centered,'Algorithm','eig');
     % somaProj = arrayfun(@(s) cellfun(@(c) {cell2mat(cellfun(@(b,l) cell2mat(cellfun(@(d)mean(d.*l(somaLabs==s)',2,'omitnan'),b,'UniformOutput',false)),...
     %     squeeze(num2cell(num2cell(c(:,:,1:num_dims),1),2)),num2cell(loadings(:,1:num_dims),1)','UniformOutput',false)')'},scores,'UniformOutput',false),somaReps,'UniformOutput',false);
 else
     taskPSTHD = cellfun(@(s) cellfun(@(t) t(:,unique(round(ms_bins./binWidth))'),s,'UniformOutput',false),smoothedPSTH, 'UniformOutput',false);
-    [loadings,scores,eig,~,exp] = pca(zscore(cell2mat(cellfun(@cell2mat,taskPSTHD','UniformOutput',false))),'Economy',false,'Centered',centered,'Algorithm','eig');
+    [loadings,scores,eig,~,exp] = pca((cell2mat(cellfun(@cell2mat,taskPSTHD','UniformOutput',false))),'Economy',false,'Centered',centered,'Algorithm','eig');
     loadings = cellfun(@(m) cell2mat(cellfun(@(l) squeeze(mean(m(:,:,l),2,'omitnan')),num2cell((1:2*num_dims),1),'UniformOutput',false)),scores, 'UniformOutput',false);
     loadings = mean(cat(3,loadings{:}),3,'omitnan');
     % somaProj = arrayfun(@(s) cellfun(@(c) {cell2mat(cellfun(@(b,l) cell2mat(cellfun(@(d)l*mean(d(somaLabs==s),1,'omitnan'),b,'UniformOutput',false)),...
@@ -134,7 +136,7 @@ for p = 0:(double(~contains(type,"traj",'IgnoreCase',true)))
         else
             savePath = savePath+"Non-Centered";
         end
-        newSaveDir = savePath +"\"+type+"\";
+        newSaveDir = savePath +"\Z-Score\"+type+"\";
     end
     if(~plotTrials)
         savePath = newSaveDir{1}(1:end-1)+"_AVG\";
@@ -142,12 +144,13 @@ for p = 0:(double(~contains(type,"traj",'IgnoreCase',true)))
     if(~contains(type,"traj",'IgnoreCase',true))
         savePath = newSaveDir+phases(p+1)+"\";
     end
-    somaProj = projectData(somaReps,taskPSTHD((1:length(conditions))+(length(conditions)*p)),num_dims,loadings,somaLabs);
-    plotProj(loadings,exp,segVals,somaProj,somaLabs,location,num_dims,conditions,timeBins,false,savePath);
+    somaProj = projectData(somaReps,cellfun(@(c) cellfun(@(t) (t-mZ)/sZ,c,'UniformOutput',false),...
+        taskPSTHD((1:length(conditions))+(length(conditions)*p)),'UniformOutput',false),num_dims,loadings,somaLabs);
+    plotProj(loadings,exp,segVals,somaProj,somaLabs,location,num_dims,conditions,timeBins,true,savePath);
 end
 %% DATAHIGH Dim Reduce
 if(~PCATime)
-    trialTaskPSTHD = cellfun(@(s) cellfun(@(t) t(:,unique(round(ms_bins./binWidth))),s,'UniformOutput',false), smoothedPSTH, 'UniformOutput',false);
+    trialTaskPSTHD = cellfun(@(c) transpose(cellfun(@(t) (t-0)/1,c,'UniformOutput',false)),taskPSTHD,'UniformOutput',false);
     % trialTaskPSTHD = cellfun(@(s) arrayfun(@(r) s(:,:,somaLabs==r),somaReps, 'UniformOutput',false),scores, 'UniformOutput',false);
     % trialTaskPSTHD = cellfun(@(c) cellfun(@(t) cellfun(@squeeze,num2cell(t(:,:,randperm(size(t,3),389)),[1 3]),'UniformOutput',false),c, 'UniformOutput', false), trialTaskPSTHD, 'UniformOutput',false);
     % trialTaskPSTHD = cellfun(@(c) transpose([c{:}]),trialTaskPSTHD,'UniformOutput',false)
@@ -158,11 +161,15 @@ else
     % trialTaskPSTHD = cellfun(@(c) cellfun(@(t) t(randperm(size(t,1),389),:),c, 'UniformOutput', false), trialTaskPSTHD, 'UniformOutput',false);
 end
 cls = cellfun(@(r) repmat({r},max((plotTrials*sTrials)/length(epochSegs),1),1),colors.values,'UniformOutput',false);
+cls = repmat(cls,1,length(phases));
 epochStarts = cellfun(@(e) e(:,all(e<size(trialTaskPSTHD{1}{1},2),1)),num2cell(cell2mat(cellfun(@(s) ...
     repmat(round(mean((s-min(ms_bins))./binWidth,1,'omitnan')),max(1,plotTrials*sTrials),1), segInds,'UniformOutput',false)),2),'UniformOutput',false);
-dHiStruct = struct('data',vertcat(trialTaskPSTHD{:}),'epochStarts',epochStarts,'condition',cellstr(cell2mat(arrayfun(@(d) ...
-    repmat(d,max(plotTrials*sTrials,1),1),conditions,'UniformOutput',false)')),'epochColors',cellfun(@(r,e) [repmat(r,length(e)-(length(e)==4),1);repmat([1 1 1],length(e)==4,1)],...
-    num2cell(cell2mat(cellfun(@cell2mat,cls,'UniformOutput',false)'),2),epochStarts,'UniformOutput',false));
+epochStarts = repmat(epochStarts,1,length(phases));
+cTrials = arrayfun(@(p) cellfun(@(c) string(c)+string(p),arrayfun(@(d) repmat(d,max(plotTrials*sTrials,1),1),conditions,'UniformOutput',false)','UniformOutput',false),phases,'UniformOutput',false);
+dHiStruct = struct('data',vertcat(trialTaskPSTHD{:}),'condition',cellstr(vertcat(cTrials{:})));
+[dHiStruct.type]=deal('state');
+%dHiStruct.epochStarts = epochStarts;
+%dHiStruct.epochColors = cellfun(@(r,e) [repmat(r,length(e)-(length(e)==4),1);repmat([1 1 1],length(e)==4,1)],num2cell(cell2mat(cellfun(@cell2mat,cls,'UniformOutput',false)'),2),epochStarts,'UniformOutput',false);
 DataHigh(dHiStruct);
 %save(savePath+"DStruct_"+model+".mat",'dHiStruct','-v7.3');
 %% Get DATAHIGH data

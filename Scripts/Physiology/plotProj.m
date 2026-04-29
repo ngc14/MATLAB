@@ -11,7 +11,7 @@ plotTraj=size(somaProj{1}{1}{1},2)~=1;
 
 figure(); tl1=tiledlayout(2,1);
 nexttile(tl1,[1,1]); hold on; title("Variance"); yyaxis right; plot(cumsum(exp),'LineWidth',2);ylim([0 100]);
-plot([0 length(somaLabs)],[90 90],'r--','LineWidth',1);xlim([0,15]);
+plot([0 length(somaLabs)],[90 90],'r--','LineWidth',1);xlim([0,100]);
 yyaxis left; bar(exp); ylim([0 100])
 
 bx=nexttile(tl1,[1 1]);

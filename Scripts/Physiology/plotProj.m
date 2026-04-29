@@ -1,11 +1,13 @@
 function plotProj(loadings,exp,epochSegs,somaProj,somaLabs,location,num_dims,conditions,timeBins,saveFig,savePath)
-colors =containers.Map(conditions,{[.7 0 0],[1 .65 0 ],[0 0 .75] }');% regexp(model,'[A-Z]+[^A-Z]+','match')
+colors = {[.7 0 0],[1 .65 0 ],[0 0 .75] };
+colors =containers.Map(conditions,colors(1:length(conditions)));
 somaReps = unique(somaLabs);
 pg = [0 .8 .4;.4 0 .5];
 if(length(somaReps)<length(somaProj))
     pg(end+1,:) = [0.25 0.25 0.25];
 end
 conditions = colors.keys;
+plotTraj=size(somaProj{1}{1}{1},2)~=1;
 
 figure(); tl1=tiledlayout(2,1);
 nexttile(tl1,[1,1]); hold on; title("Variance"); yyaxis right; plot(cumsum(exp),'LineWidth',2);ylim([0 100]);
@@ -67,9 +69,8 @@ if(0)
         saveFigures(gcf,savePath,"RankedLoadings",[]);
     end
 end
-%%
+%%c
 lg={};
-plotTraj=size(somaProj{1}{1}{1},2)~=1;
 for n = 1:3
     figure();
     lc = {'-','-'};ax = {};plotSegs={};
@@ -82,7 +83,7 @@ for n = 1:3
     for c = 1:length(conditions)
         for s =1:length(somaReps)+(n==3 & length(somaProj)>length(somaReps))
             weightedPSTHS = cell2mat(somaProj{s}{c});%(pcaMatrix.*loadings(:,n)').*(condSomaInd./condSomaInd),2,'omitnan');
-            weightedPSTHS = permute(reshape(weightedPSTHS,num_dims,[],size(weightedPSTHS,2)),[3 2 1]);
+            weightedPSTHS = permute(reshape(weightedPSTHS,num_dims,[],size(somaProj{s}{c},2)),[3 2 1]);
             if(n==1)
                 ax{end+1}=nexttile();hold on;if(c==1);title(conditions(c)+"- " + string(somaReps(s)));end;
                 plotSegs{end+1} = c;
@@ -99,7 +100,7 @@ for n = 1:3
                     %     co = rgb2hsv(colors(conditions{c}));
                     %     co = repmat(hsv2rgb(co(1), 1, .5),num_dims,1);
                     % end
-                    weightedPSTHS = permute(cell2mat(cellfun(@(p) cell2mat(reshape(p{c}',1,1,[])), somaProj(s), 'UniformOutput',false)),[2 3 1]);
+                    weightedPSTHS = permute(cell2mat(cellfun(@(p) cell2mat(reshape(p{c},num_dims,1,[])), somaProj(s), 'UniformOutput',false)),[2 3 1]);
                 end
             end
             for d = 1:size(weightedPSTHS,3)
@@ -131,10 +132,11 @@ for n = 1:3
                         {'Color',[co(d,:),.75-(0)],'LineWidth',1.5*double(size(meanP,2)==1)+.5,'LineStyle',lc{s}});
                 else
                     [bins centers] = hist(squeeze(weightedPSTHS(:,:,d)),linspace(...
-                        min(weightedPSTHS(:,:,d),[],'all'),...
-                        max(weightedPSTHS(:,:,d),[],'all'),10));
+                        quantile(weightedPSTHS(:,:,d),.20,'all'),quantile(weightedPSTHS(:,:,d),.80,'all'),10));
                     bins = bins ./ sum(bins);
-                    bar(centers, bins, 'FaceColor',co(d,:));ylim([0 .5]);
+                    allQuantiles= cellfun(@(m) cell2mat(cellfun(@(n) quantile([n{:}],[.01,.99],2),m,'Uniformoutput',false)'),somaProj,'UniformOutput',false);
+                    allQuantiles = vertcat(allQuantiles{:});
+                    bar(centers, bins, 'FaceColor',co(d,:));ylim([0 .5]);xlim([min(allQuantiles(:,1)),max(allQuantiles(:,end))]);
                 end
             end
         end

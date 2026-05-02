@@ -144,31 +144,54 @@ if(~plotTrials & strcmpi(type,'traj'));newSaveDir = newSaveDir{1}(1:end-1)+"_AVG
 savePath = newSaveDir;
 for p = 0:(double(~contains(type,"traj",'IgnoreCase',true)))
     if(~contains(type,"traj",'IgnoreCase',true));savePath = newSaveDir+phases(p+1)+"\";end
-    plotProj(loadings,exp,segVals,cellfun(@(s) s([1:length(conditions)]+(length(conditions)*p)),somaProj,'UniformOutput',false),...
-        somaLabs,num_dims,conditions,timeBins,binWidth,true,savePath);
+%    plotProj(loadings,exp,segVals,cellfun(@(s) s([1:length(conditions)]+(length(conditions)*p)),somaProj,'UniformOutput',false),...
+%        somaLabs,num_dims,conditions,timeBins,binWidth,false,savePath);
 end
 %% DATAHIGH Dim Reduce
-if(~PCATime)
-    taskPSTHD = cellfun(@(c) transpose(cellfun(@(t) (t-0)/1,c,'UniformOutput',false)),taskPSTHD,'UniformOutput',false);
-    % trialTaskPSTHD = cellfun(@(s) arrayfun(@(r) s(:,:,somaLabs==r),somaReps, 'UniformOutput',false),scores, 'UniformOutput',false);
-    % trialTaskPSTHD = cellfun(@(c) cellfun(@(t) cellfun(@squeeze,num2cell(t(:,:,randperm(size(t,3),389)),[1 3]),'UniformOutput',false),c, 'UniformOutput', false), trialTaskPSTHD, 'UniformOutput',false);
-    % trialTaskPSTHD = cellfun(@(c) transpose([c{:}]),trialTaskPSTHD,'UniformOutput',false)
-else
-    taskPSTHD = cellfun(@(s) cellfun(@(t) t(:,unique(round(ms_bins./binWidth)))',s,'UniformOutput',false), smoothedPSTH, 'UniformOutput',false)';
+if(PCATime)
+    projectUnits = arrayfun(@(r) cellfun(@(t) cellfun(@(s) s(somaLabs==r,:)*loadings,t,'UniformOutput',false),taskPSTHD, 'UniformOutput',false),somaReps, 'UniformOutput',false);
+    projectUnits = cellfun(@(a) cellfun(@(d) d(:,:)',vertcat(a{:}),'Uniformoutput',false), projectUnits, 'UniformOutput',false);
+    %taskPSTHD = cellfun(@(s) cellfun(@(t) t(:,unique(round(ms_bins./binWidth)))',s,'UniformOutput',false), smoothedPSTH, 'UniformOutput',false)';
     %trialTaskPSTHD=cellfun(@(s) {squeeze(s)},scores,'UniformOutput',false);
     % trialTaskPSTHD = cellfun(@transpose,[trialTaskPSTHD{:}],'UniformOutput',false);
     % trialTaskPSTHD = cellfun(@(c) cellfun(@(t) t(randperm(size(t,1),389),:),c, 'UniformOutput', false), trialTaskPSTHD, 'UniformOutput',false);
+else
+    projectUnits = arrayfun(@(r)  squeeze(cellfun(@squeeze,num2cell(num2cell(reshape((pcaMat(:,somaLabs==r)*loadings(somaLabs==r,:))',...
+        size(pcaMat,2),size(taskPSTHD{1}{1},2),max(1,plotTrials*sTrials),[]),[1 2]),3),'UniformOutput',false))',somaReps,'UniformOutput',false);
+    if(strcmpi(type,'state'))
+        projectUnits = cellfun(@(s) cellfun(@(t) cell2mat(t'),s','UniformOutput',false), projectUnits, 'UniformOutput',false);
+    else
+        projectUnits = cellfun(@(s) vertcat(s{:}), projectUnits,'Uniformoutput',false);
+    end
+    % trialTaskPSTHD = cellfun(@(s) arrayfun(@(r) s(:,:,somaLabs==r),somaReps, 'UniformOutput',false),scores, 'UniformOutput',false);
+    % trialTaskPSTHD = cellfun(@(c) cellfun(@(t) cellfun(@squeeze,num2cell(t(:,:,randperm(size(t,3),389)),[1 3]),'UniformOutput',false),c, 'UniformOutput', false), trialTaskPSTHD, 'UniformOutput',false);
+    % trialTaskPSTHD = cellfun(@(c) transpose([c{:}]),trialTaskPSTHD,'UniformOutput',false)
 end
-cls = cellfun(@(r) repmat({r},max((plotTrials*sTrials)/length(epochSegs),1),1),colors.values,'UniformOutput',false);
-cls = repmat(cls,1,length(phases));
+cls = cellfun(@(r) repmat({r},max(strcmpi(type,'traj')*(plotTrials*sTrials),1),1),{[0 1 .2],[.8 0 1]},'UniformOutput',false);
+cls = reshape(repmat(cls,length(conditions),1),[],1);
+%cls = cellfun(@(r) repmat({r},max((plotTrials*sTrials)/length(epochSegs),1),1),{[0 1 .5],[.7 0 1]}, 'Uniformoutput',false);
+%cls = cellfun(@(cl) repmat(cl,length(conditions),1), cls,'UniformOutput',false);
 epochStarts = cellfun(@(e) e(:,all(e<size(taskPSTHD{1}{1},2),1)),num2cell(cell2mat(cellfun(@(s) ...
     repmat(round(mean((s-min(ms_bins))./binWidth,1,'omitnan')),max(1,plotTrials*sTrials),1), segInds,'UniformOutput',false)),2),'UniformOutput',false);
-epochStarts = repmat(epochStarts,1,length(phases));
-cTrials = arrayfun(@(p) cellfun(@(c) string(c)+string(p),arrayfun(@(d) repmat(d,max(plotTrials*sTrials,1),1),conditions,'UniformOutput',false)','UniformOutput',false),phases,'UniformOutput',false);
-dHiStruct = struct('data',vertcat(taskPSTHD{:}),'condition',cellstr(vertcat(cTrials{:})));
-[dHiStruct.type]=deal('state');
-%dHiStruct.epochStarts = epochStarts;
-%dHiStruct.epochColors = cellfun(@(r,e) [repmat(r,length(e)-(length(e)==4),1);repmat([1 1 1],length(e)==4,1)],num2cell(cell2mat(cellfun(@cell2mat,cls,'UniformOutput',false)'),2),epochStarts,'UniformOutput',false);
+epochStarts = repmat(epochStarts,length(somaReps),1);
+cTrials = arrayfun(@(d) {repmat(d,max(strcmpi(type,'traj')*plotTrials*sTrials,1),1)},conditions,'UniformOutput',false)';
+cTrials = arrayfun(@(p) cellfun(@(c) cell2mat(cellfun(@(t) string(t)+"-"+string(p),c,'UniformOutput',false)),cTrials,'UniformOutput',false), somaReps,'UniformOutput',false);
+cTrials = cell2mat(vertcat(cTrials{:}));
+if(strcmpi(type,'traj'))
+dHiStruct = struct('data',vertcat(projectUnits{:}),'condition',cellstr(cTrials),...
+    'epochStarts',epochStarts,'epochColors',cellfun(@(r,e) [repmat(r,length(e)-(length(e)==4),1);repmat([1 1 1],length(e)==4,1)],...
+    num2cell(cell2mat(cellfun(@cell2mat,cls,'UniformOutput',false)),2),epochStarts,'UniformOutput',false));
+else
+    cTrials = arrayfun(@(r)cellfun(@(c) c+"-"+r,cTrials,'UniformOutput',false),phases,'UniformOutput',false);
+    dHiStruct = struct('data',vertcat(projectUnits{:}),'condition',cellstr(vertcat(cTrials{:})));
+    [dHiStruct.type]=deal('state');
+    [dHiStruct.epochStarts]=deal(1);
+    [dHiStruct(cellfun(@(s) contains(s,'Arm'),{dHiStruct.condition})).epochColors] = deal([.5 1 0]);
+    [dHiStruct(cellfun(@(s) contains(s,'Hand'),{dHiStruct.condition})).epochColors] = deal([.6 0 1]);
+    for a = 1:length(dHiStruct)
+        dHiStruct(a).epochColors = max(min(dHiStruct(a).epochColors+([.5 .25 .25]*(2*(contains(dHiStruct(a).condition,"Reach")-.5))),1),0);
+    end
+end
 DataHigh(dHiStruct);
 %save(savePath+"DStruct_"+model+".mat",'dHiStruct','-v7.3');
 %% Get DATAHIGH data
@@ -203,68 +226,6 @@ for icond = 1:length(conds)
             end
         end
     end
-end
-%%
-figure(); tax=tiledlayout(1,length(conds));
-for icond = 1:length(conds)
-    legendColors= {};
-    currColor = rgb2hsv(cell2mat(colors.values(cellstr(dimCond(icond)))));currColor(2) = 1;currColor(end) = .4;
-    for idim = 1:num_dims
-        if(idim<=num_dims/2)
-            currColor(end) = min(1,currColor(end) + (.4*(idim-1)));
-        else
-            currColor(2) = max(.25,currColor(2) - (.25*(idim-(num_dims/2))));currColor(end) = 1;
-        end
-        itrial = find(ismember({D.condition}, conds{icond}));
-        dTrial = cat(3,D(itrial).data);
-        epochs = [mean(vertcat(D(itrial).epochStarts),1,'omitnan'),size(D(1).data,2)];
-        nexttile(icond); hold on; title(string(conds(icond))); ylim(ylimT);
-        for iepoch = 1:length(epochs)-1
-            indices = epochs(iepoch):(epochs(iepoch+1));
-            cellfun(@(p) plot(indices,p,'Color', hsv2rgb(currColor),'LineWidth',2),...
-                num2cell(squeeze(mean(dTrial(idim,indices,:),max(~plotTrials*length(size(dTrial))+1,plotTrials),'omitnan')),1+~plotTrials));
-            if(iepoch>1);line([epochs(iepoch),epochs(iepoch)],ylimT,"LineStyle",'--','Color','k');end
-        end
-        legendColors{idim} = hsv2rgb(currColor);
-        if(idim==num_dims)
-            l = cellfun(@(d) plot(NaN(length(num_dims),1),'Color',d),legendColors);
-            legend(l,string(1:num_dims),'Autoupdate','off','Location','northeast');
-        end
-    end
-end
-%%
-[epochGroups,dataGrouped,condNames]= deal(cell(length(somaReps),2,length(conditions)));
-for s = 1:length(somaReps)
-    for l=0:1
-        currInds = somaLabs==somaReps(s) & (channels<=(16*(l+1)) & channels>(16*l));
-        dataGrouped(s,l+1,:) = cellfun(@(c) cellfun(@(t) cell2mat(arrayfun(@(n) mean(t(currInds,min(round(ms_bins./binWidth)):end).*...
-            loadings(currInds,n),1,'omitnan'),1:dims,'UniformOutput',false)'),c,'UniformOutput',false),smoothedPSTH,'UniformOutput',false);
-        epochGroups(s,l+1,:) = cellfun(@(s) s(currInds,:), segInds,'UniformOutput',false);
-        channelSpan = [min([1:16]+(16*l)), max([1:16]+(16*l))];
-        condNames(s,l+1,:) = arrayfun(@(r) repmat(cellstr(r),max(1,sTrials*plotTrials),1), string(somaReps(s))+"_"+num2str(channelSpan)+"_"+conditions,'UniformOutput',false);
-    end
-end
-dataGrouped = reshape(dataGrouped,1,[]);epochGroups = reshape(epochGroups,1,[]);condNames = reshape(condNames,1,[]);
-struct('data',vertcat(dataGrouped{:}),'epochStarts',num2cell(cell2mat(epochGroups'),2),'condition',vertcat(condNames{:}));
-
-if(contains(type,"Traj"))
-    title("PSTHS");
-    psthGrouped = cellfun(@(s)cellfun(@(c)cellfun(@(t) mean(t(somaLabs==s,min(round(ms_bins./binWidth)):end),1,'omitnan'),...
-        c,'UniformOutput',false),smoothedPSTH,'UniformOutput',false),num2cell(somaReps),'Uniformoutput',false);
-    cellfun(@(s,l) cellfun(@(m,p) plot(cell2mat(m)','LineStyle',l,'LineWidth',1.5,'Color',p),s,colors.values),psthGrouped,repmat({'-'},size(psthGrouped,1),size(psthGrouped,2)));
-    condSegs = cellfun(@(i) resize(i,[1,length(epochSegs)],'FillValue',NaN),indBins,'UniformOutput',false);
-    cellfun(@(x,s) plot(ax,[x;x], repmat(get(ax,'YLim'),size(x,2),1)','LineStyle',':','Color',s,'LineWidth',1.5),num2cell(cell2mat(...
-        cellfun(@(pc) pc(:,contains(epochSegs,["Hold","Withdraw"])),condSegs,'UniformOutput',false)),2)',colors.values(cellstr(dimCond)));
-    condSegs = round(mean(cell2mat(condSegs),1,'omitnan'));
-    arrayfun(@(x) plot(ax,[x,x], get(ax,'YLim'),'Color','k','LineStyle',':','LineWidth',1.5),condSegs(1:end-2));
-    set(ax,'XTickLabels',linspace(timeBins(1),timeBins(end),length(get(ax,'XTick'))));
-    set(ax,'XLim',[0 trialLength-min(round(ms_bins./binWidth))]);
-    set(ax,'XTick',0:50:trialLength-min(round(ms_bins./binWidth)));
-else
-    title("Spikes")
-    xVals = cell2mat(arrayfun(@(a) repmat(a,[1,ceil(length(loadings)/10)]),1:10,'UniformOutput',false));
-    cellfun(@(p,n,cl) scatter(xVals(1:size(p{1},1))+(n*10),mean(cell2mat(p'),2,'omitnan'),10,cl,'filled','o'),...
-        smoothedPSTH,num2cell(1:length(smoothedPSTH)),repmat(colors.values,1,length(phases)));%(length(conditions)*(pI-1)+[1:length(conditions)])
 end
 %%
 function sp = projectData(somaReps,rawData,num_dims,loadings,somaLabs)

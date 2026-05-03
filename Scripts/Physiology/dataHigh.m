@@ -159,7 +159,8 @@ else
     projectUnits = arrayfun(@(r)  squeeze(cellfun(@squeeze,num2cell(num2cell(reshape((pcaMat(:,somaLabs==r)*loadings(somaLabs==r,:))',...
         size(pcaMat,2),size(taskPSTHD{1}{1},2),max(1,plotTrials*sTrials),[]),[1 2]),3),'UniformOutput',false))',somaReps,'UniformOutput',false);
     if(strcmpi(type,'state'))
-        projectUnits = cellfun(@(s) cellfun(@(t) cell2mat(t'),s','UniformOutput',false), projectUnits, 'UniformOutput',false);
+        projectUnits = cellfun(@(s) squeeze(num2cell(reshape(cellfun(@(t) cell2mat(t'),s','UniformOutput',false),[],length(conditions),length(phases)),1)), projectUnits, 'UniformOutput',false);
+        projectUnits = cellfun(@(s) reshape(cellfun(@(t) cell2mat(t'),s,'UniformOutput',false),[],1),projectUnits, 'UniformOutput',false);
     else
         projectUnits = cellfun(@(s) vertcat(s{:}), projectUnits,'Uniformoutput',false);
     end
@@ -172,7 +173,7 @@ cls = reshape(repmat(cls,length(conditions),1),[],1);
 %cls = cellfun(@(r) repmat({r},max((plotTrials*sTrials)/length(epochSegs),1),1),{[0 1 .5],[.7 0 1]}, 'Uniformoutput',false);
 %cls = cellfun(@(cl) repmat(cl,length(conditions),1), cls,'UniformOutput',false);
 epochStarts = cellfun(@(e) e(:,all(e<size(taskPSTHD{1}{1},2),1)),num2cell(cell2mat(cellfun(@(s) ...
-    repmat(round(mean((s-min(ms_bins))./binWidth,1,'omitnan')),max(1,plotTrials*sTrials),1), segInds,'UniformOutput',false)),2),'UniformOutput',false);
+    repmat(round(mean((s-min(ms_bins))./binWidth,1,'omitnan')),max(1,strcmpi(type,'traj')*plotTrials*sTrials),1), segInds,'UniformOutput',false)),2),'UniformOutput',false);
 epochStarts = repmat(epochStarts,length(somaReps),1);
 cTrials = arrayfun(@(d) {repmat(d,max(strcmpi(type,'traj')*plotTrials*sTrials,1),1)},conditions,'UniformOutput',false)';
 cTrials = arrayfun(@(p) cellfun(@(c) cell2mat(cellfun(@(t) string(t)+"-"+string(p),c,'UniformOutput',false)),cTrials,'UniformOutput',false), somaReps,'UniformOutput',false);

@@ -421,7 +421,11 @@ function evolve_button_Callback(hObject, eventdata, handles)
         handles = guidata(hObject);
         
         if (handles.record_movie)
-            frame = getframe;
+            frame = getframe(handles.mainAxes);
+            if(~any(isempty([handles.videowriter.Height,handles.videowriter.Width])) & ...
+                    size(frame,[1 2])~=[handles.videowriter.Height,handles.videowriter.Width])
+                frame = imresize(frame.cdata,[handles.videowriter.Height,handles.videowriter.Width],'nearest');
+            end
             writeVideo(handles.videowriter, frame);
         end
         

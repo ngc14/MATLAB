@@ -148,7 +148,7 @@ for p = 0:(double(~contains(type,"traj",'IgnoreCase',true)))
 %        somaLabs,num_dims,conditions,timeBins,binWidth,false,savePath);
 end
 %% DATAHIGH Dim Reduce
-somaColors = {[0 1 .2],[.8 0 1]};%;
+somaColors = {[0 1 .2],[.8 0 1]};%
 if(PCATime)
     projectUnits = arrayfun(@(r) cellfun(@(t) cellfun(@(s) s(strcmp(somaLabs,r),:)*loadings,t,'UniformOutput',false),taskPSTHD, 'UniformOutput',false),somaReps, 'UniformOutput',false);
     projectUnits = cellfun(@(a) cellfun(@(d) d(:,:)',vertcat(a{:}),'Uniformoutput',false), projectUnits, 'UniformOutput',false);
@@ -161,6 +161,8 @@ else
     else
         projectUnits = cellfun(@(s) vertcat(s{:}), projectUnits,'Uniformoutput',false);
         projectUnits = cellfun(@(s) cellfun(@(t,n) t(:,1:end-((n==length(conditions)*1)*2.5*binWidth)),s,num2cell(1:length(s))', 'UniformOutput',false), projectUnits, 'UniformOutput',false);
+        projectUnits{end+1} =cellfun(@(s) vertcat(s{:}), squeeze(cellfun(@squeeze,num2cell(num2cell(reshape((pcaMat(:,contains(somaLabs,somaReps))*...
+            loadings(contains(somaLabs,somaReps),:))',size(pcaMat,2),size(taskPSTHD{1}{1},2),max(1,plotTrials*sTrials),[]),[1 2]),3),'Uniformoutput',false)), 'UniformOutput',false);
     end
 end
 cls = cellfun(@(r) repmat({r},max(strcmpi(type,'traj')*(plotTrials*sTrials),1),1),somaColors','UniformOutput',false);

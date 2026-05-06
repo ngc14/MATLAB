@@ -114,8 +114,10 @@ else
     savePre = saveDir + "DataHigh\";
     taskPSTHD= cellfun(@(s) cellfun(@(t) t(:,unique(round(ms_bins./binWidth))),s,'UniformOutput',false)',smoothedPSTH, 'UniformOutput',false);
     pcaMat = zscore(cell2mat(cellfun(@cell2mat,taskPSTHD,'UniformOutput',false))');
+    variableWeights = arrayfun(@(s) 1/(sum(strcmp(somaLabs,s))),somaLabs);
+    rowWeights = ones(1,size(pcaMat,1));
 end
-[loadings,scores,eig,ts,exp] = pca(pcaMat,'Economy',false,'Centered',centered,'Algorithm','eig');somaProj={};
+[loadings,scores,eig,ts,exp] = pca(pcaMat,'Economy',false,'Centered',centered,'Algorithm','eig','VariableWeights',variableWeights,'Weights',rowWeights);somaProj={};
 if(PCATime)
     scores = permute(reshape(scores,sum(mv),max(1,sTrials*plotTrials),length(taskPSTHD),size(loadings,1)),[1 4 2 3]);
     somaProj = cellfun(@(m) cellfun(@transpose,squeeze(num2cell(m,[1 2]))','UniformOutput',false),squeeze(num2cell(scores,[1:length(size(scores))-1]))','UniformOutput',false);
@@ -175,7 +177,7 @@ epochStarts = repmat(cellfun(@(e) e(:,all(e<size(taskPSTHD{1}{1},2),1)),num2cell
 %%
 if(strcmpi(type,'traj'))
     dHiStruct = struct('data',vertcat(projectUnits{:}),'condition',cellstr(cell2mat(vertcat(cTrials{:}))),'epochStarts',epochStarts,...
-        'epochColors',cellfun(@(r,e)cell2mat(arrayfun(@(n) [hsv2rgb([r(1)*(1*n~=4),min(1,.33*n)*(1*n~=4),max(1*n==4,r(3))])],1:length(e),"UniformOutput",false)'),...
+        'epochColors',cellfun(@(r,e)cell2mat(arrayfun(@(n) [hsv2rgb([r(1)*(1*n~=4),min(1,.5+(.2*n))*(1*n~=4),max(1*n==4,1.25-(.25*n))])],1:length(e),"UniformOutput",false)'),...
         num2cell(rgb2hsv(cell2mat(cellfun(@cell2mat,cls,'UniformOutput',false))),2),epochStarts,'UniformOutput',false));
 else
     cTrials = arrayfun(@(r)cellfun(@(c) c+"-"+r,cTrials,'UniformOutput',false),phases,'UniformOutput',false);

@@ -15,8 +15,8 @@ plot([0 length(somaLabs)],[90 90],'r--','LineWidth',1);xlim([0,75]);
 yyaxis left; bar(exp); ylim([0 100])
 
 bx=nexttile(tl1,[1 1]);
-weightedLoadings = arrayfun(@(s) loadings(somaLabs==s,1:2*num_dims).^2/sum(somaLabs==s),somaReps,'UniformOutput',false)';
-bg = bar(cell2mat(cellfun(@(r) sum(r./sum(cell2mat(weightedLoadings'))),weightedLoadings,'UniformOutput',false)')');
+weightedLoadings = arrayfun(@(s) loadings(somaLabs==s,1:3*num_dims).^2/sum(somaLabs==s),somaReps,'UniformOutput',false)';
+bg = bar(cell2mat(cellfun(@(r) sum(r./sum(cell2mat(weightedLoadings'))),weightedLoadings,'UniformOutput',false)')','stacked');
 bg(1).FaceColor=pg(1,:); bg(2).FaceColor=pg(2,:);
 %bg=boxplotGroup(bx,arrayfun(@(s) loadings(somaLabs==s,1:2*num_dims),somaReps,'UniformOutput',false)','PrimaryLabels',...
 %    repmat({''},2*num_dims*length(somaReps),1),'Symbol','','SecondaryLabels',arrayfun(@num2str,1:2*num_dims,'Uniformoutput',false),'Notch','on','colors',pg(1:length(somaReps),:),'GroupType','BetweenGroups');

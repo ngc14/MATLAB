@@ -126,7 +126,7 @@ if(PCATime & ~strcmpi(type,"state"))
     somaProj = arrayfun(@(s)cellfun(@(c)cellfun(@transpose,permute(num2cell(cell2mat(reshape(cellfun(@(t)cell2mat(arrayfun(@(n) ...
         loadings(:,n)*mean(t(n,strcmp(somaLabs,s)).*binWidth,2,'omitnan')',1:num_dims,'UniformOutput',false)),c,'UniformOutput',false),1,1,[])),1),[2 3 1]),'UniformOutput',false),...
         somaProj,'UniformOutput',false),somaReps, 'UniformOutput',false);
-    %loadings = squeeze(mean(scores,[3,4]));
+    loadings = squeeze(mean(scores,[3,4]));
 else
     mZ =mean(pcaMat)'; sZ=std(pcaMat)';
     taskPSTHD = cellfun(@(c) cellfun(@(t) bsxfun(@rdivide,bsxfun(@minus,t,mZ),sZ),c,'UniformOutput',false),taskPSTHD, 'UniformOutput',false);
@@ -156,8 +156,8 @@ if(~plotTrials & strcmpi(type,'traj'));newSaveDir = newSaveDir{1}(1:end-1)+"_AVG
 savePath = newSaveDir;
 for p = 0:(double(~contains(type,"traj",'IgnoreCase',true)))
     if(~contains(type,"traj",'IgnoreCase',true));savePath = newSaveDir+phases(p+1)+"\";end
-%    plotProj(loadings,exp,segVals,cellfun(@(s) s([1:length(conditions)]+(length(conditions)*p)),somaProj,'UniformOutput',false),...
-%        somaLabs,num_dims,conditions,timeBins,binWidth,false,savePath);
+   plotProj(loadings,exp,segVals,cellfun(@(s) s([1:length(conditions)]+(length(conditions)*p)),somaProj,'UniformOutput',false),...
+       somaLabs,num_dims,conditions,timeBins,binWidth,false,savePath);
 end
 %% DATAHIGH Dim Reduce
 somaColors = {[0 1 .2],[.8 0 1]};%

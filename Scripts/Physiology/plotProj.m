@@ -2,9 +2,10 @@ function plotProj(loadings,exp,epochSegs,somaProj,somaLabs,num_dims,conditions,t
 colors = {[.7 0 0],[1 .65 0 ],[0 0 .75] };
 colors =containers.Map(conditions,colors(1:length(conditions)));
 somaReps = unique(somaLabs);
-pg = [0 .8 .4;.4 0 .5];
+somaColors = containers.Map(["Arm","Hand"],{[0 .8 .4];[.4 0 .5]});
+pg = somaColors.values(cellstr(somaReps));
 if(length(somaReps)<length(somaProj))
-    pg(end+1,:) = [0.25 0.25 0.25];
+    pg{end+1} = [0.25 0.25 0.25];
 end
 conditions = colors.keys;
 plotTraj=size(somaProj{1}{1}{1},2)~=1;
@@ -17,7 +18,7 @@ yyaxis left; bar(exp); ylim([0 100])
 bx=nexttile(tl1,[1 1]);
 weightedLoadings = arrayfun(@(s) loadings(somaLabs==s,1:3*num_dims).^2/sum(somaLabs==s),somaReps,'UniformOutput',false)';
 bg = bar(cell2mat(cellfun(@(r) sum(r./sum(cell2mat(weightedLoadings'))),weightedLoadings,'UniformOutput',false)')','stacked');
-bg(1).FaceColor=pg(1,:); bg(2).FaceColor=pg(2,:);
+cellfun(@(b,p) set(b,'FaceColor',p),num2cell(bg),pg(1:length(bg))');
 %bg=boxplotGroup(bx,arrayfun(@(s) loadings(somaLabs==s,1:2*num_dims),somaReps,'UniformOutput',false)','PrimaryLabels',...
 %    repmat({''},2*num_dims*length(somaReps),1),'Symbol','','SecondaryLabels',arrayfun(@num2str,1:2*num_dims,'Uniformoutput',false),'Notch','on','colors',pg(1:length(somaReps),:),'GroupType','BetweenGroups');
 hold on; title("Loadings Distributions");ylim([0 1]); xlabel("Factor");
@@ -79,7 +80,7 @@ for n = 1:3
     else
         tileorder = 'columnmajor';
     end
-    tl=tiledlayout(length(conditions)*(n==1)+((n>1)*num_dims),max(2,n),'TileIndexing',tileorder,'TileSpacing','none','Padding','tight');
+    tl=tiledlayout(length(conditions)*(n==1)+((n>1)*min(5,num_dims)),max(n*length(somaReps),length(conditions)*(n>2)*ceil(num_dims/5)),'TileIndexing',tileorder,'TileSpacing','none','Padding','tight');
     for c = 1:length(conditions)
         for s =1:length(somaReps)+(n==3 & length(somaProj)>length(somaReps))
             weightedPSTHS = cell2mat(somaProj{s}{c});%(pcaMatrix.*loadings(:,n)').*(condSomaInd./condSomaInd),2,'omitnan');
@@ -95,7 +96,7 @@ for n = 1:3
                 if(n==2)
                 elseif(n==3)
                     lc = {'-','-','-'};
-                    co = repmat(pg(s,:,:),num_dims,1);
+                    co = repmat(pg{s},num_dims,1);
                     % if(s==length(somaReps))
                     %     co = rgb2hsv(colors(conditions{c}));
                     %     co = repmat(hsv2rgb(co(1), 1, .5),num_dims,1);
@@ -106,17 +107,17 @@ for n = 1:3
             for d = 1:size(weightedPSTHS,3)
                 if(n>=2)
                     if(n==2)
-                        ax{end+1}=nexttile(((s-1)*tl.GridSize(1))+d);
+                        ax{end+1}=nexttile(((s-1)*prod(tl.GridSize)/length(somaReps))+d);
                         plotSegs{end+1} = 1:length(conditions);
                         titleName = "Dim " + num2str(d) + " - " + string(somaReps(s));
                     else
-                        ax{end+1}=nexttile((c-1)*tl.GridSize(1)+d);
+                        ax{end+1}=nexttile(((c-1)*size(weightedPSTHS,3))+d);
                         plotSegs{end+1} = c;
                         titleName = "Dim "+ num2str(d);
                     end
                     hold on;if(d==1);title(titleName);end
                     if(n==3 && s==1 && d==1 && c==1)
-                        lg = cellfun(@(rg) plot([NaN,NaN],[NaN,NaN],'Color',rg),num2cell(pg,2),'UniformOutput',false);
+                        lg = cellfun(@(rg) plot([NaN,NaN],[NaN,NaN],'Color',rg),pg,'UniformOutput',false);
                         if(length(somaReps)<length(lg))
                             legend([lg{:}], [somaReps;"All"],'AutoUpdate','off','Location','eastoutside');
                         else

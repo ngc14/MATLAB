@@ -68,7 +68,7 @@ firingRates = cellfun(@(c) cellfun(@(s) (conv2(resize(s(:,unique(round(ms_bins./
     'Pattern','edge','side','both'),transpose(gausswin(ceil(smoothWin/binWidth)))./sum(gausswin(ceil(smoothWin/binWidth))),'valid')),c,'UniformOutput',false),trialPSTH,'UniformOutput',false);
 firingRates = cellfun(@(t) reshape(cellfun(@(r) reshape(r(mv,:),sum(mv),1,[]),t,'UniformOutput',false),1,[]),firingRates,'UniformOutput',false);
 firingRates = cell2mat(permute(cat(4,firingRates{:}),[1 4 3 2]));
-firingRates = cell2mat(cellfun(@(r) r(:,:,randperm(length(r))), num2cell(firingRates,3),'UniformOutput',false));
+%firingRates = cell2mat(cellfun(@(r) r(:,:,randperm(length(r))), num2cell(firingRates,3),'UniformOutput',false));
 %firingRatesAverage = mean(firingRates, length(size(firingRates)),'omitnan');
 trialNum = ones(size(firingRates,1:2)).*size(firingRates,length(size(firingRates)));
 combinedParams = {{1, [1 2]}, {2}};
@@ -96,7 +96,7 @@ for n = 1:size(firingRates,1)
         end
     end
 end
-firingRatesAverage = cell2mat(cellfun(@(r) reshape(cell2mat(r),size(r{1},1),1,[]),cellfun(@(s) cellfun(@(t) cell2mat(cellfun(@(n)n(randperm(length(n))),...
+firingRatesAverage = cell2mat(cellfun(@(r) reshape(cell2mat(r),size(r{1},1),1,[]),cellfun(@(s) cellfun(@(t) cell2mat(cellfun(@(n)n,....(randperm(length(n))),...
     num2cell(t(mv,unique(round(ms_bins./binWidth))),2),'UniformOutput',false)),s,'UniformOutput',false)',smoothedPSTH, 'UniformOutput',false),'UniformOutput',false));
 somaIndex = contains(string(somaTable(mv)),["Arm","Hand"]);
 firingRatesAverage = firingRatesAverage(somaIndex,:,:);

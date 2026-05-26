@@ -29,9 +29,9 @@ step = 1;
 
 cond1 = out.conditionMask(t1); % which condition does t1 come from?
 if cond1 == 1
-   color1 = [.2 .8 .2];
+   color1 = [.2 .8 1 .5];
 else
-   color1 = [.8 .2 .2];
+   color1 = [.8 .6 .2 .5];
 end
 
 
@@ -51,9 +51,9 @@ for tt = 1:step:sum(pairs2use)
    if cond1==cond2
       color2 = color1;
    elseif cond1 == 1
-      color2 = [.8 .2 .2];
+      color2 = [.8 .6 .2 .5];
    else
-      color2 = [.2 .8 .2];
+      color2 = [.2 .8 1 .5];
    end
    plotProj(t2, 2, color2)
    plotProj(t1, 1, color1)

@@ -1,4 +1,4 @@
-function dpca_plot_default(data, time, yspan, explVar, compNum, events, signif, marg)
+function dpca_plot_default(data, time, yspan, explVar, compNum, events, signif, condNames)
 
 % Modify this function to adjust how components are plotted.
 %
@@ -29,13 +29,14 @@ if strcmp(data, 'legend')
         hold on
         
         for f = 1:numOfStimuli
-            plot([0.5 1], [f f], 'color', colors(f,:), 'LineWidth', 2)
-            text(1.2, f, ['Stimulus ' num2str(f)])
+            p(f) = plot([NaN NaN], [NaN NaN], 'color', colors(f,:), 'LineWidth', 2);
+            %text(1.2, f, [condNames(f)])
         end
-        axis([0 3 -1 1.5+numOfStimuli])
-        set(gca, 'XTick', [])
-        set(gca, 'YTick', [])
-        set(gca,'Visible','off')
+        legend(p,condNames,'Location','northeast');
+        % axis([0 3 -1 1.5+numOfStimuli])
+        % set(gca, 'XTick', [])
+        % set(gca, 'YTick', [])
+        % set(gca,'Visible','off')
         return
 
     % two parameters: stimulus and decision (decision can only have two

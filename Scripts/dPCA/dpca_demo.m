@@ -45,7 +45,7 @@
 % combinedParams = {{1, [1 3]}, {2, [2 3]}, {3}, {[1 2], [1 2 3]}};
 % margNames = {'Stimulus', 'Decision', 'Condition-independent', 'S/D Interaction'};
 % As explained in the eLife paper, we group stimulus with stimulus/time interaction etc.:
-binWidth = 10; sTrials = 20;
+binWidth = 10; sTrials = 20; time=-.5:1/(1000/binWidth):1;
 currD= cellfun(@(v) squeeze(num2cell(permute(cell2mat(reshape(cellfun(@(d) downsampleTrials(max(0,d-0),sTrials),...
     v,'Uniformoutput',false),1,1,[])),[3 1 2]),[1,2])),vertcat(tablePSTHD), 'UniformOutput',false);
 currD =  cellfun(@(a)cellfun(@(u)max(0,u),a,'UniformOutput',false), currD,'UniformOutput',false);
@@ -68,8 +68,8 @@ firingRates = cellfun(@(c) cellfun(@(s) (conv2(resize(s(:,unique(round(ms_bins./
     'Pattern','edge','side','both'),transpose(gausswin(ceil(smoothWin/binWidth)))./sum(gausswin(ceil(smoothWin/binWidth))),'valid')),c,'UniformOutput',false),trialPSTH,'UniformOutput',false);
 firingRates = cellfun(@(t) reshape(cellfun(@(r) reshape(r(mv,:),sum(mv),1,[]),t,'UniformOutput',false),1,[]),firingRates,'UniformOutput',false);
 firingRates = cell2mat(permute(cat(4,firingRates{:}),[1 4 3 2]));
-%firingRates = cell2mat(cellfun(@(r) r(:,:,randperm(length(r))), num2cell(firingRates,3),'UniformOutput',false));
-%firingRatesAverage = mean(firingRates, length(size(firingRates)),'omitnan');
+%firingRates = cell2mat(cellfun(@(r) circshift(r,randi([2*binWidth,size(r,3)-2*binWidth],1),3), num2cell(firingRates,3),'UniformOutput',false));
+firingRatesAverage = mean(firingRates, length(size(firingRates)),'omitnan');
 trialNum = ones(size(firingRates,1:2)).*size(firingRates,length(size(firingRates)));
 combinedParams = {{1, [1 2]}, {2}};
 margNames = {'Condition','Condition-Independent'};
@@ -96,8 +96,8 @@ for n = 1:size(firingRates,1)
         end
     end
 end
-firingRatesAverage = cell2mat(cellfun(@(r) reshape(cell2mat(r),size(r{1},1),1,[]),cellfun(@(s) cellfun(@(t) cell2mat(cellfun(@(n)n,....(randperm(length(n))),...
-    num2cell(t(mv,unique(round(ms_bins./binWidth))),2),'UniformOutput',false)),s,'UniformOutput',false)',smoothedPSTH, 'UniformOutput',false),'UniformOutput',false));
+% firingRatesAverage = cell2mat(cellfun(@(r) reshape(cell2mat(r),size(r{1},1),1,[]),cellfun(@(s) cellfun(@(t) cell2mat(cellfun(@(n)circshift(n,randi([2*binWidth,length(n)-2*binWidth],1)),n,....(randperm(length(n))),...
+%     num2cell(t(mv,unique(round(ms_bins./binWidth))),2),'UniformOutput',false)),s,'UniformOutput',false)',trialPSTH, 'UniformOutput',false),'UniformOutput',false));
 somaIndex = contains(string(somaTable(mv)),["Arm","Hand"]);
 firingRatesAverage = firingRatesAverage(somaIndex,:,:);
 %% Step 1: PCA of the dataset
@@ -168,8 +168,7 @@ dpca_plot(firingRatesAverage, W, V, @dpca_plot_default, ...
 optimalLambda = dpca_optimizeLambda(firingRatesAverage, firingRates(somaIndex,:,:,:), trialNum(somaIndex,:), ...
     'combinedParams', combinedParams, ...
     'simultaneous', false, ...
-    'numRep', 10, ...  % increase this number to ~10 for better accuracy
-    'filename', 'tmp_optimalLambdas.mat');
+    'numRep', 10);
 
 Cnoise = dpca_getNoiseCovariance(firingRatesAverage, ...
     firingRates(somaIndex,:,:,:), trialNum(somaIndex,:), 'simultaneous', false,'type','pooled');
@@ -190,7 +189,7 @@ dpca_plot(firingRatesAverage, W, V, @dpca_plot_default, ...
     'time', time,                        ...
     'timeEvents', timeEvents,               ...
     'timeMarginalization', 2,           ...
-    'legendSubplot', 16);
+    'legendSubplot', {16,params.condNames},'numCompToShow',20 );
 
 %% Optional: estimating "signal variance"
 

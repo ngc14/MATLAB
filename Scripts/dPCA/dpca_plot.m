@@ -115,10 +115,10 @@ if ~isempty(options.whichMarg) && ...
                 moreComponents = [moreComponents setdiff(find(options.whichMarg == margRowSeq(i), 3), moreComponents)];
             end
         else
-            moreComponents = find(options.whichMarg == margRowSeq(i), 3);
+            moreComponents = find(options.whichMarg == margRowSeq(i), 6);
         end
         componentsToPlot = [componentsToPlot moreComponents];
-        subplots = [subplots (i-1)*4+2:(i-1)*4+2 + length(moreComponents) - 1];
+        subplots = [subplots repmat(2:4,1,round(length(moreComponents)/4))+ (4*round(linspace(2*(i-1),2*(i-1)+1,length(moreComponents))))];
     end
 else
     % if there are more than 4 marginalizatons
@@ -266,9 +266,8 @@ if ~isempty(options.whichMarg) && ...
    
     offsetX = 0.31;
     yposs = [0.9 0.65 0.45 0.25];
-
     for m = intersect(1:4, unique(options.whichMarg(componentsToPlot)))        
-        row = find(margRowSeq == m, 1);
+        row =  (2*find(margRowSeq == m, 1))-1;
         subplot(4,4,(row-1)*4+2)
         pos = get(gca, 'Position');
         
@@ -414,16 +413,16 @@ for pl = intersect(4:4:16, subplots)
     set(gca, 'Position', [pos(1)-0.02 pos(2) pos(3) pos(4)])
 end
 
+ax = findobj(gcf, 'Type', 'axes');
 % legend
 if ~isempty(options.legendSubplot)
-    s = subplot(4,4,options.legendSubplot);
-    delete(s)
-    subplot(4,4,options.legendSubplot)
-
+    s = ax(find(contains(string(cellfun(@(s) s.String,get(ax,'Title'),'UniformOutput',false)),"Component"),1));
+    %s = subplot(4,4,options.legendSubplot{1});
+    hold(s,'on');
     if ~isempty(options.X_extra)
         plotFunction('legend', size(options.X_extra))
     else
-        plotFunction('legend', size(Xfull))
+        plotFunction('legend', size(Xfull),[],[],[],[],[],options.legendSubplot{end})
     end
 end
 

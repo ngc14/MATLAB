@@ -47,13 +47,14 @@ if strcmp(data, 'legend')
         hold on
         
         for f = 1:numOfStimuli
-            plot([0.5 1], [f f], 'color', colors(f,:), 'LineWidth', 2)
-            text(1.2, f, ['Stimulus ' num2str(f)])
+            p(f) = plot([NaN NaN],[NaN NaN], 'color', colors(f,:), 'LineWidth', 2);
+            %text(1.2, f, ['Stimulus ' num2str(f)])
         end
-        plot([0.5 1], [-2 -2], 'k', 'LineWidth', 2)
-        plot([0.5 1], [-3 -3], 'k--', 'LineWidth', 2)
-        text(1.2, -2, 'Decision 1')
-        text(1.2, -3, 'Decision 2')
+        p(end+1) = plot([NaN NaN],[NaN NaN], 'k', 'LineWidth', 2);
+        p(end+1) = plot([NaN NaN],[NaN NaN], 'k--', 'LineWidth', 2);
+        legend(p,[condNames,"Reach","Manipulate"],'Location','northeast');
+        %text(1.2, -2, 'Decision 1')
+        %text(1.2, -3, 'Decision 2')
         
         axis([0 3 -4.5 1.5+numOfStimuli])
         set(gca, 'XTick', [])
@@ -111,8 +112,8 @@ elseif ndims(data) == 4 && size(data,3)==2
     colors = lines(numOfStimuli);
 
     for f=1:numOfStimuli 
-        plot(time, squeeze(data(1, f, 1, :)), 'color', colors(f,:), 'LineWidth', 2)
-        plot(time, squeeze(data(1, f, 2, :)), '--', 'color', colors(f,:), 'LineWidth', 2)
+        histogram(squeeze(data(1, f, 1, :)), 5,'Normalization','probability', 'FaceColor', colors(f,:), 'LineStyle','none');
+        histogram(squeeze(data(1, f, 2, :)), 5,'Normalization','probability', 'FaceColor', colors(f,:), 'LineWidth', .25,'LineStyle','--');
     end
 
 else

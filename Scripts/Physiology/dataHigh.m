@@ -102,7 +102,7 @@ segInds = cellfun(@(s) fix(s(mv,~all(isnan(s),1))),cellfun(@(n) n(:,arrayfun(@(c
 segVals = cellfun(@(i) findBins(params.bins(i),timeBins(1):1/(1000/binWidth):timeBins(end)),segInds,'UniformOutput',false);
 %% plot single dimension PCA
 saveDir = "S:\Lab\ngc14\Working\";
-somaIndex = contains(somaLabs,["Arm"]);
+somaIndex = contains(somaLabs,["Arm","Hand"]);
 somaReps = unique(somaLabs(somaIndex));
 num_dims = 20;
 if(PCATime & ~strcmpi(type,"state"))

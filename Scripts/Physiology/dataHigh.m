@@ -74,10 +74,10 @@ else
         mv = mv & mean(cell2mat(cellfun(@(n)cell2mat(n),fullResPSTH,'UniformOutput',false)),2,'omitnan').*1000>1;
     end
     trialLength = floor(size(fullResPSTH{1}{1}, 2) / binWidth);
-    fullResPSTH = cellfun(@(p) cellfun(@(c) cellfun(@(t) t(mv,:),c,'UniformOutput',false),p,'Uniformoutput',false),fullResPSTH,'Uniformoutput',false);
+    fullResPSTH = cellfun(@(c) cellfun(@(t) t(mv,:),c,'UniformOutput',false),fullResPSTH,'Uniformoutput',false);
     smoothedPSTH = cell(1,length(fullResPSTH));
     for n = 1:length(fullResPSTH)
-        smoothedPSTH{n} = repmat({NaN(length(mv),trialLength)},max(1,sTrials*plotTrials),1);
+        smoothedPSTH{n} = repmat({NaN(sum(mv),trialLength)},max(1,sTrials*plotTrials),1);
         for s = 1:length(smoothedPSTH{n})
             for t = 1:trialLength
                 iStart = binWidth * (t-1) + 1;
@@ -88,10 +88,9 @@ else
     end
     smoothedPSTH = cellfun(@(c) cellfun(@(s) (conv2(resize(s,[size(s,1),trialLength-1+floor(smoothWin/binWidth)],'Pattern','edge','side','both'),...
         transpose(gausswin(ceil(smoothWin/binWidth)))./sum(gausswin(ceil(smoothWin/binWidth))),'valid')),c,'UniformOutput',false),smoothedPSTH,'UniformOutput',false);
-    normBaseline = cellfun(@(p,t)cellfun(@(a,n) [max(1,median(cell2mat(reshape(cellfun(@(c,s) ...
-        permute(mean(c(:,findBins(s-5,params.bins(1:binWidth:end)):findBins(s-(1+rand(1)*3),params.bins(1:binWidth:end))),2,'omitnan').*binWidth,[1 3 2]),...
-        squeeze(num2cell(a,[2])),num2cell([ones(1,all(isnan(n(:,1))));n(~isnan(n(:,1)),1)]),'UniformOutput',false),...
-        [1,max(1,sum(~isnan(n(:,1))))])),3,'omitnan'));],p,t,'UniformOutput',false),smoothedPSTH,dSegs,"UniformOutput",false);
+    % normBaseline = cellfun(@(p,t)cellfun(@(a,n) [max(1,median(cell2mat(reshape(cellfun(@(c,s) permute(mean(c(:,findBins(s-5,params.bins(...
+    %     1:binWidth:end)):findBins(s-(1+rand(1)*3),params.bins(1:binWidth:end))),2,'omitnan').*binWidth,[1 3 2]),squeeze(num2cell(a,[2])),...
+    %     num2cell([ones(1,all(isnan(n(:,1))));n(~isnan(n(:,1)),1)]),'UniformOutput',false),[1,max(1,sum(~isnan(n(:,1))))])),3,'omitnan'));],p,t,'UniformOutput',false),smoothedPSTH,dSegs,"UniformOutput",false);
     %smoothedPSTH = cellfun(@(c,n) cellfun(@(s,b) s(:,:), c,n,'UniformOutput', false),smoothedPSTH, normBaseline, 'UniformOutput',false);
 end
 somaLabs = string(somaTable(mv));
@@ -155,15 +154,17 @@ for p = 0:(double(~contains(type,"traj",'IgnoreCase',true)))
 end
 %% DATAHIGH Dim Reduce
 somaColors = {[0 1 .2],[.8 0 1]};%
+somaColors = {[0 0 0]};
+somaReps={["Arm","Hand"]};
 if(PCATime & ~strcmpi(type,"state"))
-    projectUnits = arrayfun(@(s) cellfun(@(n) num2cell(n,1),squeeze(num2cell(scores(contains(somaLabs(somaIndex),somaReps(s)),:,:,:),[1 2])), 'UniformOutput',false),1:2, 'UniformOutput',false);
+    projectUnits = arrayfun(@(s) cellfun(@(n) num2cell(n,1),squeeze(num2cell(scores(contains(somaLabs(somaIndex),somaReps(s)),:,:,:),[1 2])), 'UniformOutput',false),1:length(somaReps), 'UniformOutput',false);
     projectUnits = cellfun(@(s) cellfun(@(t) cell2mat(cellfun(@(n,l) loadings(:,l)*mean(n),t,num2cell(1:length(t)),'UniformOutput',false))',s,'UniformOutput',false),projectUnits,'UniformOutput',false);
     projectUnits{end+1} = cellfun(@(a) cell2mat(cellfun(@(n,l) loadings(:,l)*mean(n),a,num2cell(1:length(a)),'UniformOutput',false))',cellfun(@(n) num2cell(n,1),squeeze(num2cell(scores,[1 2])), 'UniformOutput',false),'UniformOutput',false);
 else
     taskPSTHD= cellfun(@(s) cellfun(@(t) t(somaIndex,:),s,'UniformOutput',false)',fullResPSTH, 'UniformOutput',false);
     pcaMat = (cell2mat(cellfun(@cell2mat,taskPSTHD,'UniformOutput',false))');
-    projectUnits = arrayfun(@(r)  squeeze(cellfun(@squeeze,num2cell(num2cell(reshape((pcaMat(:,contains(somaLabs(somaIndex),somaReps(r)))...*loadings(contains(somaLabs(somaIndex),somaReps(r)),:)
-        )',sum(contains(somaLabs(somaIndex),somaReps(r))),size(taskPSTHD{1}{1},2),max(1,plotTrials*sTrials),[]),[1 2]),3),'UniformOutput',false))',1:length(somaReps),'UniformOutput',false);
+    projectUnits = arrayfun(@(r)  squeeze(cellfun(@squeeze,num2cell(num2cell(reshape((pcaMat(:,contains(somaLabs(somaIndex),somaReps{r}))...*loadings(contains(somaLabs(somaIndex),somaReps(r)),:)
+        )',sum(contains(somaLabs(somaIndex),somaReps{r})),size(taskPSTHD{1}{1},2),max(1,plotTrials*sTrials),[]),[1 2]),3),'UniformOutput',false))',1:length(somaReps),'UniformOutput',false);
     if(strcmpi(type,'state'))
         projectUnits = cellfun(@(s) squeeze(num2cell(reshape(cellfun(@(t) cell2mat(t'),s','UniformOutput',false),[],length(conditions),length(phases)),1)), projectUnits, 'UniformOutput',false);
         projectUnits = cellfun(@(s) reshape(cellfun(@(t) cell2mat(t'),s,'UniformOutput',false),[],1),projectUnits, 'UniformOutput',false);
@@ -179,11 +180,11 @@ if(length(projectUnits)>length(somaReps))
     % projectUnits{end+1} =cellfun(@(s) {vertcat(s{:})}, squeeze(cellfun(@squeeze,num2cell(num2cell(reshape((pcaMat(:,contains(somaLabs(somaIndex),somaReps))*...
     %     loadings(contains(somaLabs(somaIndex),somaReps),:))',size(pcaMat,2),size(taskPSTHD{1}{1},2),max(1,plotTrials*sTrials),[]),[1 2]),3),'Uniformoutput',false))', 'UniformOutput',false);
 end
-cls = cellfun(@(r) repmat({r},max(strcmpi(type,'traj')*(plotTrials*0),1),1),somaColors(1)','UniformOutput',false);
+cls = cellfun(@(r) repmat({r},max(strcmpi(type,'traj')*(plotTrials*0),1),1),somaColors','UniformOutput',false);
 cls = reshape(cellfun(@(v) repmat({v},length(conditions),1),vertcat(cls{:}),'UniformOutput',false),[],1);
 %cls={};cls{end+1} = colors.values';
 cTrials = arrayfun(@(d) {repmat(d,max(strcmpi(type,'traj')*plotTrials*0,1),1)},conditions,'UniformOutput',false)';
-cTrials = arrayfun(@(p) cellfun(@(c) cell2mat(cellfun(@(t) string(t)+"-"+string(p),c,'UniformOutput',false)),cTrials,'UniformOutput',false),somaReps,'UniformOutput',false);
+cTrials = cellfun(@(p) cellfun(@(c) cell2mat(cellfun(@(t) string(t)+"-"+join(p),c,'UniformOutput',false)),cTrials,'UniformOutput',false),somaReps,'UniformOutput',false);
 epochStarts = repmat(cellfun(@(e) e(:,all(e<size(taskPSTHD{1}{1},2),1)),num2cell(cell2mat(cellfun(@(s) round(mean((s-min(ms_bins)),1,'omitnan')),...%./binWidth,1,'omitnan')),...
     segInds,'UniformOutput',false)),2),'UniformOutput',false),length(somaReps),1);
 if(strcmpi(type,'traj'))
@@ -201,16 +202,12 @@ else
         dHiStruct(a).epochColors = hsv2rgb(max(min(dHiStruct(a).epochColors,1),0));%+([0 .25 -.25]*2*(contains(dHiStruct(a).condition,"Reach")-.5)),1),0));
     end
 end
-DataHigh(dHiStruct);
+%DataHigh(dHiStruct);
 tStruct = struct("A",cellfun(@transpose,{dHiStruct.data},'UniformOutput',false),'condition',{dHiStruct.condition},'epochStarts',{dHiStruct.epochStarts},'epochColors',{dHiStruct.epochColors});
-tStruct(1).A = tStruct(1).A(:,1:396);
-tStruct(2).A = tStruct(2).A(:,1:396);
-tStruct(3).A = tStruct(3).A(:,1:396);
 [Q_out, T_out] = tangleAnalysis(tStruct, params.binSize,'softenNorm',5 ,'timeStep',20,'withinConditionsOnly',true,'numPCs',20); % soft normalize neural data
+formattedScatter(Q_Arm, Q_Hand, {'Q_{Arm}','Q_{Hand}'});
 tangle_visualize(T_out);
 % [Q_hand, out_hand] = tangleAnalysis(tStruct(4:6), params.binSize,'softenNorm',5 ,'timeStep',timeStep,'withinConditionsOnly',false,'numPCs',20); % soft normalize neural data
-%%
-formattedScatter(Q_arm, Q_hand, {'Q_arm','Q_hand'});
 %% Get DATAHIGH data
 all_h = findall(groot,'Type','Figure');handles = guihandles(all_h(arrayfun(@(s) strcmp(s.Name,'DataHigh'),all_h)));
 D = guidata(all_h(arrayfun(@(s) strcmp(s.Name,'DataHigh'),all_h)));D= D.D;

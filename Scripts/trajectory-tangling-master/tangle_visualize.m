@@ -68,7 +68,7 @@ for tt = 1:step:sum(pairs2use)
    elseif q_T1(tt) > medtangling
       plotLine([1 .5 0],[1 .5 0]);
    else % low tangling
-      plotLine('y','k');
+      plotLine('g','k');
    end
    text(-2.2, -1, sprintf('t1: %1.0f, condition: %1.0f',t1, cond1),'FontSize',14,'HorizontalAl','left','Color','b')
    text(-2.2, -1.2, sprintf('t2: %1.0f, condition: %1.0f',t2, cond2),'FontSize',14,'HorizontalAl','left')
@@ -76,10 +76,12 @@ for tt = 1:step:sum(pairs2use)
    axis([-3 3 -3 2])
    
    if q_T1(tt) > hightangling
-      pause(.2)
+      pause(1)
+      disp("High tangling at t2= "+ num2str(t2))
       pause
    elseif q_T1(tt) > medtangling
       pause(.1)
+      disp("Medium tangling at t2= "+ num2str(t2))
       pause
    else % low tangling
       pause

@@ -54,7 +54,6 @@ firingRates = cellfun(@(c) cellfun(@(s) (conv2(resize(s(:,unique(round(ms_bins./
 firingRates = cellfun(@(t) reshape(cellfun(@(r) reshape(r(mv,:),sum(mv),1,[]),t,'UniformOutput',false),1,[]),firingRates,'UniformOutput',false);
 firingRates = cell2mat(permute(cat(4,firingRates{:}),[1 4 3 2]));
 %firingRates = cell2mat(cellfun(@(r) circshift(r,randi([2*binWidth,size(r,3)-2*binWidth],1),3), num2cell(firingRates,3),'UniformOutput',false));
-firingRates = pcaSpikes;
 firingRatesAverage = mean(firingRates, length(size(firingRates)),'omitnan');
 trialNum = ones(size(firingRates,1:2)).*size(firingRates,length(size(firingRates)));
 combinedParams = {{1}, {2}, {[1 2]}};

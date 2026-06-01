@@ -54,12 +54,12 @@ firingRates = cellfun(@(c) cellfun(@(s) (conv2(resize(s(:,unique(round(ms_bins./
 firingRates = cellfun(@(t) reshape(cellfun(@(r) reshape(r(mv,:),sum(mv),1,[]),t,'UniformOutput',false),1,[]),firingRates,'UniformOutput',false);
 firingRates = cell2mat(permute(cat(4,firingRates{:}),[1 4 3 2]));
 %firingRates = cell2mat(cellfun(@(r) circshift(r,randi([2*binWidth,size(r,3)-2*binWidth],1),3), num2cell(firingRates,3),'UniformOutput',false));
-firingRatesAverage = mean(firingRates, length(size(firingRates)),'omitnan');
 trialNum = ones(size(firingRates,1:2)).*size(firingRates,length(size(firingRates)));
-combinedParams = {{1}, {2}, {[1 2]}};
-margNames = {'Condition','Phase','Interaction'};
+combinedParams = {{1,[1 2]}, {2}};
+margNames = {'Condition','Condition-Invariant'};
 margColours = [23 100 171; 200 160 43; 150 150 150;]/256;
-timeEvents = []%time(round(mean(cell2mat(cellfun(@(i) findBins(params.bins(i),timeBins(1):1/(1000/binWidth):timeBins(end)),segInds,'UniformOutput',false)),1,'omitnan')));
+timeEventConds = cell2mat(cellfun(@(i) mean(findBins(params.bins(i),timeBins(1):1/(1000/binWidth):timeBins(end)),1,'omitnan'),segInds,'UniformOutput',false));
+timeEvents = time(round([mean(timeEventConds(:,1:2),1,'omitnan'),timeEventConds(3,3),mean([timeEventConds(1,3);timeEventConds(2,3)],1,'omitnan')]));
 % For two parameters (e.g. stimulus and time, but no decision), we would have
 % firingRates array of [N S T E] size (one dimension less and marginalizations:
 %    1 - stimulus
@@ -75,8 +75,7 @@ for n = 1:size(firingRates,1)
     end
 end
 % firingRatesAverage = cell2mat(cellfun(@(r) reshape(cell2mat(r),size(r{1},1),1,[]),cellfun(@(s) cellfun(@(t) cell2mat(cellfun(@(n)circshift(n,randi([2*binWidth,length(n)-2*binWidth],1)),n,num2cell(t(mv,unique(round(ms_bins./binWidth))),2),'UniformOutput',false)),s,'UniformOutput',false)',trialPSTH, 'UniformOutput',false),'UniformOutput',false));
-somaIndex = contains(string(somaTable(mv)),["Arm","Hand"]);
-firingRatesAverage = firingRatesAverage(somaIndex,:,:);
+firingRatesAverage = mean(firingRates(:,:,:,:), length(size(firingRates)),'omitnan');
 %% Step 1: PCA of the dataset
 X = firingRatesAverage(:,:);
 X = bsxfun(@minus, X, mean(X,2));
@@ -107,23 +106,23 @@ dpca_plot(firingRatesAverage, W, V, @dpca_plot_default, ...
 % Once computed, you can simply load lambdas out of file:load('tmp_optimalLambdas.mat', 
 % 'optimalLambda'). Note that this now includes noise covariance matrix 
 % Cnoise which provides substantial regularization itself (even with lambda=0).
+somaIndex = contains(string(somaTable(mv)),["Arm","Hand"]);
 optimalLambda = dpca_optimizeLambda(firingRatesAverage(somaIndex,:,:), ...
     firingRates(somaIndex,:,:,:), trialNum(somaIndex,:), ...
     'combinedParams', combinedParams, 'simultaneous', false,'numRep', 10);
 Cnoise = dpca_getNoiseCovariance(firingRatesAverage(somaIndex,:,:), ...
     firingRates(somaIndex,:,:,:), trialNum(somaIndex,:), 'simultaneous', false,'type','pooled');
-dims=10;
-[W,V,whichMarg] = dpca(firingRates(somaIndex,:,:,:), dims,'combinedParams', combinedParams,'lambda', optimalLambda,'Cnoise', Cnoise);
-explVar = dpca_explainedVariance(firingRates(somaIndex,:,:,:), W, V, 'combinedParams', combinedParams);
-dpca_plot(firingRates(somaIndex,:,:,:), W, V, @dpca_plot_default, ...
+[W,V,whichMarg] = dpca(firingRatesAverage(somaIndex,:,:,:),20,'combinedParams', combinedParams,'lambda', optimalLambda,'Cnoise', Cnoise);
+explVar = dpca_explainedVariance(firingRatesAverage(somaIndex,:,:,:), W, V, 'combinedParams', combinedParams);
+dpca_plot(firingRatesAverage(somaIndex,:,:,:), W, V, @dpca_plot_default, ...
     'explainedVar', explVar, ...
     'marginalizationNames', margNames, ...
     'marginalizationColours', margColours, ...
     'whichMarg', whichMarg,                 ...
-    'time', [-50 50],                        ...
-    'timeEvents', [],               ...
-    'timeMarginalization', [],           ...
-    'legendSubplot', {16,params.condNames},'numCompToShow',dims,'ylims',[.5,.5,.5]);
+    'time', time,                        ...
+    'timeEvents', timeEvents,               ...
+    'timeMarginalization', 2,           ...
+    'legendSubplot', {16,params.condNames},'ylims',[]);
 %%
 X = firingRatesAverage(:,:)';
 Xcen = bsxfun(@minus, X, mean(X));

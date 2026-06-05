@@ -1,8 +1,8 @@
 model = "GilliganSkipper_ArmHand";
-type = 'State';
+type = 'Traj';
 centered="on";
 PCATime = false;
-plotTrials = true;
+plotTrials = false;
 num_dims=5;
 sTrials = 20;
 timeBins = [-.5, 1];
@@ -103,7 +103,7 @@ segVals = cellfun(@(i) findBins(params.bins(i),timeBins(1):1/(1000/binWidth):tim
 saveDir = "S:\Lab\ngc14\Working\";
 somaIndex = contains(somaLabs,["Arm","Hand"]);
 somaReps = unique(somaLabs(somaIndex));
-num_dims = 20;
+num_dims = 4;
 if(PCATime & ~strcmpi(type,"state"))
     savePre = saveDir + "PCA_Time\";
     taskPSTHD = cellfun(@(s) cellfun(@(t) t(somaIndex,unique(round(ms_bins./binWidth))'),s,'UniformOutput',false),smoothedPSTH, 'UniformOutput',false);
@@ -114,7 +114,8 @@ else
     savePre = saveDir + "DataHigh\";
     taskPSTHD= cellfun(@(s) cellfun(@(t) t(somaIndex,unique(round(ms_bins./binWidth))),... cell2mat(cellfun(@(s) s(randperm(length(s))),num2cell(
         s,'UniformOutput',false)',smoothedPSTH, 'UniformOutput',false);
-    pcaMat = zscore(cell2mat(cellfun(@cell2mat,taskPSTHD,'UniformOutput',false))');
+    pcaMat = cell2mat(cellfun(@cell2mat,taskPSTHD,'UniformOutput',false))';
+    pcaMat = bsxfun(@minus, pcaMat, mean(pcaMat,2));%zscore(taskPSTHD);
     variableWeights = ones(1,size(pcaMat,2));%arrayfun(@(s) 1/(sum(strcmp(somaLabs(somaIndex),s))),somaLabs(somaIndex))./2;
     rowWeights = ones(1,size(pcaMat,1));
 end
@@ -134,6 +135,8 @@ else
     condScores= arrayfun(@(c) reshape(scores([1:(max(1,sTrials*plotTrials)*size(taskPSTHD{1}{1},2))]+(c*(max(1,sTrials*plotTrials)...
         *size(taskPSTHD{1}{1},2))),:),size(taskPSTHD{1}{1},2),[],size(scores,2)),0:length(conditions)-1,'UniformOutput',false);
     somaProj = projectData(somaLabs(somaIndex),taskPSTHD,num_dims,loadings);
+    first3Proj = cellfun(@(c) cellfun(@(t) transpose(t'*loadings(:,1:3)),c,'UniformOutput',false),taskPSTHD,'UniformOutput',true);
+
     if(strcmpi(type,'state'))
         allClusters = cellfun(@(s) cellfun(@cell2mat,s,'UniformOutput',false),somaProj,'UniformOutput',false);
         allClusters = cellfun(@(c) cell2mat(cellfun(@(s) mean(s,2,'omitnan'),c,'UniformOutput',false)),allClusters,'UniformOutput',false);
@@ -144,7 +147,7 @@ else
     end
                 %somaProj{s}{c}(n,:) =  cellfun(@(w)w'*mean(loadings(somaLabs==somaReps(s),n),1)',squeeze(num2cell(condScores{c}(:,:,n),1)),'UniformOutput',false)';
 end
-if(strcmpi(centered,'on'));savePre = savePre+"Centered\Hand\";else;savePre = savePre+"Non-Centered\";end
+if(strcmpi(centered,'on'));savePre = savePre+"Centered\";else;savePre = savePre+"Non-Centered\";end
 newSaveDir = savePre + type +"\";
 if(~plotTrials & strcmpi(type,'traj'));newSaveDir = newSaveDir{1}(1:end-1)+"_AVG\";end
 for p = 0:(double(~contains(type,"traj",'IgnoreCase',true)))

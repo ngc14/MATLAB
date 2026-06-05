@@ -112,7 +112,7 @@ optimalLambda = dpca_optimizeLambda(firingRatesAverage(somaIndex,:,:), ...
     'combinedParams', combinedParams, 'simultaneous', false,'numRep', 10);
 Cnoise = dpca_getNoiseCovariance(firingRatesAverage(somaIndex,:,:), ...
     firingRates(somaIndex,:,:,:), trialNum(somaIndex,:), 'simultaneous', false,'type','pooled');
-[W,V,whichMarg] = dpca(firingRatesAverage(somaIndex,:,:,:),20,'combinedParams', combinedParams,'lambda', optimalLambda,'Cnoise', Cnoise);
+[W,V,whichMarg] = dpca(firingRatesAverage(somaIndex,:,:,:),50,'combinedParams', combinedParams,'lambda', optimalLambda,'Cnoise', Cnoise);
 explVar = dpca_explainedVariance(firingRatesAverage(somaIndex,:,:,:), W, V, 'combinedParams', combinedParams);
 dpca_plot(firingRatesAverage(somaIndex,:,:,:), W, V, @dpca_plot_default, ...
     'explainedVar', explVar, ...
@@ -123,10 +123,44 @@ dpca_plot(firingRatesAverage(somaIndex,:,:,:), W, V, @dpca_plot_default, ...
     'timeEvents', timeEvents,               ...
     'timeMarginalization', 2,           ...
     'legendSubplot', {16,params.condNames},'ylims',[]);
-%%
-X = firingRatesAverage(:,:)';
+%
+X = firingRatesAverage(somaIndex,:)';
 Xcen = bsxfun(@minus, X, mean(X));
 Z = Xcen * W;
+%%
+dataDim = size(firingRatesAverage);
+first3Proj = reshape(Z(:,[find(whichMarg==2,3),find(whichMarg==1,3)])', [length([find(whichMarg==2,3),find(whichMarg==1,3)]) dataDim(2:end)]);
+figure();
+for c = 1:3
+    subplot(1,3,c); hold on; title(conditions(c));
+    plot3(squeeze(first3ProjArm(1,c,:)),squeeze(first3ProjArm(2,c,:)),squeeze(first3ProjArm(3,c,:)),'Color',[0 1 .2]);
+    plot3(squeeze(first3ProjHand(1,c,:)),squeeze(first3ProjHand(2,c,:)),squeeze(first3ProjHand(3,c,:)),'Color',[.8 0 1])
+    arrayfun(@(e) scatter3(first3ProjArm(1,c,e),first3ProjArm(2,c,e),first3ProjArm(3,c,e),'filled','MarkerFaceColor',[0 1 .2]), round(mean(segVals{c}(:,1:3),1,'omitnan')))
+    arrayfun(@(e) scatter3(first3ProjHand(1,c,e),first3ProjHand(2,c,e),first3ProjHand(3,c,e),'filled','MarkerFaceColor',[.8 0 1]), round(mean(segVals{c}(:,1:3),1,'omitnan')))
+    all3Dim = squeeze(mean(first3ProjArm,2,'omitnan')); scatter3(all3Dim(1,1),all3Dim(2,1),all3Dim(3,1),'black','*','sizeData',550)
+    all3Dim = squeeze(mean(first3ProjHand,2,'omitnan')); scatter3(all3Dim(1,1),all3Dim(2,1),all3Dim(3,1),'black','*','sizeData',550)
+    view(10,15);
+end
+saveFigures(gcf,"S:\Lab\ngc14\Working\DataHigh\Centered\Demixed\","Traj-Condition-Invariant",[]);
+arrayfun(@(a) view(a,90,0), gcf().Children);
+saveFigures(gcf,"S:\Lab\ngc14\Working\DataHigh\Centered\Demixed\","2DTraj-Condition-Invariant",[]);
+
+
+figure();
+for c = 1:3
+    subplot(1,3,c); hold on; title(conditions(c));
+    plot3(squeeze(first3ProjArm(4,c,:)),squeeze(first3ProjArm(5,c,:)),squeeze(first3ProjArm(6,c,:)),'Color',[0 1 .2]);
+    plot3(squeeze(first3ProjHand(4,c,:)),squeeze(first3ProjHand(5,c,:)),squeeze(first3ProjHand(6,c,:)),'Color',[.8 0 1])
+    arrayfun(@(e) scatter3(first3ProjArm(4,c,e),first3ProjArm(5,c,e),first3ProjArm(6,c,e),'filled','MarkerFaceColor',[0 1 .2]), round(mean(segVals{c}(:,1:3),1,'omitnan')))
+    arrayfun(@(e) scatter3(first3ProjHand(4,c,e),first3ProjHand(5,c,e),first3ProjHand(6,c,e),'filled','MarkerFaceColor',[.8 0 1]), round(mean(segVals{c}(:,1:3),1,'omitnan')))
+    all3Dim = squeeze(mean(first3ProjArm,2,'omitnan')); scatter3(all3Dim(4,1),all3Dim(5,1),all3Dim(6,1),'black','*','sizeData',550)
+    all3Dim = squeeze(mean(first3ProjHand,2,'omitnan')); scatter3(all3Dim(4,1),all3Dim(5,1),all3Dim(6,1),'black','*','sizeData',550)
+    view(10,15);
+end
+saveFigures(gcf,"S:\Lab\ngc14\Working\DataHigh\Centered\Demixed\","Traj-Condition",[]);
+arrayfun(@(a) view(a,90,0), gcf().Children);
+saveFigures(gcf,"S:\Lab\ngc14\Working\DataHigh\Centered\Demixed\","2DTraj-Condition",[]);
+
 a = corr(Z(:,1:dims));
 b = V(:,1:dims)'*V(:,1:dims);
 [~, psp] = corr(V(:,1:dims), 'type', 'Kendall');

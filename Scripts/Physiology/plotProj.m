@@ -80,7 +80,7 @@ for n = 1:3
     else
         tileorder = 'columnmajor';
     end
-    tl=tiledlayout(length(conditions)*(n==1)+((n>1)*min(5,num_dims)),max(n*length(somaReps),length(conditions)*(n>2)*ceil(num_dims/5)),'TileIndexing',tileorder,'TileSpacing','none','Padding','tight');
+    tl=tiledlayout(length(conditions)*(n==1)+((n>1)*min(5,num_dims)),max(length(somaReps),length(conditions)*(n>2)*ceil(num_dims/5)),'TileIndexing',tileorder,'TileSpacing','none','Padding','tight');
     for c = 1:length(conditions)
         for s =1:length(somaReps)+(n==3 & length(somaProj)>length(somaReps))
             weightedPSTHS = cell2mat(somaProj{s}{c});%(pcaMatrix.*loadings(:,n)').*(condSomaInd./condSomaInd),2,'omitnan');
@@ -146,6 +146,7 @@ for n = 1:3
         cellfun(@(a) set(a,'XTickLabels',linspace(timeBins(1),timeBins(end),length(get(a,'XTick')))),ax);
         cellfun(@(a) set(a,'XTickLabels',[]),ex(setdiff(1:prod(tl.GridSize),tilenum(tl,tl.GridSize(1),1:tl.GridSize(end)))));
         cellfun(@(a) set(a,'XLim',[0 size(weightedPSTHS,2)]),ax);
+        cellfun(@(a) set(a,'YLim',[-3 3]),ax);
         cellfun(@(a) set(a,'YAxisLocation','right'),ex(tilenum(tl,1:tl.GridSize(1),tl.GridSize(end))));
         cellfun(@(a) arrayfun(@(x) plot(a,[x,x], get(a,'YLim'),'k--','LineWidth', 1.5),condSegs(1:2+(n==3))),ax);
         if(n<3)

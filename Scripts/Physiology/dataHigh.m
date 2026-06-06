@@ -103,7 +103,6 @@ segVals = cellfun(@(i) findBins(params.bins(i),timeBins(1):1/(1000/binWidth):tim
 saveDir = "S:\Lab\ngc14\Working\";
 somaIndex = contains(somaLabs,["Arm","Hand"]);
 somaReps = unique(somaLabs(somaIndex));
-num_dims = 4;
 if(PCATime & ~strcmpi(type,"state"))
     savePre = saveDir + "PCA_Time\";
     taskPSTHD = cellfun(@(s) cellfun(@(t) t(somaIndex,unique(round(ms_bins./binWidth))'),s,'UniformOutput',false),smoothedPSTH, 'UniformOutput',false);

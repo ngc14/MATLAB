@@ -7,11 +7,7 @@ alignWindows = {[-.5 2.5]};
 phaseWindows = {[0 0.2],[-.15 .05],[-.2 0.0],[-.15 .05]};
 gap = .1;
 smoothKernel = .15; 
-groupings = {{"Deltoid.mat","Biceps.mat","Triceps.mat"},...
-    {"Wrist Extensor.mat","Wrist Flexor.mat","Digit Extensor.mat","Digit Flexor.mat"}};
 muscles = string([groupings{:}]);
-groupInds = cellfun(@(g) contains(muscles,string(g)), groupings, 'UniformOutput',false);
-groupNames = cellfun(@(g) cellfun(@(s) string(s{1}(1:end-4)),g), groupings,'UniformOutput',false);
 saveFigs = true;
 savePath = "C:\Users\ngc14\Desktop\";
 if(saveFigs && ~exist(savePath,'dir'))
@@ -86,12 +82,13 @@ for c = 1:length(Conditions)
             allSessionSegs(c,:),'UniformOutput',false);
     end
 end
-%% BOX PLOTS %%
+%% Grouping
+groupings = {{"Deltoid.mat","Biceps.mat","Triceps.mat"},...
+    {"Wrist Extensor.mat","Wrist Flexor.mat","Digit Extensor.mat","Digit Flexor.mat"}};
+groupings = num2cell([groupings{:}]);
+groupInds = cellfun(@(g) contains(muscles,string(g)), groupings, 'UniformOutput',false);
+groupNames = cell2mat(cellfun(@(g) strjoin(cellfun(@(s) string(s{1}(1:end-4)),g)), groupings,'UniformOutput',false));
 rawActivity = {};
-FStat = [];
-stats = {};
-cmpNames = join([nchoosek(Conditions,2)],',')';
-cmpColors = dictionary(cmpNames,{[1 0 1], [0 1 1], [1 .7 0]});
 for g = 1:length(groupInds)
     currGroup = cellfun(@(ms) ms(groupInds{g}), alignedSig, 'UniformOutput', false);
     for a = 1:length(alignments)
@@ -105,7 +102,7 @@ for g = 1:length(groupInds)
             mu, 'UniformOutput',false)), currGroup(:,a), 'UniformOutput',false);
     end
 end
-%%
+%% BOX PLOTS %%
 currGroup = [];
 for n = 1:numel(rawActivity)
     [r,c] = ind2sub(size(rawActivity),n);
@@ -135,17 +132,16 @@ for n = 1:numel(rawActivity)
     end
 end
 %% TIMECOURSES %%
-close all;
 pColors =([.7 0 0; .8 .4 0; 0 0 .7; 0 0 0]);
 pColors = repmat({{[.8 0 .8],[0 .8 0]}},1,3);
+pColors = repmat({num2cell(distinguishable_colors(length(groupings)),2)'},length(Conditions),1);
 % fx = arrayfun(@gca,arrayfun(@(f) figure('Units','normalized','Position',[0 0 1 1]),...
 %     1:length(groupings)),'UniformOutput', false);
 % cellfun(@(f) hold(f,'on'),fx);
 l={};
 for c = 1:length(Conditions)
-    fx{c} = gca(figure('Units','normalized','Position',[0 0 1 1])); hold on;
+    fx{c} = nexttile(); hold on; title(Conditions(c));
     currEventSegs = ConditionSegs(c);
-    numSegs = length(currEventSegs);
     plotted = false(length(groupInds),length(currEventSegs));
     plotted(:,contains(string(currEventSegs{1}),["StartGrasp","StartReplaceHold"])) = true;
     mSegs = cellfun(@(mc) cellfun(@(g) mean(mc(g,:),1,'omitnan'), groupInds, 'UniformOutput', false),...
@@ -183,11 +179,9 @@ for c = 1:length(Conditions)
                         (~plotted(g,s) || avgSegs{g}(s)==plotStart))
                     plotted(g,s) = true;
                     if(avgSegs{g}(s)==plotStart)
-                        plotColor = [.4 .4 .4];
-                    elseif(contains(Conditions(c), 'Sphere') && s==4)
-                        plotColor = [.7 0 .7];
+                        plotColor = [.2 .2 .2];
                     else
-                        plotColor = pColors(c,:);%[.7 .7 .7];%
+                        plotColor = [.8 .8 .8];%
                     end
                     plot([avgSegs{g}(s) avgSegs{g}(s)],[-0 1],'Color',plotColor,'LineStyle','--');
                 end
@@ -195,6 +189,8 @@ for c = 1:length(Conditions)
         end
         xTicks{align} = plotStart+[wind(1) 0 wind(end)];
     end
+    pl = cellfun(@(le) plot(NaN,NaN,'LineWidth',1,'Color',le),pColors{c});
+    legend(pl,groupNames);
 end
 yL = [0 1];
 xlim([fx{:}],[xTicks{1}(1), xTicks{end}(end)]);

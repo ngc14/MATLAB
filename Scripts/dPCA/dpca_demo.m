@@ -80,13 +80,13 @@ dpca_plot(firingRatesAverage, W, V, @dpca_plot_default,'explainedVar', explVar, 
 %% Step 4: dPCA with regularization
 %load('optimalLambda'). Note that it includes noise covariance matrix Cnoise 
 % which provides substantial regularization itself (even with lambda=0).
-somaIndex = contains(string(somaTable(mv)),["Arm","Hand"]);
+somaIndex = contains(string(somaTable(mv)),["Arm","Hand"]); numRep = 10; dims = 20;
 optimalLambda = dpca_optimizeLambda(firingRatesAverage(somaIndex,:,:), ...
     firingRates(somaIndex,:,:,:), trialNum(somaIndex,:), ...
-    'combinedParams', combinedParams, 'simultaneous', false,'numRep', 10);
+    'combinedParams', combinedParams, 'simultaneous', false,'numRep', numRep);
 Cnoise = dpca_getNoiseCovariance(firingRatesAverage(somaIndex,:,:), ...
     firingRates(somaIndex,:,:,:), trialNum(somaIndex,:), 'simultaneous', false,'type','pooled');
-[W,V,whichMarg] = dpca(firingRatesAverage(somaIndex,:,:,:),50,'combinedParams', combinedParams,'lambda', optimalLambda,'Cnoise', Cnoise);
+[W,V,whichMarg] = dpca(firingRatesAverage(somaIndex,:,:,:),dims,'combinedParams', combinedParams,'lambda', optimalLambda,'Cnoise', Cnoise);
 explVar = dpca_explainedVariance(firingRatesAverage(somaIndex,:,:,:), W, V, 'combinedParams', combinedParams);
 dpca_plot(firingRatesAverage(somaIndex,:,:,:), W, V, @dpca_plot_default, ...
     'explainedVar', explVar,'marginalizationNames', margNames, 'marginalizationColours', margColours, ...
@@ -97,9 +97,10 @@ X = firingRatesAverage(somaIndex,:)';
 Xcen = bsxfun(@minus, X, mean(X));
 Z = Xcen * W;
 first3Proj = reshape(Z(:,[find(whichMarg==2,3),find(whichMarg==1,3)])', [length([find(whichMarg==2,3),find(whichMarg==1,3)]) dataDim(2:end)]);
-%[W,~,~] = svd(Xcen, 'econ'); W = W(:,1:20);
+%[W,~,~] = svd(Xcen, 'econ'); W = W(:,1:dims);
 %%
 saveFig = false; lineColor = [.8 0 1];% [0 1 .2];
+savePath = "S:\Lab\ngc14\Working\DataHigh\Centered\Demixed\";
 figure(1);
 for c = 1:length(conditions)
     subplot(1,3,c); hold on; title(conditions(c));
@@ -111,8 +112,7 @@ for c = 1:length(conditions)
 end
 % XY:view(0,90); XZ:view(0,0); YZ:view(90,0);
 if(saveFig)
-    saveFigures(figure(1),"S:\Lab\ngc14\Working\DataHigh\Centered\Demixed\","Traj-Condition-Invariant",[]);
-    arrayfun(@(a) view(a,0,90), gcf().Children); saveFigures(figure(1),"S:\Lab\ngc14\Working\DataHigh\Centered\Demixed\","2DTraj-Condition-Invariant",[]);
+    saveFigures(figure(1),savePath,"Traj-CondInvariant",[]);arrayfun(@(a)view(a,0,90),gcf().Children); saveFigures(figure(1),savePath,"2DTraj-CondInvariant",[]);
 end
 figure(2);
 for c = 1:length(conditions)
@@ -124,8 +124,7 @@ for c = 1:length(conditions)
     view(10,15);
 end
 if(saveFig)
-    saveFigures(figure(2),"S:\Lab\ngc14\Working\DataHigh\Centered\Demixed\","Traj-Condition",[]);
-    arrayfun(@(a) view(a,0,90), gcf().Children); saveFigures(figure(2),"S:\Lab\ngc14\Working\DataHigh\Centered\Demixed\","2DTraj-Condition",[]);
+    saveFigures(figure(2),savePath,"Traj-Cond",[]);arrayfun(@(a)view(a,0,90),gcf().Children);saveFigures(figure(2),savePath,"2DTraj-Cond",[]);
 end
 %%
 a = corr(Z);b = V'*V;[~, psp] = corr(V(:,1:20), 'type', 'Kendall');

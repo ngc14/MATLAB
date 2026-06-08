@@ -4,37 +4,35 @@
 % N is the number of neurons
 % S is the number of stimuli conditions (F1 frequencies in Romo's task)
 % D is the number of decisions (D=2)
-% T is the number of timepoints (note: all trials should have same length in time!)
-%
-% trialNum -- number of trials for each neuron in each S,D condition (is
-% usually different for different conditions and different sessions)
-%
+% T is the number of timepoints (note:trials should have same length in time)
+% trialNum -- number of trials for each neuron in each S,D condition 
 % firingRates -- all single-trial data together, massive array. Here
-% maxTrialNum is the maximum value in trialNum. For the neurons and 
-% conditions with less,fill remaining entries in firingRates with 0 or nans.
-%
-% firingRatesAverage -- average of firingRates over trials (5th dimension).
 % If it's filled up with zeros 
 %    firingRatesAverage = bsxfun(@times, mean(firingRates,5), size(firingRates,5)./trialNum)
 binWidth = 10; sTrials = 20; time=-.5:1/(1000/binWidth):1;
+combinedParams = {{1,[1 2]}, {2}};
+margNames = {'Condition','Condition-Invariant'};
+margColours = [23 100 171; 200 160 43; 150 150 150;]/256;
+timeEventConds = cell2mat(cellfun(@(i) mean(findBins(params.bins(i),time(1):1/(1000/binWidth):time(end)),1,'omitnan'),segInds,'UniformOutput',false));
+timeEvents = time(round([mean(timeEventConds(:,1:2),1,'omitnan'),timeEventConds(3,3),mean([timeEventConds(1,3);timeEventConds(2,3)],1,'omitnan')]));
 currD= cellfun(@(v) squeeze(num2cell(permute(cell2mat(reshape(cellfun(@(d) downsampleTrials(max(0,d-0),sTrials),...
     v,'Uniformoutput',false),1,1,[])),[3 1 2]),[1,2])),vertcat(tablePSTHD), 'UniformOutput',false);
 currD =  cellfun(@(a)cellfun(@(u)max(0,u),a,'UniformOutput',false), currD,'UniformOutput',false);
 %% Define parameter grouping
-% firingRates array has [N S D T E] size; here we ignore the 1st dimension 
-% (neurons), i.e. we have the following parameters:
-%    1 - stimulus 
-%    2 - decision
-%    3 - time
-% There are three pairwise interactions:
+% firingRates array has [N S D T E] size; ignore the 1st dimension (neurons)
+% marginalizations: 1 - stimulus, 2 - decision, 3 - time
+% 3 pairwise interactions:
 %    [1 3] - stimulus/time interaction
 %    [2 3] - decision/time interaction
 %    [1 2] - stimulus/decision interaction
-% And one three-way interaction:
+% 1 three-way interaction:
 %    [1 2 3] - rest
 % combinedParams = {{1, [1 3]}, {2, [2 3]}, {3}, {[1 2], [1 2 3]}};
 % margNames = {'Stimulus', 'Decision', 'Condition-independent', 'S/D Interaction'};
-% As explained in the paper, we group stimulus with stimulus/time interaction etc.:
+%
+% For two parameters (stimulus and time), firingRates array of size [N S T E]
+% marginalizations: 1 - stimulus, 2 - time, [1 2] - stimulus/time interaction
+%    combinedParams = {{1, [1 2]}, {2}}
 mv = sum(cell2mat(cellfun(@(m)mean(cell2mat(m),2,'omitnan').*1000>1,num2cell([currD{:}],2),'UniformOutput',false)'),2)>sTrials/2 | ...
     mean(cell2mat(cellfun(@(n)mean(cat(3,n{:}),3,'omitnan'),currD,'UniformOutput',false)),2,'omitnan').*1000>1;
 trialLength = floor(size(currD{1}{1}, 2) / binWidth);
@@ -45,28 +43,17 @@ for n = 1:length(currD)
         for t = 1:trialLength
             iStart = binWidth * (t-1) + 1;
             iEnd   = binWidth *t;
-            trialPSTH{n}{s}(:,t) = sum(currD{n}{s}(:,iStart:iEnd),2);%normpdf(ceil(3*smoothWin/binWidth)*binWidth:binWidth:binWidth*ceil(3*smoothWin/binWidth),0,smoothWin)
+            trialPSTH{n}{s}(:,t) = sum(currD{n}{s}(:,iStart:iEnd),2);
         end
     end
 end
-firingRates = cellfun(@(c) cellfun(@(s) (conv2(resize(s(:,unique(round(ms_bins./binWidth))),[size(s,1),length(unique(round(ms_bins./binWidth)))+length(gausswin(ceil(smoothWin/binWidth)))-1],...
+firingRates = cellfun(@(c) cellfun(@(s) (conv2(resize(s(:,unique(round(...
+    ms_bins./binWidth))),[size(s,1),length(unique(round(ms_bins./binWidth)))+length(gausswin(ceil(smoothWin/binWidth)))-1],...
     'Pattern','edge','side','both'),transpose(gausswin(ceil(smoothWin/binWidth)))./sum(gausswin(ceil(smoothWin/binWidth))),'valid')),c,'UniformOutput',false),trialPSTH,'UniformOutput',false);
 firingRates = cellfun(@(t) reshape(cellfun(@(r) reshape(r(mv,:),sum(mv),1,[]),t,'UniformOutput',false),1,[]),firingRates,'UniformOutput',false);
 firingRates = cell2mat(permute(cat(4,firingRates{:}),[1 4 3 2]));
 %firingRates = cell2mat(cellfun(@(r) circshift(r,randi([2*binWidth,size(r,3)-2*binWidth],1),3), num2cell(firingRates,3),'UniformOutput',false));
 trialNum = ones(size(firingRates,1:2)).*size(firingRates,length(size(firingRates)));
-combinedParams = {{1,[1 2]}, {2}};
-margNames = {'Condition','Condition-Invariant'};
-margColours = [23 100 171; 200 160 43; 150 150 150;]/256;
-timeEventConds = cell2mat(cellfun(@(i) mean(findBins(params.bins(i),timeBins(1):1/(1000/binWidth):timeBins(end)),1,'omitnan'),segInds,'UniformOutput',false));
-timeEvents = time(round([mean(timeEventConds(:,1:2),1,'omitnan'),timeEventConds(3,3),mean([timeEventConds(1,3);timeEventConds(2,3)],1,'omitnan')]));
-% For two parameters (e.g. stimulus and time, but no decision), we would have
-% firingRates array of [N S T E] size (one dimension less and marginalizations:
-%    1 - stimulus
-%    2 - time
-%    [1 2] - stimulus/time interaction
-%    combinedParams = {{1, [1 2]}, {2}}
-% check consistency between trialNum and firingRates
 for n = 1:size(firingRates,1)
     for s = 1:size(firingRates,2)
         for d = 1:size(firingRates,3)
@@ -77,10 +64,6 @@ end
 % firingRatesAverage = cell2mat(cellfun(@(r) reshape(cell2mat(r),size(r{1},1),1,[]),cellfun(@(s) cellfun(@(t) cell2mat(cellfun(@(n)circshift(n,randi([2*binWidth,length(n)-2*binWidth],1)),n,num2cell(t(mv,unique(round(ms_bins./binWidth))),2),'UniformOutput',false)),s,'UniformOutput',false)',trialPSTH, 'UniformOutput',false),'UniformOutput',false));
 firingRatesAverage = mean(firingRates(:,:,:,:), length(size(firingRates)),'omitnan');
 %% Step 1: PCA of the dataset
-X = firingRatesAverage(:,:);
-X = bsxfun(@minus, X, mean(X,2));
-[W,~,~] = svd(X, 'econ');
-W = W(:,1:20);
 dpca_plot(firingRatesAverage, W, W, @dpca_plot_default);
 explVar = dpca_explainedVariance(firingRatesAverage, W, W,'combinedParams', combinedParams);
 dpca_plot(firingRatesAverage, W, W, @dpca_plot_default, ...
@@ -88,24 +71,15 @@ dpca_plot(firingRatesAverage, W, W, @dpca_plot_default, ...
     'marginalizationNames', margNames,'marginalizationColours', margColours);
 % Step 2: PCA in each marginalization separately
 dpca_perMarginalization(firingRatesAverage, @dpca_plot_default,'combinedParams', combinedParams);
-% Step 3: dPCA without regularization and ignoring noise covariance
-% W is the decoder, V is the encoder (ordered by explained variance),
-% whichMarg is an array that tells you which component comes from which mar
+% Step 3: dPCA w/out regularization/noise covariance. W=decoder,V=encoder(ordered by explained variance)
 [W,V,whichMarg] = dpca(firingRatesAverage, 5,'combinedParams', combinedParams);
 explVar = dpca_explainedVariance(firingRatesAverage, W, V,'combinedParams', combinedParams);
-dpca_plot(firingRatesAverage, W, V, @dpca_plot_default, ...
-    'explainedVar', explVar, ...
-    'marginalizationNames', margNames, ...
-    'marginalizationColours', margColours, ...
-    'whichMarg', whichMarg,                 ...
-    'time', time,                        ...
-    'timeEvents', timeEvents,               ...
-    'timeMarginalization', 2, ...
-    'legendSubplot', 16);
+dpca_plot(firingRatesAverage, W, V, @dpca_plot_default,'explainedVar', explVar, ...
+    'marginalizationNames', margNames,'marginalizationColours', margColours, 'whichMarg', whichMarg,...
+    'time', time,'timeEvents', timeEvents,'timeMarginalization', 2,'legendSubplot', 16);
 %% Step 4: dPCA with regularization
-% Once computed, you can simply load lambdas out of file:load('tmp_optimalLambdas.mat', 
-% 'optimalLambda'). Note that this now includes noise covariance matrix 
-% Cnoise which provides substantial regularization itself (even with lambda=0).
+%load('optimalLambda'). Note that it includes noise covariance matrix Cnoise 
+% which provides substantial regularization itself (even with lambda=0).
 somaIndex = contains(string(somaTable(mv)),["Arm","Hand"]);
 optimalLambda = dpca_optimizeLambda(firingRatesAverage(somaIndex,:,:), ...
     firingRates(somaIndex,:,:,:), trialNum(somaIndex,:), ...
@@ -115,18 +89,14 @@ Cnoise = dpca_getNoiseCovariance(firingRatesAverage(somaIndex,:,:), ...
 [W,V,whichMarg] = dpca(firingRatesAverage(somaIndex,:,:,:),50,'combinedParams', combinedParams,'lambda', optimalLambda,'Cnoise', Cnoise);
 explVar = dpca_explainedVariance(firingRatesAverage(somaIndex,:,:,:), W, V, 'combinedParams', combinedParams);
 dpca_plot(firingRatesAverage(somaIndex,:,:,:), W, V, @dpca_plot_default, ...
-    'explainedVar', explVar, ...
-    'marginalizationNames', margNames, ...
-    'marginalizationColours', margColours, ...
-    'whichMarg', whichMarg,                 ...
-    'time', time,                        ...
-    'timeEvents', timeEvents,               ...
-    'timeMarginalization', 2,           ...
+    'explainedVar', explVar,'marginalizationNames', margNames, 'marginalizationColours', margColours, ...
+    'whichMarg', whichMarg,'time', time,'timeEvents', timeEvents,'timeMarginalization', 2,...
     'legendSubplot', {16,params.condNames},'ylims',[]);
 %
 X = firingRatesAverage(somaIndex,:)';
 Xcen = bsxfun(@minus, X, mean(X));
 Z = Xcen * W;
+%[W,~,~] = svd(Xcen, 'econ'); W = W(:,1:20);
 %%
 dataDim = size(firingRatesAverage);
 first3Proj = reshape(Z(:,[find(whichMarg==2,3),find(whichMarg==1,3)])', [length([find(whichMarg==2,3),find(whichMarg==1,3)]) dataDim(2:end)]);

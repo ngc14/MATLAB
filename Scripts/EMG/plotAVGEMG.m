@@ -7,8 +7,9 @@ alignWindows = {[-.5 2.5]};
 phaseWindows = {[0 0.2],[-.15 .05],[-.2 0.0],[-.15 .05]};
 gap = .1;
 smoothKernel = .15; 
-muscles = string([groupings{:}]);
-saveFigs = true;
+muscles = ["Deltoid.mat","Biceps.mat","Triceps.mat",...
+    "Wrist Extensor.mat","Wrist Flexor.mat","Digit Extensor.mat","Digit Flexor.mat"];
+saveFigs = false;
 savePath = "C:\Users\ngc14\Desktop\";
 if(saveFigs && ~exist(savePath,'dir'))
     mkdir(savePath);
@@ -38,11 +39,11 @@ for m =1:length(monkeys)
         s(1:length(Conditions),1),m(1:length(Conditions),1),'UniformOutput',false), sessionDates,  monkDates,'UniformOutput',false);
 end
 clear monkSigs monkSegs monkDates
+toc
+%%
 alignWindows = cellfun(@(a) a.*Fs,alignWindows,'UniformOutput',false);
 phaseWindows = cellfun(@(p) p.*Fs,phaseWindows,'UniformOutput',false);
 smoothKernel = smoothKernel*Fs;
-toc
-%%
 allSessions = cellfun(@(u) unique(string(u)),[sessionDates{:}],'UniformOutput',false);
 allSessions = unique([allSessions{:}]);
 bVal = {};
@@ -69,7 +70,6 @@ for m = 1:length(muscles)
 end
 allSessionSegs = horzcat(sessionSegs{:});
 [mTrials, mSigs, mDates, mSegs] = deal({});
-%%
 for c = 1:length(Conditions)
     for a = 1:length(alignments)
         wind = alignWindows{a};
@@ -85,7 +85,7 @@ end
 %% Grouping
 groupings = {{"Deltoid.mat","Biceps.mat","Triceps.mat"},...
     {"Wrist Extensor.mat","Wrist Flexor.mat","Digit Extensor.mat","Digit Flexor.mat"}};
-groupings = num2cell([groupings{:}]);
+%groupings = num2cell([groupings{:}]);
 groupInds = cellfun(@(g) contains(muscles,string(g)), groupings, 'UniformOutput',false);
 groupNames = cell2mat(cellfun(@(g) strjoin(cellfun(@(s) string(s{1}(1:end-4)),g)), groupings,'UniformOutput',false));
 rawActivity = {};
@@ -132,7 +132,7 @@ for n = 1:numel(rawActivity)
     end
 end
 %% TIMECOURSES %%
-pColors =([.7 0 0; .8 .4 0; 0 0 .7; 0 0 0]);
+pColors =num2cell([.7 0 0; .8 .4 0; 0 0 .7],2);
 pColors = repmat({{[.8 0 .8],[0 .8 0]}},1,3);
 pColors = repmat({num2cell(distinguishable_colors(length(groupings)),2)'},length(Conditions),1);
 % fx = arrayfun(@gca,arrayfun(@(f) figure('Units','normalized','Position',[0 0 1 1]),...

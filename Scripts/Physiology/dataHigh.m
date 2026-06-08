@@ -205,6 +205,7 @@ else
     end
 end
 %DataHigh(dHiStruct);
+%%
 tStruct = struct("A",cellfun(@transpose,{dHiStruct.data},'UniformOutput',false),'condition',{dHiStruct.condition},'epochStarts',{dHiStruct.epochStarts},'epochColors',{dHiStruct.epochColors});
 [Q_out, T_out] = tangleAnalysis(tStruct, params.binSize,'softenNorm',5 ,'timeStep',20,'withinConditionsOnly',true,'numPCs',20); % soft normalize neural data
 formattedScatter(Q_Arm, Q_Hand, {'Q_{Arm}','Q_{Hand}'});

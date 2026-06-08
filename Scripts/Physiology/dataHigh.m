@@ -155,9 +155,7 @@ for p = 0:(double(~contains(type,"traj",'IgnoreCase',true)))
         somaLabs(somaIndex),num_dims,conditions,timeBins,binWidth,false,savePath);
 end
 %% DATAHIGH Dim Reduce
-somaColors = {[0 1 .2],[.8 0 1]};%
-somaColors = {[0 0 0]};
-somaReps={["Arm","Hand"]};
+somaColors = {[0 1 .2],[.8 0 1]}; somaReps={["Arm","Hand"]};
 if(PCATime & ~strcmpi(type,"state"))
     projectUnits = arrayfun(@(s) cellfun(@(n) num2cell(n,1),squeeze(num2cell(scores(contains(somaLabs(somaIndex),somaReps(s)),:,:,:),[1 2])), 'UniformOutput',false),1:length(somaReps), 'UniformOutput',false);
     projectUnits = cellfun(@(s) cellfun(@(t) cell2mat(cellfun(@(n,l) loadings(:,l)*mean(n),t,num2cell(1:length(t)),'UniformOutput',false))',s,'UniformOutput',false),projectUnits,'UniformOutput',false);
@@ -174,17 +172,15 @@ else
         projectUnits = cellfun(@(s) cellfun(@(t) cell2mat(cellfun(@(m)conv(m,transpose(gausswin(smoothWin))./sum(gausswin(smoothWin)),'same')...
             ./(1/1000),num2cell(t,2),'UniformOutput',false)),vertcat(s{:}),'Uniformoutput',false), projectUnits,'Uniformoutput',false);
         projectUnits = cellfun(@(s) cellfun(@(t) t(:,findBins(timeBins(1),params.bins):end),s, 'UniformOutput',false),projectUnits, 'UniformOutput',false);
-        %projectUnits = cellfun(@(s) cellfun(@(t,n) t(:,1:end-((n==length(conditions)*1)*2.5*binWidth)),s,num2cell(1:length(s))', 'UniformOutput',false), projectUnits, 'UniformOutput',false);
     end
 end
 if(length(projectUnits)>length(somaReps))
-    %somaReps(end+1) = "Arm+Hand";
+    % somaReps(end+1) = "Arm+Hand"; cls{end+1} = colors.values';
     % projectUnits{end+1} =cellfun(@(s) {vertcat(s{:})}, squeeze(cellfun(@squeeze,num2cell(num2cell(reshape((pcaMat(:,contains(somaLabs(somaIndex),somaReps))*...
     %     loadings(contains(somaLabs(somaIndex),somaReps),:))',size(pcaMat,2),size(taskPSTHD{1}{1},2),max(1,plotTrials*sTrials),[]),[1 2]),3),'Uniformoutput',false))', 'UniformOutput',false);
 end
 cls = cellfun(@(r) repmat({r},max(strcmpi(type,'traj')*(plotTrials*0),1),1),somaColors','UniformOutput',false);
 cls = reshape(cellfun(@(v) repmat({v},length(conditions),1),vertcat(cls{:}),'UniformOutput',false),[],1);
-%cls={};cls{end+1} = colors.values';
 cTrials = arrayfun(@(d) {repmat(d,max(strcmpi(type,'traj')*plotTrials*0,1),1)},conditions,'UniformOutput',false)';
 cTrials = cellfun(@(p) cellfun(@(c) cell2mat(cellfun(@(t) string(t)+"-"+join(p),c,'UniformOutput',false)),cTrials,'UniformOutput',false),somaReps,'UniformOutput',false);
 epochStarts = repmat(cellfun(@(e) e(:,all(e<size(taskPSTHD{1}{1},2),1)),num2cell(cell2mat(cellfun(@(s) round(mean((s-min(ms_bins)),1,'omitnan')),...%./binWidth,1,'omitnan')),...
@@ -204,13 +200,10 @@ else
         dHiStruct(a).epochColors = hsv2rgb(max(min(dHiStruct(a).epochColors,1),0));%+([0 .25 -.25]*2*(contains(dHiStruct(a).condition,"Reach")-.5)),1),0));
     end
 end
-%DataHigh(dHiStruct);
-%%
-tStruct = struct("A",cellfun(@transpose,{dHiStruct.data},'UniformOutput',false),'condition',{dHiStruct.condition},'epochStarts',{dHiStruct.epochStarts},'epochColors',{dHiStruct.epochColors});
-[Q_out, T_out] = tangleAnalysis(tStruct, params.binSize,'softenNorm',5 ,'timeStep',20,'withinConditionsOnly',true,'numPCs',20); % soft normalize neural data
-formattedScatter(Q_Arm, Q_Hand, {'Q_{Arm}','Q_{Hand}'});
-tangle_visualize(T_out);
-% [Q_hand, out_hand] = tangleAnalysis(tStruct(4:6), params.binSize,'softenNorm',5 ,'timeStep',timeStep,'withinConditionsOnly',false,'numPCs',20); % soft normalize neural data
+% DataHigh(dHiStruct); 
+% tStruct = struct("A",cellfun(@transpose,{dHiStruct.data},'UniformOutput',false),'condition',{dHiStruct.condition},'epochStarts',{dHiStruct.epochStarts},'epochColors',{dHiStruct.epochColors});
+% [Q_out, T_out] = tangleAnalysis(tStruct, params.binSize,'softenNorm',5 ,'timeStep',20,'withinConditionsOnly',true,'numPCs',20);tangle_visualize(T_out);
+% formattedScatter(Q_Arm, Q_Hand, {'Q_{Arm}','Q_{Hand}'});
 %% Get DATAHIGH data
 all_h = findall(groot,'Type','Figure');handles = guihandles(all_h(arrayfun(@(s) strcmp(s.Name,'DataHigh'),all_h)));
 D = guidata(all_h(arrayfun(@(s) strcmp(s.Name,'DataHigh'),all_h)));D= D.D;

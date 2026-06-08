@@ -86,7 +86,8 @@ optimalLambda = dpca_optimizeLambda(firingRatesAverage(somaIndex,:,:), ...
     'combinedParams', combinedParams, 'simultaneous', false,'numRep', numRep);
 Cnoise = dpca_getNoiseCovariance(firingRatesAverage(somaIndex,:,:), ...
     firingRates(somaIndex,:,:,:), trialNum(somaIndex,:), 'simultaneous', false,'type','pooled');
-[W,V,whichMarg] = dpca(firingRatesAverage(somaIndex,:,:,:),dims,'combinedParams', combinedParams,'lambda', optimalLambda,'Cnoise', Cnoise);
+[W,V,whichMarg] = dpca(firingRatesAverage(somaIndex,:,:,:),dims*(length(combinedParams)+1),...
+    'combinedParams', combinedParams,'lambda', optimalLambda,'Cnoise', Cnoise);
 explVar = dpca_explainedVariance(firingRatesAverage(somaIndex,:,:,:), W, V, 'combinedParams', combinedParams);
 dpca_plot(firingRatesAverage(somaIndex,:,:,:), W, V, @dpca_plot_default, ...
     'explainedVar', explVar,'marginalizationNames', margNames, 'marginalizationColours', margColours, ...
@@ -96,7 +97,7 @@ dataDim = size(firingRatesAverage);
 X = firingRatesAverage(somaIndex,:)';
 Xcen = bsxfun(@minus, X, mean(X));
 Z = Xcen * W;
-first3Proj = reshape(Z(:,[find(whichMarg==2,3),find(whichMarg==1,3)])', [length([find(whichMarg==2,3),find(whichMarg==1,3)]) dataDim(2:end)]);
+first3Proj = reshape(Z(:,[find(whichMarg==2,dims),find(whichMarg==1,dims)])',[2*dims dataDim(2:end)]);
 %[W,~,~] = svd(Xcen, 'econ'); W = W(:,1:dims);
 %%
 saveFig = false; lineColor = [.8 0 1];% [0 1 .2];

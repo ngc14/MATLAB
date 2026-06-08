@@ -93,39 +93,29 @@ dpca_plot(firingRatesAverage(somaIndex,:,:,:), W, V, @dpca_plot_default, ...
     'explainedVar', explVar,'marginalizationNames', margNames, 'marginalizationColours', margColours, ...
     'whichMarg', whichMarg,'time', time,'timeEvents', timeEvents,'timeMarginalization', 2,...
     'legendSubplot', {16,params.condNames},'ylims',[]);
-dataDim = size(firingRatesAverage);
-X = firingRatesAverage(somaIndex,:)';
-Xcen = bsxfun(@minus, X, mean(X));
+Xcen = bsxfun(@minus, firingRatesAverage(somaIndex,:)', mean(firingRatesAverage(somaIndex,:),2)');
 Z = Xcen * W;
-first3Proj = reshape(Z(:,[find(whichMarg==2,dims),find(whichMarg==1,dims)])',[2*dims dataDim(2:end)]);
+projT = Z(:,cell2mat(arrayfun(@(f) find(whichMarg==f,dims),1:length(combinedParams),'UniformOutput',false)));
 %[W,~,~] = svd(Xcen, 'econ'); W = W(:,1:dims);
 %%
-saveFig = false; lineColor = [.8 0 1];% [0 1 .2];
+saveFig = true; lineColor =  [0 1 .2];%[.8 0 1];%
 savePath = "S:\Lab\ngc14\Working\DataHigh\Centered\Demixed\";
-figure(1);
-for c = 1:length(conditions)
-    subplot(1,3,c); hold on; title(conditions(c));
-    plot3(squeeze(first3Proj(1,c,:)),squeeze(first3Proj(2,c,:)),squeeze(first3Proj(3,c,:)),'Color',lineColor);
-    arrayfun(@(e) scatter3(first3Proj(1,c,e),first3Proj(2,c,e),first3Proj(3,c,e),'filled','MarkerFaceColor',lineColor), ...
-        round(mean(segVals{c}(:,1:3),1,'omitnan')))
-    all3Dim = scatter3(first3Proj(1,1),first3Proj(2,1),first3Proj(3,1),'black','*','sizeData',550);
-    view(10,15);
-end
-% XY:view(0,90); XZ:view(0,0); YZ:view(90,0);
-if(saveFig)
-    saveFigures(figure(1),savePath,"Traj-CondInvariant",[]);arrayfun(@(a)view(a,0,90),gcf().Children); saveFigures(figure(1),savePath,"2DTraj-CondInvariant",[]);
-end
-figure(2);
-for c = 1:length(conditions)
-    subplot(1,3,c); hold on; title(conditions(c));
-    plot3(squeeze(first3Proj(4,c,:)),squeeze(first3Proj(5,c,:)),squeeze(first3Proj(6,c,:)),'Color',lineColor);
-    arrayfun(@(e) scatter3(first3Proj(4,c,e),first3Proj(5,c,e),first3Proj(6,c,e),'filled','MarkerFaceColor',lineColor),...
-        round(mean(segVals{c}(:,1:3),1,'omitnan')))
-    scatter3(first3Proj(4,1),first3Proj(5,1),first3Proj(6,1),'black','*','sizeData',550);
-    view(10,15);
-end
-if(saveFig)
-    saveFigures(figure(2),savePath,"Traj-Cond",[]);arrayfun(@(a)view(a,0,90),gcf().Children);saveFigures(figure(2),savePath,"2DTraj-Cond",[]);
+somaDist = reshape(transpose((projTArm - projTHand).^2),length(time),length(conditions),dims,[]);
+projT = reshape(projTArm',dims*length(combinedParams),length(conditions),[]);
+for nc = 1:length(combinedParams)
+    figure(nc); st=(nc-1)*dims;
+    for c = 1:length(conditions)
+        subplot(1,3,c); hold on; title(params.condAbbrev(conditions(c)) + ", dist: "+ num2str(sqrt(sum(somaDist(:,c,:,nc),'all')),'%.2f')); view(10,15);
+        scatter3(projT(st+1,1),projT(st+2,1),projT(st+3,1),'black','*','sizeData',550);
+        plot3(squeeze(projT(st+1,c,:)),squeeze(projT(st+2,c,:)),squeeze(projT(st+3,c,:)),'Color',lineColor);
+        arrayfun(@(e) scatter3(projT(st+1,c,e),projT(st+2,c,e),projT(st+3,c,e),'filled','MarkerFaceColor',lineColor), ...
+            round(mean(segVals{c}(:,1:3),1,'omitnan')))
+    end
+    % XY:view(0,90); XZ:view(0,0); YZ:view(90,0);
+    if(saveFig)
+        saveFigures(figure(nc),savePath,"Traj-"+margNames(nc),[]);
+        arrayfun(@(a)view(a,0,90),gcf().Children); saveFigures(figure(nc),savePath,"2DTraj-"+margNames(nc),[]);
+    end
 end
 %%
 a = corr(Z);b = V'*V;[~, psp] = corr(V(:,1:20), 'type', 'Kendall');

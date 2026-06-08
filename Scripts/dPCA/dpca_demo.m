@@ -92,101 +92,72 @@ dpca_plot(firingRatesAverage(somaIndex,:,:,:), W, V, @dpca_plot_default, ...
     'explainedVar', explVar,'marginalizationNames', margNames, 'marginalizationColours', margColours, ...
     'whichMarg', whichMarg,'time', time,'timeEvents', timeEvents,'timeMarginalization', 2,...
     'legendSubplot', {16,params.condNames},'ylims',[]);
-%
+dataDim = size(firingRatesAverage);
 X = firingRatesAverage(somaIndex,:)';
 Xcen = bsxfun(@minus, X, mean(X));
 Z = Xcen * W;
+first3Proj = reshape(Z(:,[find(whichMarg==2,3),find(whichMarg==1,3)])', [length([find(whichMarg==2,3),find(whichMarg==1,3)]) dataDim(2:end)]);
 %[W,~,~] = svd(Xcen, 'econ'); W = W(:,1:20);
 %%
-dataDim = size(firingRatesAverage);
-first3Proj = reshape(Z(:,[find(whichMarg==2,3),find(whichMarg==1,3)])', [length([find(whichMarg==2,3),find(whichMarg==1,3)]) dataDim(2:end)]);
-figure();
-for c = 1:3
+saveFig = false; lineColor = [.8 0 1];% [0 1 .2];
+figure(1);
+for c = 1:length(conditions)
     subplot(1,3,c); hold on; title(conditions(c));
-    plot3(squeeze(first3ProjArm(1,c,:)),squeeze(first3ProjArm(2,c,:)),squeeze(first3ProjArm(3,c,:)),'Color',[0 1 .2]);
-    plot3(squeeze(first3ProjHand(1,c,:)),squeeze(first3ProjHand(2,c,:)),squeeze(first3ProjHand(3,c,:)),'Color',[.8 0 1])
-    arrayfun(@(e) scatter3(first3ProjArm(1,c,e),first3ProjArm(2,c,e),first3ProjArm(3,c,e),'filled','MarkerFaceColor',[0 1 .2]), round(mean(segVals{c}(:,1:3),1,'omitnan')))
-    arrayfun(@(e) scatter3(first3ProjHand(1,c,e),first3ProjHand(2,c,e),first3ProjHand(3,c,e),'filled','MarkerFaceColor',[.8 0 1]), round(mean(segVals{c}(:,1:3),1,'omitnan')))
-    all3Dim = squeeze(mean(first3ProjArm,2,'omitnan')); scatter3(all3Dim(1,1),all3Dim(2,1),all3Dim(3,1),'black','*','sizeData',550)
-    all3Dim = squeeze(mean(first3ProjHand,2,'omitnan')); scatter3(all3Dim(1,1),all3Dim(2,1),all3Dim(3,1),'black','*','sizeData',550)
+    plot3(squeeze(first3Proj(1,c,:)),squeeze(first3Proj(2,c,:)),squeeze(first3Proj(3,c,:)),'Color',lineColor);
+    arrayfun(@(e) scatter3(first3Proj(1,c,e),first3Proj(2,c,e),first3Proj(3,c,e),'filled','MarkerFaceColor',lineColor), ...
+        round(mean(segVals{c}(:,1:3),1,'omitnan')))
+    all3Dim = scatter3(first3Proj(1,1),first3Proj(2,1),first3Proj(3,1),'black','*','sizeData',550);
     view(10,15);
 end
-saveFigures(gcf,"S:\Lab\ngc14\Working\DataHigh\Centered\Demixed\","Traj-Condition-Invariant",[]);
-arrayfun(@(a) view(a,90,0), gcf().Children);
-saveFigures(gcf,"S:\Lab\ngc14\Working\DataHigh\Centered\Demixed\","2DTraj-Condition-Invariant",[]);
-
-
-figure();
-for c = 1:3
+% XY:view(0,90); XZ:view(0,0); YZ:view(90,0);
+if(saveFig)
+    saveFigures(figure(1),"S:\Lab\ngc14\Working\DataHigh\Centered\Demixed\","Traj-Condition-Invariant",[]);
+    arrayfun(@(a) view(a,0,90), gcf().Children); saveFigures(figure(1),"S:\Lab\ngc14\Working\DataHigh\Centered\Demixed\","2DTraj-Condition-Invariant",[]);
+end
+figure(2);
+for c = 1:length(conditions)
     subplot(1,3,c); hold on; title(conditions(c));
-    plot3(squeeze(first3ProjArm(4,c,:)),squeeze(first3ProjArm(5,c,:)),squeeze(first3ProjArm(6,c,:)),'Color',[0 1 .2]);
-    plot3(squeeze(first3ProjHand(4,c,:)),squeeze(first3ProjHand(5,c,:)),squeeze(first3ProjHand(6,c,:)),'Color',[.8 0 1])
-    arrayfun(@(e) scatter3(first3ProjArm(4,c,e),first3ProjArm(5,c,e),first3ProjArm(6,c,e),'filled','MarkerFaceColor',[0 1 .2]), round(mean(segVals{c}(:,1:3),1,'omitnan')))
-    arrayfun(@(e) scatter3(first3ProjHand(4,c,e),first3ProjHand(5,c,e),first3ProjHand(6,c,e),'filled','MarkerFaceColor',[.8 0 1]), round(mean(segVals{c}(:,1:3),1,'omitnan')))
-    all3Dim = squeeze(mean(first3ProjArm,2,'omitnan')); scatter3(all3Dim(4,1),all3Dim(5,1),all3Dim(6,1),'black','*','sizeData',550)
-    all3Dim = squeeze(mean(first3ProjHand,2,'omitnan')); scatter3(all3Dim(4,1),all3Dim(5,1),all3Dim(6,1),'black','*','sizeData',550)
+    plot3(squeeze(first3Proj(4,c,:)),squeeze(first3Proj(5,c,:)),squeeze(first3Proj(6,c,:)),'Color',lineColor);
+    arrayfun(@(e) scatter3(first3Proj(4,c,e),first3Proj(5,c,e),first3Proj(6,c,e),'filled','MarkerFaceColor',lineColor),...
+        round(mean(segVals{c}(:,1:3),1,'omitnan')))
+    scatter3(first3Proj(4,1),first3Proj(5,1),first3Proj(6,1),'black','*','sizeData',550);
     view(10,15);
 end
-saveFigures(gcf,"S:\Lab\ngc14\Working\DataHigh\Centered\Demixed\","Traj-Condition",[]);
-arrayfun(@(a) view(a,90,0), gcf().Children);
-saveFigures(gcf,"S:\Lab\ngc14\Working\DataHigh\Centered\Demixed\","2DTraj-Condition",[]);
-
-a = corr(Z(:,1:dims));
-b = V(:,1:dims)'*V(:,1:dims);
-[~, psp] = corr(V(:,1:dims), 'type', 'Kendall');
+if(saveFig)
+    saveFigures(figure(2),"S:\Lab\ngc14\Working\DataHigh\Centered\Demixed\","Traj-Condition",[]);
+    arrayfun(@(a) view(a,0,90), gcf().Children); saveFigures(figure(2),"S:\Lab\ngc14\Working\DataHigh\Centered\Demixed\","2DTraj-Condition",[]);
+end
+%%
+a = corr(Z);b = V'*V;[~, psp] = corr(V(:,1:20), 'type', 'Kendall');
 map = tril(a,-1)+triu(b);
 r = [5 48 97]/256;w = [.95 .95 .95];b = [103 0 31]/256;c1 = zeros(128,3);c2 = zeros(128,3);
-for i=1:3
-    c1(:,i) = linspace(r(i), w(i), 128);c2(:,i) = linspace(w(i), b(i), 128);
-end
-figure();image(round(map*128)+128 + 2);colormap([c1;c2]); colorbar('Ticks',[1 128 256],'TickLabels',[-1 0 1]);
-%% Optional: estimating "signal variance"
+for i=1:3;c1(:,i) = linspace(r(i), w(i), 128);c2(:,i) = linspace(w(i), b(i), 128);end
+image(round(map*128)+128 + 2);colormap([c1;c2]); colorbar('Ticks',[1 128 256],'TickLabels',[-1 0 1]);
+%% estimating "signal variance"
 explVar = dpca_explainedVariance(firingRatesAverage, W, V, ...
-    'combinedParams', combinedParams, ...
-    'Cnoise', Cnoise, 'numOfTrials', trialNum);
+    'combinedParams', combinedParams,'Cnoise', Cnoise, 'numOfTrials', trialNum);
 % Note how the pie chart changes relative to the previous figure.
-% That is because it is displaying percentages of (estimated) signal PSTH
-% variances, not total PSTH variances. See paper for more details.
+% it is displaying percentages of (estimated) signal PSTH variances,not total.
 dpca_plot(firingRatesAverage, W, V, @dpca_plot_default, ...
-    'explainedVar', explVar, ...
-    'marginalizationNames', margNames, ...
-    'marginalizationColours', margColours, ...
-    'whichMarg', whichMarg,                 ...
-    'time', time,                        ...
-    'timeEvents', timeEvents,               ...
-    'timeMarginalization', 3,           ...
+    'explainedVar', explVar,'marginalizationNames', margNames,'marginalizationColours', margColours, ...
+    'whichMarg', whichMarg,'time', time,'timeEvents', timeEvents,'timeMarginalization', 3,           ...
     'legendSubplot', 16,'Cnoise',Cnoise);
-%% Optional: decoding
-decodingClasses = {[(1:S)' (1:S)'], repmat([1:2], [S 1]), [], [(1:S)' (S+(1:S))']};
-decodingClasses = {(1:3)',[1:3]'};
+%% decoding
+decodingClasses = {(1:3)',[1:3]'};%{[(1:S)' (1:S)'], repmat([1:2], [S 1]), [], [(1:S)' (S+(1:S))']};
 accuracy = dpca_classificationAccuracy(firingRatesAverage, firingRates, trialNum, ...
-    'lambda', optimalLambda, ...
-    'combinedParams', combinedParams, ...
-    'decodingClasses', decodingClasses, ...
-    'simultaneous', ifSimultaneousRecording, ...
-    'numRep', 5, ...        % increase to 100
-    'filename', 'tmp_classification_accuracy.mat');
+    'lambda', optimalLambda,'combinedParams', combinedParams, 'decodingClasses', decodingClasses, ...
+    'simultaneous', false, 'numRep', 5, 'filename', 'tmp_classification_accuracy.mat');
 dpca_classificationPlot(accuracy, [], [], [], decodingClasses)
 accuracyShuffle = dpca_classificationShuffled(firingRates, trialNum, ...
-    'lambda', optimalLambda, ...
-    'combinedParams', combinedParams, ...
-    'decodingClasses', decodingClasses, ...
-    'simultaneous', ifSimultaneousRecording, ...
-    'numRep', 5, ...        % increase to 100
-    'numShuffles', 20, ...  % increase to 100 (takes a lot of time)
-    'filename', 'tmp_classification_accuracy.mat');
+    'lambda', optimalLambda, 'combinedParams', combinedParams, ...
+    'decodingClasses', decodingClasses, 'simultaneous', false, ...
+    'numRep', 5,'numShuffles', 20, 'filename', 'tmp_classification_accuracy.mat');
 dpca_classificationPlot(accuracy, [], accuracyShuffle, [], decodingClasses)
 componentsSignif = dpca_signifComponents(accuracy, accuracyShuffle, whichMarg);
 dpca_plot(firingRatesAverage, W, V, @dpca_plot_default, ...
-    'explainedVar', explVar, ...
-    'marginalizationNames', margNames, ...
-    'marginalizationColours', margColours, ...
-    'whichMarg', whichMarg,                 ...
-    'time', time,                        ...
-    'timeEvents', timeEvents,               ...
-    'timeMarginalization', 3,           ...
-    'legendSubplot', 16,                ...
-    'componentsSignif', componentsSignif);
+    'explainedVar', explVar,'marginalizationNames', margNames, 'marginalizationColours', margColours, ...
+    'whichMarg',whichMarg,'time',time,'timeEvents',timeEvents,'timeMarginalization', 3,           ...
+    'legendSubplot',16, 'componentsSignif', componentsSignif);
 
 function arr = downsampleTrials(r,sTrials)
 sz = size(r,2)-mod(size(r,2),2);

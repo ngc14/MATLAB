@@ -98,14 +98,16 @@ Z = Xcen * W;
 projT = Z(:,cell2mat(arrayfun(@(f) find(whichMarg==f,dims),1:length(combinedParams),'UniformOutput',false)));
 %[W,~,~] = svd(Xcen, 'econ'); W = W(:,1:dims);
 %%
-saveFig = true; lineColor =  [0 1 .2];%[.8 0 1];%
+saveFig = true; lineColor =  [.8 0 1];% [0 1 .2];%
 savePath = "S:\Lab\ngc14\Working\DataHigh\Centered\Demixed\";
-somaDist = reshape(transpose((projTArm - projTHand).^2),length(time),length(conditions),dims,[]);
-projT = reshape(projTArm',dims*length(combinedParams),length(conditions),[]);
+%somaDist = reshape(transpose((projTArm - projTHand).^2),length(time),length(conditions),dims,[]);sqrt(sum(somaDist(:,c,:,nc),'all'))
+projT = reshape(projTHand',dims*length(combinedParams),length(conditions),[]);
 for nc = 1:length(combinedParams)
     figure(nc); st=(nc-1)*dims;
     for c = 1:length(conditions)
-        subplot(1,3,c); hold on; title(params.condAbbrev(conditions(c)) + ", dist: "+ num2str(sqrt(sum(somaDist(:,c,:,nc),'all')),'%.2f')); view(10,15);
+        ct = (c-1)*length(time);
+        [d,z,m] = procrustes(projTArm([1:length(time)]+ct,[1:dims]+st),projTHand([1:length(time)]+ct,[1:dims]+st));
+        subplot(1,3,c); hold on; title(params.condAbbrev(conditions(c)) + ", dist: "+ num2str(d,'%.2f')); view(10,15);
         scatter3(projT(st+1,1),projT(st+2,1),projT(st+3,1),'black','*','sizeData',550);
         plot3(squeeze(projT(st+1,c,:)),squeeze(projT(st+2,c,:)),squeeze(projT(st+3,c,:)),'Color',lineColor);
         arrayfun(@(e) scatter3(projT(st+1,c,e),projT(st+2,c,e),projT(st+3,c,e),'filled','MarkerFaceColor',lineColor), ...

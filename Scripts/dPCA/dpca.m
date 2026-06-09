@@ -136,8 +136,11 @@ for i=1:length(Xmargs)
     
     M = C*X;
     [U,~,~] = eigs(M*M', nc);
-    P = U;
+    [~,sn] = max(abs(U));
+    sn = arrayfun(@(r,l) sign(U(r,l)), sn,1:length(sn));
+    U = (U'.*sn')';
     D = U'*C;
+    P = U;
     
     if strcmp(options.scale, 'yes')
         for uu = 1:size(D,1)

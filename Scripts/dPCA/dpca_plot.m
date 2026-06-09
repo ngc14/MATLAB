@@ -115,10 +115,10 @@ if ~isempty(options.whichMarg) && ...
                 moreComponents = [moreComponents setdiff(find(options.whichMarg == margRowSeq(i), 3), moreComponents)];
             end
         else
-            moreComponents = find(options.whichMarg == margRowSeq(i), 3);
+            moreComponents = find(options.whichMarg == margRowSeq(i), 6);
         end
         componentsToPlot = [componentsToPlot moreComponents];
-        subplots = [subplots (i-1)*4+2:(i-1)*4+2 + length(moreComponents) - 1];%repmat(2:4,1,round(length(moreComponents)/4))+ (4*round(linspace(2*(i-1),2*(i-1)+1,length(moreComponents))))];
+        subplots = [subplots repmat(2:4,1,round(length(moreComponents)/4))+ (4*round(linspace(2*(i-1),2*(i-1)+1,length(moreComponents))))];%(i-1)*4+2:(i-1)*4+2 + length(moreComponents) - 1];%
     end
 else
     % if there are more than 4 marginalizatons
@@ -268,6 +268,7 @@ if ~isempty(options.whichMarg) && ...
     yposs = [0.9 0.65 0.45 0.25];
     for m = intersect(1:4, unique(options.whichMarg(componentsToPlot)))        
         row =  (find(margRowSeq == m, 1));
+        row = row+(row>1);
         subplot(4,4,(row-1)*4+2)
         pos = get(gca, 'Position');
         

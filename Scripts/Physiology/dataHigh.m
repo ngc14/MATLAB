@@ -119,7 +119,7 @@ else
     rowWeights = ones(1,size(pcaMat,1));
 end
 [loadings,scores,eig,ts,exp] = pca(pcaMat,'Economy',false,'Centered',centered,...
-    'Algorithm','eig','VariableWeights',variableWeights,'Weights',rowWeights);somaProj={};
+    'Algorithm','svd','VariableWeights',variableWeights,'Weights',rowWeights);somaProj={};
 %
 if(PCATime & ~strcmpi(type,"state"))
     scores= permute(reshape(scores,sum(mv),max(1,sTrials*plotTrials),length(taskPSTHD),size(loadings,1)),[1 4 2 3]);
@@ -129,13 +129,12 @@ if(PCATime & ~strcmpi(type,"state"))
         somaProj,'UniformOutput',false),somaReps, 'UniformOutput',false);
     loadings = squeeze(mean(scores,[3,4]));
 else
-    mZ =mean(pcaMat)'; sZ=std(pcaMat)';
-    taskPSTHD = cellfun(@(c) cellfun(@(t) bsxfun(@rdivide,bsxfun(@minus,t,mZ),sZ),c,'UniformOutput',false),taskPSTHD, 'UniformOutput',false);
+    mZ =mean(pcaMat)'; sZ=std(pcaMat)';%bsxfun(@rdivide,t,sZ);
+    taskPSTHD = cellfun(@(c) cellfun(@(t) bsxfun(@minus,t,mZ),c,'UniformOutput',false),taskPSTHD, 'UniformOutput',false);
     condScores= arrayfun(@(c) reshape(scores([1:(max(1,sTrials*plotTrials)*size(taskPSTHD{1}{1},2))]+(c*(max(1,sTrials*plotTrials)...
         *size(taskPSTHD{1}{1},2))),:),size(taskPSTHD{1}{1},2),[],size(scores,2)),0:length(conditions)-1,'UniformOutput',false);
     somaProj = projectData(somaLabs(somaIndex),taskPSTHD,num_dims,loadings);
     first3Proj = cellfun(@(c) cellfun(@(t) transpose(t'*loadings(:,1:3)),c,'UniformOutput',false),taskPSTHD,'UniformOutput',true);
-
     if(strcmpi(type,'state'))
         allClusters = cellfun(@(s) cellfun(@cell2mat,s,'UniformOutput',false),somaProj,'UniformOutput',false);
         allClusters = cellfun(@(c) cell2mat(cellfun(@(s) mean(s,2,'omitnan'),c,'UniformOutput',false)),allClusters,'UniformOutput',false);

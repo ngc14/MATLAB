@@ -81,7 +81,7 @@ dpca_plot(firingRatesAverage, W, V, @dpca_plot_default,'explainedVar', explVar, 
 %% Step 4: dPCA with regularization
 %load('optimalLambda'). Note that it includes noise covariance matrix Cnoise 
 % which provides substantial regularization itself (even with lambda=0).
-dims = 10; somaIndex = channels<=16; %contains(string(somaTable(mv)),["Hand"])
+dims = 10; somaIndex = contains(string(somaTable(mv)),["Hand"]); % channels>16; % %
 optimalLambda = dpca_optimizeLambda(firingRatesAverage(somaIndex,:,:),firingRates(somaIndex,:,:,:),...
     trialNum(somaIndex,:),'combinedParams', combinedParams, 'simultaneous', false,'numRep', 10);
 Cnoise = dpca_getNoiseCovariance(firingRatesAverage(somaIndex,:,:), ...
@@ -98,46 +98,46 @@ Z = Xcen * W;
 %[W,~,~] = svd(Xcen, 'econ'); W = W(:,1:dims);
 %%
 saveFig = false;
-plotSoma = "Handsav"; plotLaminar = "Superficial";
 somaColors = containers.Map(["Arm","Hand"],{[0 1 .2],[.8 0 1]});
 savePath = "S:\Lab\ngc14\Working\DataHigh\Centered\Demixed\";
+plotSoma = "Arm"; plotLaminar = "";pDims = [1:10];
 if(strcmp(plotSoma,"Hand"))
-    ls = ':'; 
+    ls = ':';Z =ZHand; whichMarg = whichMargHand;
     if(strcmp(plotLaminar,"Deep"))
         Z = ZHandD; whichMarg=whichMargHandD;
-    else
+    elseif(strcmp(plotLaminar,"Superficial"))
         Z = ZHandS; whichMarg=whichMargHandS;
     end
-    Z =ZD; whichMarg = whichMargD;
 else
-    ls='-'; 
+    ls='-'; Z =ZArm; whichMarg = whichMargArm;
     if(strcmp(plotLaminar,"Deep"))
         Z = ZArmD; whichMarg=whichMargArmD;
-    else
+    elseif(strcmp(plotLaminar,"Superficial"))
         Z = ZArmS; whichMarg=whichMargArmS;
     end
-    Z=ZS;whichMarg= whichMargD;
 end
 projT = Z(:,cell2mat(arrayfun(@(f) find(whichMarg==f,dims),1:length(combinedParams),'UniformOutput',false)));
 %somaDist = reshape(transpose((projTArm - projTHand).^2),length(time),length(conditions),dims,[]);sqrt(sum(somaDist(:,c,:,nc),'all'))
 projT = reshape(projT',dims*length(combinedParams),length(conditions),[]);
 for nc = 1:length(combinedParams)
-    figure(nc); st=(nc-1)*dims;
+    figure(6+nc); st=(nc-1)*dims;
     for c = 1:length(conditions)
-        ct = (c-1)*length(time);
-        d=NaN;%[d,z,tr] = procrustes(projTArm([1:length(time)]+ct,[1:3]+st),projTHand([1:length(time)]+ct,[1:3]+st),"scaling",false,"reflection",'best');z = tr.b*projTHand([1:length(time)]+ct,[1:3]+st)*tr.T + tr.c; plot3(z(:,1),z(:,2),z(:,3),'k-');
-        subplot(1,3,c); hold on; view(0,90); xlim([-1.75 2.25]); ylim([-2 2]); 
-        title(params.condAbbrev(conditions(c)) + ", dist: "+ num2str(d,'%.2f'));
-        lineColor = hsv2rgb(rgb2hsv(cell2mat(colors.values(cellstr("ArmHand_"+params.condAbbrev.values(cellstr(conditions(c)))))))-[0 0 .4*strcmp(plotLaminar,"Deep")]);
-        scatter3(projT(st+1,1),projT(st+2,1),projT(st+3,1),'black','*','sizeData',550);
-        plot3(squeeze(projT(st+1,c,:)),squeeze(projT(st+2,c,:)),squeeze(projT(st+3,c,:)),'Color',lineColor,'LineStyle',ls);
-        arrayfun(@(e) scatter3(projT(st+1,c,e),projT(st+2,c,e),projT(st+3,c,e),'filled','MarkerFaceColor',lineColor), ...
-            round(mean(segVals{c}(:,1:3),1,'omitnan')))
+        lineColor = hsv2rgb(rgb2hsv(cell2mat(colors.values(cellstr("ArmHand_"+params.condAbbrev.values(cellstr(conditions(c)))))))-...
+            [0 0 .4*strcmp(plotLaminar,"Deep")]);
+        subplot(1,3,c); hold on; view(10,-15); xlim([-2 2.5]); ylim([-2 1.5]);
+        [~,z,tr] = procrustes(squeeze(projTArm(st+[1:dims],c,:))',squeeze(projTHand(st+[1:dims],c,:))',"scaling",false,"reflection",'best');
+        %zt = tr.b*squeeze(projTHand(st+[1:dims],c,:))'*tr.T + tr.c; zt=NaN(size(zt));z=zt;z(:,[pDims,find(~ismember(1:3,pDims))])=zt(:,1:3);
+        title(params.condAbbrev(conditions(c)) + ", dist: "+ num2str(...
+            procrustes(squeeze(projTArm(st+pDims,c,:))',squeeze(projTHand(st+pDims,c,:))',"scaling",false,"reflection",'best'),'%.2f'));
+        %plot3(z(:,1),z(:,2),z(:,3),'k','LineWidth',0.25); scatter3(z(1,1),z(1,2),z(1,3),'black','x','sizeData',150);
+        plot3(squeeze(projT(st+1,c,:)),squeeze(projT(st+2,c,:)),squeeze(projT(st+3,c,:)),'Color',lineColor,'LineStyle',ls,'LineWidth',1.5);
+        scatter3(projT(st+1,1),projT(st+2,1),projT(st+3,1),'black','*','sizeData',250);
+        arrayfun(@(e) scatter3(projT(st+1,c,e),projT(st+2,c,e),projT(st+3,c,e),'filled','MarkerFaceColor',lineColor),round(mean(segVals{c}(:,1:3),1,'omitnan')))
     end
     % XY:view(0,90); XZ:view(0,0); YZ:view(90,0);
     if(saveFig)
         saveFigures(figure(nc),savePath,"Traj-"+margNames(nc),[]);
-        arrayfun(@(a)view(a,0,90),gcf().Children); saveFigures(figure(nc),savePath,"2DTraj-"+margNames(nc),[]);
+        %arrayfun(@(a)view(a,0,90),gcf().Children); saveFigures(figure(nc),savePath,"2DTraj-"+margNames(nc),[]);
     end
 end
 %%

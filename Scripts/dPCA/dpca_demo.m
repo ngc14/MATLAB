@@ -9,7 +9,7 @@
 % firingRates -- all single-trial data together, massive array. Here
 % If it's filled up with zeros 
 %    firingRatesAverage = bsxfun(@times, mean(firingRates,5), size(firingRates,5)./trialNum)
-binWidth = 10; sTrials = 20; time=-.5:1/(1000/binWidth):1;
+binWidth = 10; sTrials = 20; time=-.5:1/(1000/binWidth):1; dims = 10; 
 combinedParams = {{1,[1 2]}, {2}};
 margNames = {'Condition','Condition-Invariant'};
 margColours = [23 100 171; 200 160 43; 150 150 150;]/256;
@@ -81,7 +81,7 @@ dpca_plot(firingRatesAverage, W, V, @dpca_plot_default,'explainedVar', explVar, 
 %% Step 4: dPCA with regularization
 %load('optimalLambda'). Note that it includes noise covariance matrix Cnoise 
 % which provides substantial regularization itself (even with lambda=0).
-dims = 10; somaIndex = contains(string(somaTable(mv)),["Hand"]); % channels>16; % %
+somaIndex = cell2mat(arrayfun(@(a) find(somaTable(mv)==a,min(groupcounts(somaTable(mv)))),unique(somaTable(mv)),'UniformOutput',false));% channels>16; % %
 optimalLambda = dpca_optimizeLambda(firingRatesAverage(somaIndex,:,:),firingRates(somaIndex,:,:,:),...
     trialNum(somaIndex,:),'combinedParams', combinedParams, 'simultaneous', false,'numRep', 10);
 Cnoise = dpca_getNoiseCovariance(firingRatesAverage(somaIndex,:,:), ...
@@ -95,7 +95,38 @@ dpca_plot(firingRatesAverage(somaIndex,:,:,:), W, V, @dpca_plot_default, ...
     'legendSubplot', {16,params.condNames},'ylims',[]);
 Xcen = bsxfun(@minus, firingRatesAverage(somaIndex,:)', mean(firingRatesAverage(somaIndex,:),2)');
 Z = Xcen * W;
-%[W,~,~] = svd(Xcen, 'econ'); W = W(:,1:dims);
+channelsB = discretize(channels(somaIndex),[1,12,22,33]);
+%%
+figure();
+tiledlayout(4,5);
+grpInds = channelsB;%discretize(location(somaIndex,2)*ImagingParameters.px2mm,[0,4:5,5.5,6,6.5,8,10])
+for c = 1:length(combinedParams)
+mg = find(whichMarg==c,10);
+for i = 1:length(mg)
+    nexttile(); hold on; title(margNames{c}+" " + num2str(i));
+    groupVals = cell2mat(arrayfun(@(a) [sum(W(grpInds==a,mg(i))),sum(W(grpInds==a,mg(i)).^2)]./sum(grpInds==a),unique(grpInds),'UniformOutput',false));
+    bx=bar(unique(grpInds),cell2mat(cellfun(@(a,b) a./b,num2cell(groupVals,1),num2cell(sum(abs(groupVals),1)),'UniformOutput',false)));
+    ylim([-.5 .5]); xticks(unique(grpInds)); xticklabels(unique(grpInds));
+end
+end
+%saveFigures(gcf,"S:\Lab\ngc14\Working\DataHigh\Centered\Demixed\Weights\","Hand-Laminar",[]);
+%%
+somaLabels = somaTable(mv);
+[~,peakTimes] = max(firingRatesAverage(somaIndex,1,:),[],3);
+[~,sI] = sort(location(somaIndex,1)*ImagingParameters.px2mm);
+somaLabels = somaLabels(somaIndex);
+mvv = [find(somaLabels(sI)=="Arm",min(groupcounts(somaLabels)));find(somaLabels(sI)=="Hand",min(groupcounts(somaLabels)))];
+WS = W; WS(somaLabels(mvv)=="Arm",:) = W(somaLabels(mvv)=="Hand",:); WS(somaLabels(mvv)=="Hand",:) = W(somaLabels(mvv)=="Arm",:);
+VS = V; VS(somaLabels(mvv)=="Arm",:) = V(somaLabels(mvv)=="Hand",:); VS(somaLabels(mvv)=="Hand",:) = V(somaLabels(mvv)=="Arm",:);
+dpca_plot(firingRatesAverage(somaIndex,:,:,:), W, V, @dpca_plot_default, ...
+    'explainedVar', explVar,'marginalizationNames', margNames, 'marginalizationColours', margColours, ...
+    'whichMarg', whichMarg,'time', time,'timeEvents', timeEvents,'timeMarginalization', 2,...
+    'legendSubplot', {16,params.condNames},'ylims',[]);
+dpca_plot(firingRatesAverage(somaIndex,:,:,:), WS, VS, @dpca_plot_default, ...
+    'explainedVar', explVar,'marginalizationNames', margNames, 'marginalizationColours', margColours, ...
+    'whichMarg', whichMarg,'time', time,'timeEvents', timeEvents,'timeMarginalization', 2,...
+    'legendSubplot', {16,params.condNames},'ylims',[]);
+saveFigures(gcf,"S:\Lab\ngc14\Working\DataHigh\Centered\Demixed\","SwappedWeightsRC",[]);
 %%
 saveFig = false;
 somaColors = containers.Map(["Arm","Hand"],{[0 1 .2],[.8 0 1]});

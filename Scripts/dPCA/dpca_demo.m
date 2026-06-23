@@ -95,19 +95,39 @@ dpca_plot(firingRatesAverage(somaIndex,:,:,:), W, V, @dpca_plot_default, ...
     'legendSubplot', {16,params.condNames},'ylims',[]);
 Xcen = bsxfun(@minus, firingRatesAverage(somaIndex,:)', mean(firingRatesAverage(somaIndex,:),2)');
 Z = Xcen * W;
-channelsB = discretize(channels(somaIndex),[1,12,22,33]);
 %%
 figure();
-tiledlayout(4,5);
-grpInds = channelsB;%discretize(location(somaIndex,2)*ImagingParameters.px2mm,[0,4:5,5.5,6,6.5,8,10])
-for c = 1:length(combinedParams)
-mg = find(whichMarg==c,10);
-for i = 1:length(mg)
-    nexttile(); hold on; title(margNames{c}+" " + num2str(i));
-    groupVals = cell2mat(arrayfun(@(a) [sum(W(grpInds==a,mg(i))),sum(W(grpInds==a,mg(i)).^2)]./sum(grpInds==a),unique(grpInds),'UniformOutput',false));
-    bx=bar(unique(grpInds),cell2mat(cellfun(@(a,b) a./b,num2cell(groupVals,1),num2cell(sum(abs(groupVals),1)),'UniformOutput',false)));
-    ylim([-.5 .5]); xticks(unique(grpInds)); xticklabels(unique(grpInds));
-end
+tiledlayout(3,3);
+gcounts = {};
+for c = 1:length(combinedParams)+1
+    mg = find(whichMarg==c,dims/2);
+    for g = 1:3
+        if(g==1)
+            gcounts{g} = discretize(channels(somaIndex),[1,12,22,33]);
+            gName = "Laminar";
+        elseif(g==2)
+            gcounts{g} = discretize(max(0,location(somaIndex,1)*ImagingParameters.px2mm),[0:4,max(location(somaIndex,1)*ImagingParameters.px2mm)]);
+            gName = "CR";
+        else
+            gcounts{g} = discretize(min(7,max(1,location(somaIndex,2)*ImagingParameters.px2mm)),[1:6,max(location(somaIndex,2)*ImagingParameters.px2mm)]);
+            gName = "ML";
+        end
+        nexttile(); hold on;
+        if(c>length(combinedParams))
+            title(gName + " Counts");
+            bx = bar(groupcounts(gcounts{g}),'FaceColor','flat');
+            co = num2cell(colororder,2);
+            for l = 1:size(bx.CData,1)
+                bx.CData(l,:) = co{l};
+            end
+            xticks(1:size(bx.CData,1)); xticklabels(1:size(bx.CData,1));
+        else
+            title(margNames{c} +"-"+ gName); ylim([0 1]);
+            groupVals = cell2mat(arrayfun(@(a) sum(W(gcounts{g}==a,mg).^2)./sum(gcounts{g}==a),unique(gcounts{g}),'UniformOutput',false))';
+            bx=bar(1:length(mg),cell2mat(cellfun(@(a,b) a./b,num2cell(groupVals,2),num2cell(sum(groupVals,2)),'UniformOutput',false)),'stacked');
+            xticks(1:length(mg)); xticklabels(1:length(mg));
+        end
+    end
 end
 %saveFigures(gcf,"S:\Lab\ngc14\Working\DataHigh\Centered\Demixed\Weights\","Hand-Laminar",[]);
 %%
@@ -126,7 +146,8 @@ dpca_plot(firingRatesAverage(somaIndex,:,:,:), WS, VS, @dpca_plot_default, ...
     'explainedVar', explVar,'marginalizationNames', margNames, 'marginalizationColours', margColours, ...
     'whichMarg', whichMarg,'time', time,'timeEvents', timeEvents,'timeMarginalization', 2,...
     'legendSubplot', {16,params.condNames},'ylims',[]);
-saveFigures(gcf,"S:\Lab\ngc14\Working\DataHigh\Centered\Demixed\","SwappedWeightsRC",[]);
+Xcen = bsxfun(@minus, firingRatesAverage(somaIndex,:)', mean(firingRatesAverage(somaIndex,:)'));
+corr( Xcen * W, Xcen*WS);
 %%
 saveFig = false;
 somaColors = containers.Map(["Arm","Hand"],{[0 1 .2],[.8 0 1]});

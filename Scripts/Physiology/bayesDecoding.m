@@ -76,7 +76,7 @@ phaseInds = cellfun(@(p,cc) cellfun(@(w) arrayfun(@(b)find(strcmp(string(cc),b))
 phaseEnds = cellfun(@(a,pa,pw) cellfun(@(ps) cellfun(@(ap)cellfun(@(p,n) ...
     ap(:,p)+n,pa,pw,'UniformOutput', false),ps,'UniformOutput',false),...
     a, 'UniformOutput', false),siteSegs,phaseInds,phaseWin,'UniformOutput', false);
-phaseEnds = cellfun(@(a) cellfun(@(ps) cellfun(@(p) num2cell(cell2mat(arrayfun(@(t) t:params.binSize:3.5,p(:,3)-0.5,'UniformOutput',false)),1),...
+phaseEnds = cellfun(@(a) cellfun(@(ps) cellfun(@(p) num2cell(cell2mat(arrayfun(@(t) t:params.binSize*10:3.5,p(:,3)-0.5,'UniformOutput',false)),1),...
     ps,'UniformOutput',false),a,'UniformOutput',false),siteSegs,'Uniformoutput',false);
 spCounts = cellfun(@(p,s) cellfun(@(tt,a)cellfun(@(h) cellfun(@(ap) cellfun(@(tp,hp)... sum(hp>=tp(1) & hp<=tp(end))
     sum(hp>=tp(1)-winSz/2 & hp<=tp(1)+winSz/2),num2cell(ap(~all(isnan(ap),2),:),2),h(1,~all(isnan(ap),2))'),[a{:}],'UniformOutput',false),tt,'UniformOutput',false), ...
@@ -167,17 +167,17 @@ nUnits = 35; accLine = 90; trCl = [0 .7 0; 1 .5 0; 0 .5 1; .25 .25 .25; .6 0 .2;
 unitAccPhase = cellfun(@(s) s(:,testUnits==nUnits),somaUnits,'UniformOutput',false);
 em=cell2mat(cellfun(@(a) a([2,3,6]),cellfun(@(c) mean(cell2mat(cellfun(@(a) cell2mat(cellfun(@(n) mean(n,1,'omitnan'),a,'UniformOutput',false)),c,'UniformOutput',false)),1,'omitnan'),siteSegs,'UniformOutput',false)','UniformOutput',false));
 em=[mean(em(:,1:2),1,'omitnan'),min(em(:,end)),max(em(:,end))]; 
-[~,ei] = arrayfun(@(a) min(abs((-0.5:params.binSize:3.5)-a)),em);
+[~,ei] = arrayfun(@(a) min(abs(linspace(-0.5,3.5,size(unitAccPhase{1}{1},2))-a)),em);
 figure(); tiledlayout(1,3);
-nexttile(); hold on; pll = cellfun(@(p,c) shadedErrorBar(-0.5:params.binSize:3.5,mean(p,1,'omitnan'),std(p,0,1,'omitnan'),'lineProps',{'Color',trCl(c,:)}), ...
+nexttile(); hold on; pll = cellfun(@(p,c) shadedErrorBar(linspace(-0.5,3.5,size(unitAccPhase{1}{1},2)),mean(p,1,'omitnan'),std(p,0,1,'omitnan'),'lineProps',{'Color',trCl(c,:)}), ...
     arrayfun(@(a) cell2mat(cellfun(@(u) u{a},unitAccPhase,'UniformOutput',false)), 1:3,'UniformOutput',false),num2cell(1:3));
 arrayfun(@(a,s) plot([a a], [0,1], s),em,["k--","k--","b--","r--"]);
 legend([pll.mainLine],fTypes(1:3)); ylim([0 1]);
-nexttile(); hold on; pll = cellfun(@(p,c) shadedErrorBar(-0.5:params.binSize:3.5,mean(p,1,'omitnan'),std(p,0,1,'omitnan'),'lineProps',{'Color',trCl(c-3,:)}), ...
+nexttile(); hold on; pll = cellfun(@(p,c) shadedErrorBar(linspace(-0.5,3.5,size(unitAccPhase{1}{1},2)),mean(p,1,'omitnan'),std(p,0,1,'omitnan'),'lineProps',{'Color',trCl(c-3,:)}), ...
     arrayfun(@(a) cell2mat(cellfun(@(u) u{a},unitAccPhase,'UniformOutput',false)), 4:6,'UniformOutput',false),num2cell(4:6));
 arrayfun(@(a,s) plot([a a], [0,1], s),em,["k--","k--","b--","r--"]);
 legend([pll.mainLine],fTypes(4:6)); ylim([0 1]);
-nexttile(); hold on; pll = cellfun(@(p,c) shadedErrorBar(-0.5:params.binSize:3.5,mean(p,1,'omitnan'),std(p,0,1,'omitnan'),'lineProps',{'Color',trCl(c-6,:)}), ...
+nexttile(); hold on; pll = cellfun(@(p,c) shadedErrorBar(linspace(-0.5,3.5,size(unitAccPhase{1}{1},2)),mean(p,1,'omitnan'),std(p,0,1,'omitnan'),'lineProps',{'Color',trCl(c-6,:)}), ...
     arrayfun(@(a) cell2mat(cellfun(@(u) u{a},unitAccPhase,'UniformOutput',false)), 7:10,'UniformOutput',false),num2cell(7:10));
 arrayfun(@(a,s) plot([a a], [0,1], s),em,["k--","k--","b--","r--"]);
 legend([pll.mainLine],fTypes(7:10)); ylim([0 1]);
@@ -199,7 +199,7 @@ end
 plot([0,max(testUnits)]+[0 1],[accLine accLine],'LineWidth',1,'Color','k'); ylim([0 100]);
 %saveFigures(gcf,savePath,"NUnits_"+num2str(numRuns),[]);
 %%
-typeGroup = cell2mat(reshape(cellfun(@(s) cell2mat(arrayfun(@(e) s(:,e),[ei(1:2),mean(ei(end-1:end)),ei(end)],'UniformOutput',false)),[unitAccPhase{:}],'UniformOutput',false)',numRuns,1,[]));
+typeGroup = cell2mat(reshape(cellfun(@(s) cell2mat(arrayfun(@(e) s(:,e),[ei(1:2),fix(mean(ei(end-1:end))),ei(end)],'UniformOutput',false)),[unitAccPhase{:}],'UniformOutput',false)',numRuns,1,[]));
 accTable = array2table(100.*squeeze(mean(typeGroup(:,2:3,:),2,'omitnan')),'VariableNames',fTypes); % +"_"+string(somatotopicLabs)'
 accTable = [accTable,array2table(100.*typeGroup(:,:,strcmp(fTypes,"Task")),'VariableNames',phaseNames+"-Phase")];
 %writetable(accTable,savePath+"Decoding_"+num2str(nUnits)+"_"+num2str(numRuns),'FileType','spreadsheet','UseExcel',true);

@@ -6,15 +6,10 @@ phaseNames = ["Go","Reach","Hold","Withdraw"];
 params = PhysRecording(conditions,.01,.15,-6,5,containers.Map(conditions,...
     repmat({"StartReach"},1,length(conditions))));
 taskAlign = containers.Map(conditions,repmat({{["GoSignal" "StartHold"]}},1,length(conditions)));
-rgAlign = containers.Map(conditions,cellfun(@num2cell,repmat({["StartReach","StartHold"]},1,length(conditions)),'UniformOutput',false));
-rgWindow = repmat({{[-winSz*(3/4),winSz*(1/4)],[-winSz*(5/4), -winSz*(1/4)]}},1,length(conditions));
-rgWindow{3}{end} = [-winSz/2 0];
-phaseAlign = repmat({{"GoSignal","StartReach","StartHold","StartWithdraw"}},1,length(conditions));
-phaseWin = repmat({{[0, winSz],[-winSz*(3/4),winSz*(1/4)],[-winSz*(5/4), -winSz*(1/4)]}},1,length(conditions));
+phaseAlign = containers.Map(conditions,cellfun(@(c) num2cell(string(c)),repmat({{"GoSignal","StartReach","StartHold","StartWithdraw"}},...
+    1,length(conditions)),'UniformOutput',false));
+phaseWin = repmat({{[0, winSz],[-winSz*(3/4),winSz*(1/4)],[-winSz*(5/4), -winSz*(1/4)],[-winSz*(1/4),winSz*(3/4)]}},1,length(conditions));
 phaseWin{end}{3} = [-winSz/2 0];
-for p = 1:length(phaseWin)
-    phaseWin{p}{end+1} = [phaseWin{p}{2}(1),phaseWin{p}{3}(end)];
-end
 savePath = "S:\Lab\ngc14\Working\Decoding\NTrials\";
 %%
 [siteDateMap,siteSegs,siteTrialPSTHS,rawSpikes,siteChannels,chMaps,~,~] = ...
@@ -25,7 +20,7 @@ simpRep =  cellfun(@(r,t) r(find(t==min(t),1)),siteDateMap.SiteRep,siteDateMap.T
 [~,taskUnits] = cellfun(@(pb,pc) cellfun(@(b,p)  ttestTrials(b,p,1,true,0.01),...
     pb,pc, 'UniformOutput', false),taskBaseline(1:length(conditions)),taskFR(1:length(conditions)),'UniformOutput',false);
 taskUnits = cellfun(@cell2mat, taskUnits,'UniformOutput',false);
-[~,phaseFR] = calculatePhases(params,rgAlign,rgWindow,siteSegs,siteTrialPSTHS,false,true);
+[~,phaseFR] = calculatePhases(params,phaseAlign,phaseWin,siteSegs,siteTrialPSTHS,false,true);
 clear siteTrialPSTHS
 %%
 replaceVals = cell2mat(cellfun(@(c) cellfun(@(s) ~all(cellfun(@iscell,s)) | any(size(s)==[0 0]),c),rawSpikes,'Uniformoutput',false));

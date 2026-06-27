@@ -2,18 +2,24 @@ conditions = ["Extra Small Sphere", "Large Sphere", "Photocell"];
 params = PhysRecording(string(conditions),.01,.15,-6,5,containers.Map(conditions,...
     {"StartReach","StartReach","StartReach"}));
 winSz = .2; pVal=0.05;
-savePath = "S:\Lab\ngc14\Working\PSTHS\";
+savePath = "S:\Lab\ngc14\Working\Revisions\PSTHS\";
 phaseNames = categorical([ "Go", "Reach", "Hold","Withdraw"],'Ordinal',true);
 taskAlign = containers.Map(conditions,{{["GoSignal" "StartHold"]},{["GoSignal","StartHold"]},...
     {["GoSignal","StartHold"]}});
 taskWindow =repmat({{[winSz, 0]}},1,length(conditions));
 phaseWindows = repmat({{[0, winSz],[-winSz*(3/4),winSz*(1/4)],...
-    [-winSz*(5/4), -winSz*(1/4)],[-winSz*(3/4),winSz*(1/4)]}},1,length(conditions));
+    [-winSz*(5/4), -winSz*(1/4)],[-winSz*(1/4),winSz*(3/4)]}},1,length(conditions));
 phaseWindows{end}{3} = [-winSz/2 0];
 allSegs = params.condSegMap.values;
 [~,maxSegL]= max(cellfun(@length,allSegs));
 maxSegL = allSegs{maxSegL};
 condPhaseAlign = containers.Map(conditions,cellfun(@(s) arrayfun(@(p) s(~contains(s,"Replace") & contains(s,string(p))), phaseNames,'Uniformoutput',false),allSegs,'UniformOutput',false));
+%
+condPhaseAlign = containers.Map(conditions,cellfun(@(c) cellfun(@string,c,'UniformOutput',false),repmat({{"GoSignal","StartReach",{"StartReach","StartHold"},"StartWithdraw"}},...
+    1,length(conditions)),'UniformOutput',false));
+phaseWindows = repmat({{[0, winSz],[-winSz*(3/4),winSz*(1/4)],[-winSz*(1/2), -winSz*(1/2)],[-winSz*(1/4),winSz*(3/4)]}},1,length(conditions));
+taskAlign = containers.Map(conditions,{{"GoSignal"},{"GoSignal"},{"GoSignal"}});
+taskWindow =repmat({{[winSz, 1]}},1,length(conditions));
 %%
 [siteDateMap, siteSegs, siteTrialPSTHS, ~, siteChannels, chMaps,~,~]=...
     getAllSessions(params,"Single","M1","Face");
@@ -140,10 +146,12 @@ figure();plotJointPSTHS(params,{cell2mat(cellfun(@(m) mean(m,3,'omitnan'),vertca
     cell2struct(reshape(repmat(repmat(num2cell(somaColors,2),1,length(conditions)),max(1,twoDim),1)',[],1),allLabs(allLabs~="")));
 saveFigures(gcf,savePath,"Normalized_PSTHS",[]);
 %%
+repNames = string(unique(tPhys.Somatotopy))';
 somaR = splitapply(@(x){x},tPhys{:,contains(tPhys.Properties.VariableNames,"Reach")}.*...
     double((0./(tPhys.TaskUnits_ESS|tPhys.TaskUnits_LS|tPhys.TaskUnits_P))+1),findgroups(tPhys.Somatotopy));
 somaG = splitapply(@(x){x},tPhys{:,contains(tPhys.Properties.VariableNames,"Hold")}.*...
     double((0./(tPhys.TaskUnits_ESS|tPhys.TaskUnits_LS|tPhys.TaskUnits_P))+1),findgroups(tPhys.Somatotopy));
+figure();
 boxplotGroup(arrayfun(@(n)cell2mat(cellfun(@(r) resize(r(:,n),max(cellfun(@length,[somaR,somaG]),[],'all'),'FillValue',NaN,'Dimension',1), ...
 [somaR(~strcmp(repNames,"Trunk"));somaG(~strcmp(repNames,"Trunk"))],'UniformOutput',false)'),1:3,'UniformOutput',false),'Notch','on',...
 'Symbol','','primaryLabels',{'','',''},'SecondaryLabels',reshape(repNames(~strcmp(repNames,"Trunk")) + string(phaseNames(2:3))',1,[]));

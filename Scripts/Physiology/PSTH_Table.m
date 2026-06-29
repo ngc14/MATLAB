@@ -2,13 +2,13 @@ conditions = ["Extra Small Sphere", "Large Sphere", "Photocell"];
 params = PhysRecording(string(conditions),.01,.15,-6,5,containers.Map(conditions,...
     {"StartReach","StartReach","StartReach"}));
 winSz = .2; pVal=0.05;
-savePath = "S:\Lab\ngc14\Working\Revisions\PSTHS\";
+savePath = "S:\Lab\ngc14\Working\Revisions\PSTHS_ESS\";
 phaseNames = categorical([ "Go", "Reach", "Hold","Withdraw"],'Ordinal',true);
 taskAlign = containers.Map(conditions,{{["GoSignal" "StartHold"]},{["GoSignal","StartHold"]},...
     {["GoSignal","StartHold"]}});
 taskWindow =repmat({{[winSz, 0]}},1,length(conditions));
 phaseWindows = repmat({{[0, winSz],[-winSz*(3/4),winSz*(1/4)],...
-    [-winSz*(5/4), -winSz*(1/4)],[-winSz*(1/4),winSz*(3/4)]}},1,length(conditions));
+    [-winSz*(6/4), -winSz*(2/4)],[-winSz*(1/4),winSz*(3/4)]}},1,length(conditions));
 phaseWindows{end}{3} = [-winSz/2 0];
 allSegs = params.condSegMap.values;
 [~,maxSegL]= max(cellfun(@length,allSegs));
@@ -24,7 +24,7 @@ taskWindow =repmat({{[winSz, 1]}},1,length(conditions));
 [siteDateMap, siteSegs, siteTrialPSTHS, ~, siteChannels, chMaps,~,~]=...
     getAllSessions(params,"Single","M1","Face");
 %%
-siteRep =cell2mat(cellfun(@(r,t) r(find((t.*~contains(r,"Face"))==min(t),1)),siteDateMap.SiteRep,siteDateMap.Thresh,'UniformOutput', false))';
+siteRep =cell2mat(cellfun(@(r,t) r(find(t+(1000*contains(r,"Face"))==min(t),1)),siteDateMap.SiteRep,siteDateMap.Thresh,'UniformOutput', false))';
 allCondCue = cellfun(@(c) cellfun(@(a) cellfun(@(t) findBins(mean(t(:,contains(maxSegL,"Go"))-4,'omitnan'),params.bins),a),...
     c,'UniformOutput',false),siteSegs,'UniformOutput',false);
 normBaseline = cellfun(@(p,t) cellfun(@(a,n) max(1,mean(a(:,n(find(~isnan(n),1)):n(find(~isnan(n),1))+(3/params.binSize),:),2,'omitnan')),...
@@ -32,6 +32,7 @@ normBaseline = cellfun(@(p,t) cellfun(@(a,n) max(1,mean(a(:,n(find(~isnan(n),1))
 normPSTH = cellfun(@(cp,nb) cellfun(@(p,b)p./b,cp,nb,'UniformOutput',false),num2cell([siteTrialPSTHS{:}],2),...
     normBaseline,'Uniformoutput', false);
 normPSTH = num2cell(vertcat(normPSTH{:}),1);
+chUnitMap = cellfun(@(m) m{end},chMaps,'UniformOutput',false);
 %%
 sumSegs = cellfun(@(c) cellfun(@(n) cat(3,n{:}), c, 'UniformOutput',false), siteSegs,'UniformOutput',false);
 for c = 1:length(conditions)
@@ -46,13 +47,13 @@ for c = 1:length(conditions)
 end
 sumSegs = cellfun(@(c)cellfun(@(s) {s},c,'UniformOutput',false),sumSegs,'UniformOutput',false);
 [taskBaseline,taskFR] = calculatePhases(params,taskAlign,taskWindow,sumSegs,siteTrialPSTHS,false,true);
+[~,tUnit] = cellfun(@(tb,tc) cellfun(@(b,cn) ttestTrials(b,cn,1,true,pVal),tb,tc,'UniformOutput',false),taskBaseline,taskFR,'UniformOutput', false);
 [~,phaseFR] = calculatePhases(params,condPhaseAlign,phaseWindows,sumSegs,siteTrialPSTHS,false,true);
 [~,avgPhase] =  calculatePhases(params,condPhaseAlign,phaseWindows,sumSegs,normPSTH,false,false);
 rAUC = cellfun(@(c) cellfun(@(a) a{1}{:,contains(string(phaseNames),"Reach")},c,'UniformOutput',false), phaseFR, 'UniformOutput',false);
 gAUC = cellfun(@(c) cellfun(@(a) a{1}{:,contains(string(phaseNames),"Hold")},c,'UniformOutput',false), phaseFR, 'UniformOutput',false);
 [gsubr,rgInds] = cellfun(@(cr,cg) cellfun(@(r,g) ttestTrials({{r}},{{g}},1,true,0.05),cr,cg,'UniformOutput',false),rAUC,gAUC, 'UniformOutput',false);
 gsubr = cellfun(@(c) cellfun(@(v) mean([v{:}],2,'omitnan'), c, 'UniformOutput',false),gsubr,'UniformOutput',false);
-[~,tUnit] = cellfun(@(tb,tc) cellfun(@(b,cn) ttestTrials(b,cn,1,true,pVal),tb,tc,'UniformOutput',false),taskBaseline,taskFR,'UniformOutput', false);
 typeUnits = cellfun(@(rg,v,t) sum(cumprod([cell2mat(rg)==1 & cell2mat(t)==1 & cell2mat(v)<1, cell2mat(rg)>0 & cell2mat(t)==1 & cell2mat(v)>1, ...
     cell2mat(rg)==0 & cell2mat(t)==1] ==0,2),2)+1, rgInds,gsubr,tUnit, 'UniformOutput', false);
 for t = 1:length(typeUnits)
@@ -61,7 +62,6 @@ end
 condXphase = cellfun(@(pc) cell2mat(cellfun(@(v) permute(mean(cat(3,v{:}),2,'omitnan'),[1 3 2]),...
     cellfun(@(n) vertcat(n{:}),pc,'UniformOutput',false),'UniformOutput',false)),avgPhase,'UniformOutput',false);
 condXphase = cellfun(@(s) [s,NaN(size(s,1),length(phaseNames)-size(s,2))], condXphase, 'UniformOutput',false);
-chUnitMap = cellfun(@(m) m{end},chMaps,'UniformOutput',false);
 %%
 tPhys = table();
 g = @(x,y,c)GetPointLineDistance(x,y,c(1),c(2),c(3),c(4));
@@ -131,7 +131,7 @@ scatter(unique([get(xa,"Children").XData],'sorted'),plotVals,200,'black',"_",'Li
 saveFigures(gcf,savePath,"Normalized_Violins",[]);
 %%
 allSegs = cellfun(@(c,n) cellfun(@(s,t) repmat(mean([s{:}],1,'omitnan'),size(t,1),1), c,n, 'UniformOutput',false), sumSegs,normPSTH,'UniformOutput',false);
-allPSTHS = cellfun(@(p) num2cell(p,[2,3]),vertcat(normPSTH{:}),'UniformOutput',false);
+allPSTHS = cellfun(@(p) num2cell(p,[2,3]),vertcat(normPSTH{:}),'UniformOutput',false); %
 psthLabs = arrayfun(@(c,s) repmat(c,size(cell2mat([s{:}]),1),1)+"_"+string(tPhys.Somatotopy)+"_"+tPhys.("unitType_"+c),string(params.condAbbrev.values),allSegs,'UniformOutput',false);%+"_"+string(tPhys.Channel>16)
 allLabs = unique([psthLabs{:}]); 
 emptyConds = allLabs(contains(allLabs,"_0"));
@@ -143,7 +143,7 @@ twoDim = length(conditions) * double(max(unique(arrayfun(@(r) length(regexp(r,"_
 figure();plotJointPSTHS(params,{cell2mat(cellfun(@(m) mean(m,3,'omitnan'),vertcat(allPSTHS{:}),'UniformOutput',false)).*...
     double((0./(vertcat(tPhys.TaskUnits_ESS,tPhys.TaskUnits_LS,tPhys.TaskUnits_P)))+1)},{cell2mat(vertcat(allSegs{:}))},...
     vertcat(psthLabs{:}),(vertcat(tPhys.TaskUnits_ESS,tPhys.TaskUnits_LS,tPhys.TaskUnits_P)),[],[-.5 2.5],[.9 7],...
-    cell2struct(reshape(repmat(repmat(num2cell(somaColors,2),1,length(conditions)),max(1,twoDim),1)',[],1),allLabs(allLabs~="")));
+    cell2struct(reshape(repmat(repmat(num2cell(somaColors,2),1,length(conditions)),max(1,twoDim),1),[],1),allLabs(allLabs~="")));
 saveFigures(gcf,savePath,"Normalized_PSTHS",[]);
 %%
 repNames = string(unique(tPhys.Somatotopy))';
@@ -154,7 +154,7 @@ somaG = splitapply(@(x){x},tPhys{:,contains(tPhys.Properties.VariableNames,"Hold
 figure();
 boxplotGroup(arrayfun(@(n)cell2mat(cellfun(@(r) resize(r(:,n),max(cellfun(@length,[somaR,somaG]),[],'all'),'FillValue',NaN,'Dimension',1), ...
 [somaR(~strcmp(repNames,"Trunk"));somaG(~strcmp(repNames,"Trunk"))],'UniformOutput',false)'),1:3,'UniformOutput',false),'Notch','on',...
-'Symbol','','primaryLabels',{'','',''},'SecondaryLabels',reshape(repNames(~strcmp(repNames,"Trunk")) + string(phaseNames(2:3))',1,[]));
+'Symbol','','primaryLabels',{'','',''},'SecondaryLabels',reshape(transpose(repNames(~strcmp(repNames,"Trunk")) + string(phaseNames(2:3))'),1,[]));
 ylim([0 8]);
 cellfun(@(c) arrayfun(@(l) set(l,'LineStyle','-'),c),arrayfun(@(a) a.Children(contains(get(a.Children,'Tag'),'Whisker')),allchild(gca),'UniformOutput',false));
 saveFigures(gcf,savePath,"CondBoxes",[]);

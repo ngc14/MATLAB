@@ -111,9 +111,9 @@ classdef libsvm_CL
         kernel = 'linear';  % the type of kernel used in the SVM.  Choices are 'linear', 'polynomial'/'poly', or 'gaussian'/'rbf'.
         poly_degree = [];  % if a polynomial classifier is used, the degree of the polynomial must be set
         poly_offset = 1;  % a constant offset if a polynomntal kernel is used (default is to use an offset of 1)
-        gaussian_gamma = [];  % this controlls the falloff of the Gaussian kernel (larger values mean slower falloff = wider Gaussian functions)
-        additional_libsvm_options = '';  % can set this to use additional libsvm options that are not explicitly supported by this wrapper
-        multiclass_classificaion_scheme = 'all_pairs';   % options are 'one_vs_all' or 'all_pairs'.
+        gaussian_gamma = []; % this controlls the falloff of the Gaussian kernel (larger values mean slower falloff = wider Gaussian functions)
+        additional_libsvm_options = '-h 1 -q 1';  % can set this to use additional libsvm options that are not explicitly supported by this wrapper
+        multiclass_classificaion_scheme = 'one_vs_all';   % options are 'one_vs_all' or 'all_pairs'.
   end
 
   
@@ -159,7 +159,7 @@ classdef libsvm_CL
 
             cstring = ['-c ' num2str(cl.C) ' '];  %  create the libsvm arguments for the (inverse of the) regularization constant       
             basicstring = ['-s 0 '];   % use C-SVC  (which is the default anyway)            
-            probstring = '';  %['-b 1 '];
+            probstring = ['-b 1 '];
             
             
             paramstring = [basicstring cstring kernelstring probstring cl.additional_libsvm_options];
@@ -167,7 +167,7 @@ classdef libsvm_CL
             
             
             if strcmp(cl.multiclass_classificaion_scheme, 'all_pairs')
-               
+                % C-SVC -linear kernel
                 cl.model = svmtrain2(YTr, double(XTr'), paramstring);  % renamed the libsvm function svmtrain2 because the Matlab bioinformatics toolbox now has a funciton named svmtrain
                 %cl.model = svmtrain(YTr, double(XTr'), paramstring);  
 
@@ -193,14 +193,20 @@ classdef libsvm_CL
         
         
  
-        function [predicted_labels decision_values] = test(cl, XTe)
+        function [predicted_labels decision_values] = test(cl, XTe,YTe)
         
-            junk_fake_xte_labels = ones(size(XTe,2),1);
+            if(~exist("YTe",'var'))
+                junk_fake_xte_labels = ones(size(XTe,2),1);
+            else
+                junk_fake_xte_labels = YTe';
+            end
+
             
             
             if strcmp(cl.multiclass_classificaion_scheme, 'all_pairs')
             
-                [predic_label, junk_fake_accuracy, libsvm_format_all_pairs_decision_vals] = svmpredict(junk_fake_xte_labels, double(XTe'), cl.model);   % edited by Ethan to work with libsvm 2.86 (compared to 2.8)
+                [predic_label, junk_fake_accuracy, libsvm_format_all_pairs_decision_vals] = svmpredict2(...
+                    junk_fake_xte_labels, double(XTe'), cl.model,'-b 1');   % edited by Ethan to work with libsvm 2.86 (compared to 2.8)
 
                 predicted_labels = predic_label(:,1);
                 if (size(predic_label,2)>1)
@@ -262,8 +268,8 @@ classdef libsvm_CL
                % do one vs. all testing
                for iClass = 1:length(cl.labels)
                    
-                   [predic_label, junk_fake_accuracy, libsvm_format_all_pairs_decision_vals] = svmpredict(junk_fake_xte_labels, double(XTe'), cl.model{iClass});
-                   decision_values(:, iClass) = libsvm_format_all_pairs_decision_vals; 
+                   [predic_label, junk_fake_accuracy, libsvm_format_all_pairs_decision_vals] = svmpredict2(junk_fake_xte_labels, double(XTe'), cl.model{iClass},'-b 1');
+                   decision_values(:, iClass) = libsvm_format_all_pairs_decision_vals(:,1); 
             
                    % % linear f(x)  % the decision values are the same as these when a linear kernel is used...
                    %w = cl.model{iClass}.SVs' * cl.model{iClass}.sv_coef;

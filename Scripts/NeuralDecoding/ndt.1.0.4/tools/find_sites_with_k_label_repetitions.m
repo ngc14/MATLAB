@@ -115,7 +115,7 @@ end
 
 
 
-inds_of_sites_with_at_least_k_repeats = find(min_num_repeats_all_sites >= k);
+inds_of_sites_with_at_least_k_repeats = find(min_num_repeats_all_sites >=k);
 
 
 % return the name of the labels that were used (useful if label_names_to_use was not an input parameter)

@@ -88,7 +88,7 @@ classdef max_correlation_coefficient_CL
             unique_labels = unique(YTr);
 
             for i = 1:length(unique_labels)
-                template(:, i) = mean(XTr(:, (YTr == unique_labels(i))), 2);
+                template(:, i) = mean(XTr(:, (YTr == unique_labels(i))), 2,'omitnan');
             end
 
             cl.templates = template;
@@ -108,8 +108,8 @@ classdef max_correlation_coefficient_CL
                 % template_corrcoeffs = all_correlation_coefficients(size(cl.templates, 2) +1:end, 1:size(cl.templates, 2));
                 
                 % another way to compute the correlation coefficients - switched my code to this to make it compatible with Octave
-                 mean_subtracted_templates = cl.templates - repmat(mean(cl.templates), [size(cl.templates, 1) 1]);
-                 mean_subtracted_XTe = XTe - repmat(mean(XTe), [size(XTe, 1) 1]);
+                 mean_subtracted_templates = cl.templates - repmat(mean(cl.templates,'omitnan'), [size(cl.templates, 1) 1]);
+                 mean_subtracted_XTe = XTe - repmat(mean(XTe,'omitnan'), [size(XTe, 1) 1]);
                  normalization_matrix = sqrt(diag(mean_subtracted_templates' * mean_subtracted_templates)) * sqrt(diag(mean_subtracted_XTe' * XTe))';
                  template_corrcoeffs = ((mean_subtracted_templates' * mean_subtracted_XTe)./normalization_matrix)';
 
@@ -128,7 +128,7 @@ classdef max_correlation_coefficient_CL
 
 
             if (size(template_corrcoeffs, 1) .* size(template_corrcoeffs, 2)  ~= sum(sum(isfinite(template_corrcoeffs))))
-               warning('this matrix contains some numbers that are not finite!!!')
+               % warning('this matrix contains some numbers that are not finite!!!')
             end
             
             

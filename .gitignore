@@ -60,3 +60,7 @@
 *.mat
 
 /Scripts/matlab/
+
+/Scripts/NeuralDecoding/ndt.1.0.4/meg_decoding-master/
+
+/Scripts/NeuralDecoding/ndt.1.0.4/external_libraries/

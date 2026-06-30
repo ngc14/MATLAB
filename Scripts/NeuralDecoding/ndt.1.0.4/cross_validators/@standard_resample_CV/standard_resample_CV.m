@@ -245,7 +245,7 @@ classdef standard_resample_CV
 %
 %    .ROC_AUC_RESULTS  This structure contains results that measure the area under an receiver operator characteristic (ROC) curves
 %       that are created separately for each class from the decision values.  ROC curves graph the proportion of positive test 
-%       points correctly classified (true positive rate) as a function of the proportion of negative test points incorrectly
+%       points correctly classified (true positive rate) as a function of the proportion of negative test points decoding_resultsincorrectly
 %       classified (false positive rate).  The area under this curve (ROC AUC) gives a measure of decoding accuracy that has a number of
 %       useful properties, including the fact that it is invariant to the ratio of positive to negative examples, and that
 %       it can be used to determine decoding accuracies when multiple correct classes are present at the same time.  The results
@@ -442,8 +442,8 @@ classdef standard_resample_CV
                             
                             
                             % apply preprocessing to the training data 
-                            if ~isempty(cv.feature_preprocessors)
-                                for iFP = 1:length(cv.feature_preprocessors)
+                            if ~isempty(feature_preprocessors)
+                                for iFP = 1:length(feature_preprocessors)
                                     
                                     
                                     [feature_preprocessors{iFP} XTr] = feature_preprocessors{iFP}.set_properties_with_training_data(XTr, YTr);  % save FP parameters and get normalized XTr
@@ -511,8 +511,8 @@ classdef standard_resample_CV
 
                                 
                                 % apply feature preprocessing to the test data
-                                if ~isempty(cv.feature_preprocessors)
-                                    for iFP = 1:length(cv.feature_preprocessors)       
+                                if ~isempty(feature_preprocessors)
+                                    for iFP = 1:length(feature_preprocessors)       
                                         XTe = feature_preprocessors{iFP}.preprocess_test_data(XTe);                     
                                     end
                                 end
@@ -879,7 +879,7 @@ classdef standard_resample_CV
                      
                      if (cv.display_progress.zero_one_loss == 1) && isfield(DECODING_RESULTS, 'ZERO_ONE_LOSS_RESULTS'),  results_to_display{1} = DECODING_RESULTS.ZERO_ONE_LOSS_RESULTS.decoding_results .* 100;  end    % could put an error message if someone tries to display a result type they are not saving, but I will not bother
                      if cv.display_progress.normalized_rank == 1 && isfield(DECODING_RESULTS, 'NORMALIZED_RANK_RESULTS'), results_to_display{2} = DECODING_RESULTS.NORMALIZED_RANK_RESULTS.decoding_results; end
-                     if cv.display_progress.decision_values == 1 && isfield(DECODING_RESULTS, 'DECISION_VALUES.decoding_results'),  results_to_display{3} = DECODING_RESULTS.DECISION_VALUES.decoding_results; end
+                     if cv.display_progress.decision_values == 1 && isfield(DECODING_RESULTS, 'DECISION_VALUES'),  results_to_display{3} = DECODING_RESULTS.DECISION_VALUES.decoding_results; end
                      if cv.display_progress.separate_CV_ROC_results && isfield(DECODING_RESULTS.ROC_AUC_RESULTS', 'separate_CV_ROC_results'), results_to_display{4} = DECODING_RESULTS.ROC_AUC_RESULTS.separate_CV_ROC_results.decoding_resultss; end
                      if cv.display_progress.combined_CV_ROC_results && isfield(DECODING_RESULTS.ROC_AUC_RESULTS', 'combined_CV_ROC_results'), results_to_display{5} = DECODING_RESULTS.ROC_AUC_RESULTS.combined_CV_ROC_results.decoding_results; end 
                      cv.display_result_progress(results_to_display, cv.display_progress);
@@ -906,6 +906,8 @@ classdef standard_resample_CV
             DECODING_RESULTS.CV_PARAMETERS.stop_resample_runs_only_when_specfic_results_have_converged = cv.stop_resample_runs_only_when_specfic_results_have_converged;
             DECODING_RESULTS.CV_PARAMETERS.num_resample_runs_actually_run = iResample;
             DECODING_RESULTS.CV_PARAMETERS.convergence_values = convergence_values;  % might be more appropriate to save this elsewhere, but ok for now...
+            
+            DECODING_RESULTS.CLASSIFIER = classifier;
             for iFP = 1:length(feature_preprocessors), DECODING_RESULTS.CV_PARAMETERS.feature_preprocessor_names{iFP} = class(feature_preprocessors{iFP}); end
             
             % if the datasource has a method get_DS_properties, save the datasource properties returned my this method as well

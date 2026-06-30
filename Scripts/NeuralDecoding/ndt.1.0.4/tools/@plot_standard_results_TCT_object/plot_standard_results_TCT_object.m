@@ -364,15 +364,19 @@ classdef plot_standard_results_TCT_object
 
             
             xticks = get(gca, 'XTick');
-            xticks(xticks < 1) = [];  xticks(xticks > length(the_time_interval)) = [];  % added to get things to work in Octave
+            xticks(xticks < 1) = [];  xticks(mod(xticks,plot_obj.plot_time_intervals.bin_width)~=0) = [];%xticks(xticks > length(the_time_interval)) = [];  % added to get things to work in Octave
+            xticks = xticks(mod(xticks,1)==0);
+            set(gca,'XTick',xticks);
             if min(get(gca, 'XTick')) < 1
-                set(gca, 'XTickLabel', [-1 the_time_interval(xticks)]);  % added to get things to work in Octave
+                set(gca, 'XTickLabel', [0 the_time_interval(xticks)]);  % added to get things to work in Octave
             else
                 set(gca, 'XTickLabel', the_time_interval(xticks));
             end
 
             yticks = get(gca, 'YTick');
-            yticks(yticks < 1) = [];  yticks(yticks > length(the_time_interval)) = [];  % added to get things to work in Octave
+            yticks(yticks < 1) = [];  yticks(mod(yticks,plot_obj.plot_time_intervals.bin_width)~=0) = [];  % added to get things to work in Octave
+            yticks = yticks(mod(yticks,1)==0);
+            set(gca,'YTick',yticks);
             if min(get(gca, 'YTick')) < 1
                 set(gca, 'YTickLabel', [-1 the_time_interval(yticks)]);  % added to get things to work in Octave
             else               
@@ -526,7 +530,7 @@ classdef plot_standard_results_TCT_object
                     end
                                         
                     % add axis labels, lines for significant events, etc.
-                    xlabel('Time (ms)', 'FontSize', plot_obj.font_size)
+                    xlabel('Phase', 'FontSize', plot_obj.font_size)
                     ylabel(plot_obj.decoding_result_type_name, 'FontSize', plot_obj.font_size)
                     if ~isnan(plot_obj.chance_level)
                         line(get(gca, 'XLim'), [plot_obj.chance_level plot_obj.chance_level], 'color', [0 0 0])
@@ -560,13 +564,14 @@ classdef plot_standard_results_TCT_object
                     end
                     
                     
-                    if plot_obj.display_movie_pause_time < 0
-                        pause;  % pause until a key is pressed
-                    else
-                        pause(plot_obj.display_movie_pause_time);
+                    % if plot_obj.display_movie_pause_time < 0
+                    %     pause;  % pause until a key is pressed
+                    % else
+                    %     pause(plot_obj.display_movie_pause_time);
+                    % end
+                    if(iTime~=size(result_to_plot,1))
+                        h=figure();
                     end
-                        
-                    
                 end  % end the for loop over all times
 
 

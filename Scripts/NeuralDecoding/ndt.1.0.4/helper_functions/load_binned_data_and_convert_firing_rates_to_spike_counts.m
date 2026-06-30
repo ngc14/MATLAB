@@ -47,8 +47,9 @@ function [binned_data_spike_counts binned_labels binned_site_info] = load_binned
 
 
 
-   load(binned_data_file_name) 
-
+   %load(binned_data_file_name) 
+   binned_site_info = binned_data_file_name.binParameters;
+   binned_data = binned_data_file_name.FR;
 
    if nargin < 2 
         bin_width = binned_site_info.binning_parameters.bin_width;   % will either be a number, or if custom bin widths are used, this will be a vector

@@ -79,10 +79,9 @@ classdef zscore_normalize_FP
         function [fp XTr_normalized] = set_properties_with_training_data(fp, XTr, tilda_junk)   % inputs should really be (fp, XTr, YTr), matlab creators really do not understard OOP
         %function [fp XTr_normalized] = set_properties_with_training_data(fp, XTr, ~)  % changed this line so that the toolbox will be compatible with older versions of matlab  
          
-            fp.mean_XTr = mean(XTr, 2);
-            stdev_XTr = std(XTr, [], 2);
+            fp.mean_XTr = mean(XTr, 2,'omitnan');
+            stdev_XTr = std(XTr, [], 2,'omitnan');
             fp.stdev_XTr = stdev_XTr + ~stdev_XTr;  % change all zero values to ones so that I don't get NaN errors that would happen if I divided by zero
-
             XTr_normalized = fp.preprocess_test_data(XTr);
                
         end

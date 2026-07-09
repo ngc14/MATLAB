@@ -205,8 +205,8 @@ properties (GetAccess = 'public', SetAccess = 'private')
       
       num_trials_per_split;
       data_loaded_as_spike_counts;   % records whether the data was loaded as spike counts (rather than firing rates)
-      testingSet;
-      testingLabs;
+      % testingSet;
+      % testingLabs;
 end
 
 
@@ -218,9 +218,9 @@ methods
     
     
         % the constructor
-        function ds = basic_DS(binned_data_name, specific_binned_label_name, testingSet, testingLabs,num_cv_splits, num_trials_per_split, load_data_as_spike_counts)
+        function ds = basic_DS(binned_data_name, specific_binned_label_name,num_cv_splits, num_trials_per_split, load_data_as_spike_counts)
             
-            if nargin < 7
+            if nargin < 5
                 load_data_as_spike_counts = 0;
             end
             
@@ -255,8 +255,8 @@ methods
             
             ds.num_trials_per_split = num_trials_per_split;
             ds.data_loaded_as_spike_counts = load_data_as_spike_counts;   % might as well save this information too
-            ds.testingSet = testingSet;
-            ds.testingLabs = testingLabs;
+            % ds.testingSet = testingSet;
+            % ds.testingLabs = testingLabs;
                                                             
         end
         
@@ -470,9 +470,9 @@ methods
             sample_sites_with_replacement = ds.sample_sites_with_replacement;   
             create_simultaneously_recorded_populations = ds.create_simultaneously_recorded_populations;
             %use_random_subset_of_k_labels_each_time_data_is_retrieved = ds.use_random_subset_of_k_labels_each_time_data_is_retrieved;
-            tSet = cell2mat(cellfun(@(r) reshape(r,size(r,1),1,[]), ds.testingSet,'UniformOutput',false)');
-            tLabs = cellfun(@(t) renamecats(categorical(t),categories(categorical(t)),arrayfun(@string,1:length(unique(t)))), ds.testingLabs,'UniformOutput',false);
-                    
+            % tSet = cell2mat(cellfun(@(r) reshape(r,size(r,1),1,[]), ds.testingSet,'UniformOutput',false)');
+            % tLabs = double(cell2mat(cellfun(@(t) renamecats(categorical(t),categories(categorical(t)),arrayfun(@string,1:length(unique(t)))), ds.testingLabs, 'UniformOutput', false)));
+
             % a santy checks
             if isempty(sites_to_use) 
                error('sites_to_use can not be empty') 
@@ -675,17 +675,17 @@ methods
                 
                 
                 cv_start_ind = 1;
-                testPairs = nchoosek(1:num_cv_splits/num_times_to_repeat_each_label_per_cv_split,num_times_to_repeat_each_label_per_cv_split);
-                testPairs(:,end+1:end+2) = testPairs(:,1:2)+max(testPairs(:,1:2),[],'all');
-                testPairs(:,end+1:end+2) = testPairs(:,1:2)+max(testPairs(:,3:4),[],'all');
+                % testPairs = nchoosek(1:num_cv_splits/num_times_to_repeat_each_label_per_cv_split,num_times_to_repeat_each_label_per_cv_split);
+                % testPairs(:,end+1:end+2) = testPairs(:,1:2)+max(testPairs(:,1:2),[],'all');
+                % testPairs(:,end+1:end+2) = testPairs(:,1:2)+max(testPairs(:,3:4),[],'all');
                 for iCV = 1:num_cv_splits
                    
                     curr_cv_inds = [];  %NaN .* ones(num_times_to_repeat_each_label_per_cv_split * length(ds.label_names_to_use), 1);
-                    
+
                     for iNumRepeatsPerLabel = 1:num_times_to_repeat_each_label_per_cv_split
-                        %curr_cv_inds  = [curr_cv_inds cv_start_ind:(num_trials_per_split):size(the_resample_data, 1)];cv_start_ind = cv_start_ind + 1;
-                        curr_cv_inds = randperm(num_trial_per_split,num_times_to_repeat_each_label_per_cv_split);
-                        curr_cv_inds = double(cell2mat(arrayfun(@(a) curr_cv_inds+(a*num_trial_per_split),0:length(label_names_to_use)-1,'UniformOutput',false)));
+                        curr_cv_inds  = [curr_cv_inds cv_start_ind:(num_trial_per_split):size(the_resample_data, 1)];cv_start_ind = cv_start_ind + 1;
+                        %curr_cv_inds = randperm(num_trial_per_split,num_times_to_repeat_each_label_per_cv_split);
+                        %curr_cv_inds = double(cell2mat(arrayfun(@(a) curr_cv_inds+(a*num_trial_per_split),0:length(label_names_to_use)-1,'UniformOutput',false)));
                     end
                     
                     
@@ -699,14 +699,14 @@ methods
                    
                     % can actually just return these instead...
                     XTr_all_time_cv{iTimePeriod}{iCV} = the_resample_data_time(setdiff(all_resample_data_inds, curr_cv_inds), :)';  
-                    XTe_all_time_cv{iTimePeriod}{iCV} = tSet(testPairs(iCV,:),:,iTimePeriod)';
+                    XTe_all_time_cv{iTimePeriod}{iCV} = the_resample_data_time(curr_cv_inds,:)';
                     
-                    %YTr_all{iTimePeriod} = all_data_point_labels(setdiff(all_resample_data_inds, curr_cv_inds));
-                    %YTe_all{iTimePeriod} = all_data_point_labels(curr_cv_inds);
+                    YTr_all = all_data_point_labels(setdiff(all_resample_data_inds, curr_cv_inds))';
+                    YTe_all = all_data_point_labels(curr_cv_inds)';
                     
                     % might as well return these as vectors (rather than cell arrays) since they are the same at all time periods
-                    YTr_all = all_data_point_labels(setdiff(all_resample_data_inds, curr_cv_inds));  
-                    YTe_all = cell2mat(cellfun(@(t) t(testPairs(iCV,:)),tLabs,'UniformOutput',false));
+                    %XTe_all_time_cv{iTimePeriod}{iCV} = tSet(testPairs(iCV,:)),:,iTimePeriod)';
+                    %YTe_all{iTimePeriod} = tLabs(testPairs(iCV,:));
                     
                                  
                 end                

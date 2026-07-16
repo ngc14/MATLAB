@@ -88,10 +88,10 @@ classdef max_correlation_coefficient_CL
             unique_labels = unique(YTr);
 
             for i = 1:length(unique_labels)
-                template(:, i) = mean(XTr(:, (YTr == unique_labels(i))), 2,'omitnan');
+                template{i} = reshape(mean(XTr(:, (YTr == unique_labels(i)),:), 2,'omitnan'),size(XTr,1),1,[]);
             end
 
-            cl.templates = template;
+            cl.templates = cell2mat(template);
             cl.labels = unique_labels;
             
         end
@@ -108,19 +108,17 @@ classdef max_correlation_coefficient_CL
                 % template_corrcoeffs = all_correlation_coefficients(size(cl.templates, 2) +1:end, 1:size(cl.templates, 2));
                 
                 % another way to compute the correlation coefficients - switched my code to this to make it compatible with Octave
-                 mean_subtracted_templates = cl.templates - repmat(mean(cl.templates,'omitnan'), [size(cl.templates, 1) 1]);
-                 mean_subtracted_XTe = XTe - repmat(mean(XTe,'omitnan'), [size(XTe, 1) 1]);
-                 normalization_matrix = sqrt(diag(mean_subtracted_templates' * mean_subtracted_templates)) * sqrt(diag(mean_subtracted_XTe' * XTe))';
-                 template_corrcoeffs = ((mean_subtracted_templates' * mean_subtracted_XTe)./normalization_matrix)';
-
-            
+                 mean_subtracted_templates = cellfun(@squeeze,num2cell(cl.templates - mean(cl.templates,'omitnan'),[1 3]),'UniformOutput',false);
+                 mean_subtracted_XTe = cellfun(@squeeze,num2cell(XTe - mean(XTe,'omitnan'),[1 3]),'UniformOutput',false);
+                 template_corrcoeffs = cellfun(@(n) cellfun(@(t) corrcoef(n,t), mean_subtracted_templates,'UniformOutput',false),mean_subtracted_XTe,'UniformOutput',false);
+                 template_corrcoeffs = cell2mat(cellfun(@(t) cellfun(@(c) c(1,2),t)',template_corrcoeffs,'UniformOutput',false))';            
             else   %  if there is only one feature, select the class with closest value to that feature
 
                 % the squared difference between each class mean and each test point  (which are both scalars)
-                template_corrcoeffs  = -1 .* (repmat(cl.templates, [size(XTe, 2), 1]) - repmat(XTe', [1 size(cl.templates, 2)])).^2;   
-                
+                template_corrcoeffs  = -1 .* (repmat(cl.templates, [size(XTe, 2),1,1]) - permute(repmat(XTe, [size(cl.templates, 2),1,1]),[2,1,3])).^2;
+                template_corrcoeffs = 1./vecnorm(template_corrcoeffs,2,3);
+                %template_corrcoeffs  = -1 .* (repmat(cl.templates, [size(XTe, 2), 1]) - repmat(XTe', [1 size(cl.templates, 2)])).^2;   
             end
-
             
             [val ind] = randmax(template_corrcoeffs');   % using randmax to deal with ties in max correlation value
             predicted_labels = cl.labels(ind);

@@ -98,8 +98,8 @@ spCounts = cellfun(@(s) cell2mat(vertcat(s{:})), num2cell([spCounts{:}],2), 'Uni
 allUnitsTrials = spCounts(goodInds);%cellfun(@(u) cell2mat(cellfun(@(t) accumarray(groupBins',t,[],@mean)',num2cell(u(:,min(findBins(xl,params.bins)):max(findBins(xl,params.bins))),2),'UniformOutput',false)),normPSTH(goodInds),'UniformOutput',false);%
 clear spCounts
 %% decoder setup
- allUnitsTrials = cellfun(@(a) smoothdata(a(:,findBins(winT(1),params.bins):findBins(winT(end),params.bins)-1),'gaussian',...
-     (winSz/5)/params.binSize),...,size(a,1),[],range(findBins(winT,params.bins))/(length(xl)-1)),...
+ allUnitsTrials = cellfun(@(a) sqrt(smoothdata(a(:,findBins(winT(1),params.bins):findBins(winT(end),params.bins)-1),2,'gaussian',...
+     (winSz/5)/params.binSize)),...,size(a,1),[],range(findBins(winT,params.bins))/(length(xl)-1)),...
    normPSTH(goodInds), 'UniformOutput',false);
 num_repeated_labels = 2;
 num_cv_splits =10;
@@ -178,7 +178,7 @@ unitAccPhase = cellfun(@(p) cell2mat(permute(cellfun(@(m) squeeze(mean(m,1,'omit
     (length(size(p{1}))+ length(size(p))):-1:1)),somaUnits,'UniformOutput',false);
 %uUnits = cellfun(@(p) cellfun(@(r) resize(r,[1,max(testUnits)],'FillValue',NaN),p,'UniformOutput',false),uUnits,'UniformOutput',false);
 %%
-nUnits = 50; accLine = 90; trCl = [0 .7 0; 1 .5 0; 0 .2 .8; .4 .4 .4; .6 0 .2;];
+nUnits = 1; accLine = 90; trCl = [0 .7 0; 1 .5 0; 0 .2 .8; .4 .4 .4; .6 0 .2;];
 accTUnit = cellfun(@(s) num2cell(vertcat(s{:,testUnits==nUnits}),2),somaUnits,'UniformOutput',false);
 accTUnit =  cell2mat(unitAccPhase);
 em=cell2mat(cellfun(@(a) a([2,3,6]),cellfun(@(c) mean(cell2mat(cellfun(@(a) cell2mat(cellfun(@(n) mean(n,1,'omitnan'),a,'UniformOutput',false)),c,'UniformOutput',false)),1,'omitnan'),siteSegs,'UniformOutput',false)','UniformOutput',false));

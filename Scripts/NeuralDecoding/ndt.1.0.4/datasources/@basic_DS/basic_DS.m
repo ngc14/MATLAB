@@ -227,11 +227,11 @@ methods
             
             if load_data_as_spike_counts > 0
                 
-                % if ~isstr(binned_data_name)
-                %       error('If the argument load_data_as_spike_counts is set to a value greater than 0, binned_data_name must be a string listing the name of a file that has data in binned format')  
-                % end
+                if ~isstr(binned_data_name)
+                      error('If the argument load_data_as_spike_counts is set to a value greater than 0, binned_data_name must be a string listing the name of a file that has data in binned format')  
+                end
                 
-                [binned_data_spike_counts binned_labels binned_site_info] = load_binned_data_and_convert_firing_rates_to_spike_counts(binned_data_name,200/1000);
+                [binned_data_spike_counts binned_labels binned_site_info] = load_binned_data_and_convert_firing_rates_to_spike_counts(binned_data_name);
                 
                 ds.the_data = binned_data_spike_counts;  
                 ds.binned_site_info = binned_site_info;
@@ -472,7 +472,6 @@ methods
             %use_random_subset_of_k_labels_each_time_data_is_retrieved = ds.use_random_subset_of_k_labels_each_time_data_is_retrieved;
             % tSet = cell2mat(cellfun(@(r) reshape(r,size(r,1),1,[]), ds.testingSet,'UniformOutput',false)');
             % tLabs = double(cell2mat(cellfun(@(t) renamecats(categorical(t),categories(categorical(t)),arrayfun(@string,1:length(unique(t)))), ds.testingLabs, 'UniformOutput', false)));
-
             % a santy checks
             if isempty(sites_to_use) 
                error('sites_to_use can not be empty') 
@@ -643,8 +642,7 @@ methods
                     end
 
                     the_resample_data(start_boostrap_ind:(start_boostrap_ind + length(curr_trials_to_use) - 1), :, :) = the_data(curr_trials_to_use, :, :);                
-                    all_data_point_labels(start_boostrap_ind:(start_boostrap_ind + length(curr_trials_to_use) - 1)) = ...
-                        iLabel .* ones(length(start_boostrap_ind:(start_boostrap_ind + length(curr_trials_to_use) - 1)), 1);             
+                    all_data_point_labels(start_boostrap_ind:(start_boostrap_ind + length(curr_trials_to_use) - 1)) = iLabel .* ones(length(start_boostrap_ind:(start_boostrap_ind + length(curr_trials_to_use) - 1)), 1);             
                     start_boostrap_ind = start_boostrap_ind + length(curr_trials_to_use);
 
                 end
@@ -701,8 +699,8 @@ methods
                     XTr_all_time_cv{iTimePeriod}{iCV} = the_resample_data_time(setdiff(all_resample_data_inds, curr_cv_inds), :)';  
                     XTe_all_time_cv{iTimePeriod}{iCV} = the_resample_data_time(curr_cv_inds,:)';
                     
-                    YTr_all = all_data_point_labels(setdiff(all_resample_data_inds, curr_cv_inds))';
-                    YTe_all = all_data_point_labels(curr_cv_inds)';
+                    YTr_all = all_data_point_labels(setdiff(all_resample_data_inds, curr_cv_inds));
+                    YTe_all = all_data_point_labels(curr_cv_inds);
                     
                     % might as well return these as vectors (rather than cell arrays) since they are the same at all time periods
                     %XTe_all_time_cv{iTimePeriod}{iCV} = tSet(testPairs(iCV,:)),:,iTimePeriod)';

@@ -18,7 +18,6 @@ classdef gaussian_naive_bayes_CL
     end
 
     methods
-        % Constructor
         function cl = gaussian_naive_bayes_CL
         end
 
@@ -32,17 +31,13 @@ classdef gaussian_naive_bayes_CL
             num_classes = length(cl.labels);
             means = zeros(num_features, num_classes);
             variances = zeros(num_features, num_classes);
-            % Calculate a feature-specific minimum variance from the
-            % training data
+            % Calculate a feature-specific minimum variance from training data
             variance_floor = max(1e-12, 1e-6 .* var(XTr, 1, 2));
-
             for iLabel = 1:num_classes
-                class_indices = YTr == cl.labels(iLabel);
-                class_data = XTr(:, class_indices);
-                means(:, iLabel) = mean(class_data, 2);
+                means(:, iLabel) = mean(XTr(:,YTr == cl.labels(iLabel)),2);
                 % Maximum-likelihood variance estimate.
-                variances(:, iLabel) = var(class_data, 1, 2);
-                variances(:, iLabel) = max(variances(:, iLabel), variance_floor);
+                variances(:, iLabel) = var(XTr(:,YTr == cl.labels(iLabel)),1,2);
+                variances(:, iLabel) = max(variances(:,iLabel), variance_floor);
             end
             cl.means = means;
             cl.variances = variances;

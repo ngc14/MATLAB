@@ -1,6 +1,6 @@
 classdef euclidean_CL
 
-    % eucliden_CL is a classifier object (CL)
+    % euclidean_CL is a classifier object (CL)
     %  that learns a mean population vector (template) for each class from the
     %  training data.  When the classifier is tested, the correlation coefficient
     %  is calculated between a test point and each of the class templates, and the
@@ -46,11 +46,11 @@ classdef euclidean_CL
 
         end
 
-        function [predicted_labels decision_values] = test(cl, XTe)
+        function [predicted_labels, decision_values] = test(cl, XTe)
             XT = repmat(XTe,[ones(1,length(size(XTe))),length(cl.labels)]);
             tmps = permute(repmat(cl.templates,[ones(1,length(size(XTe))),size(XTe,2)]),[1 length(size(XTe))+1,3:length(size(XTe)),2]);
             template_corrcoeffs = sqrt(sum(XT-tmps,[1,length(size(XT))-1]).^2);
-            [val ind] = min(squeeze(template_corrcoeffs)');
+            [~, ind] = min(squeeze(template_corrcoeffs)');
             predicted_labels = cl.labels(ind);
             decision_values = squeeze(template_corrcoeffs)';
 

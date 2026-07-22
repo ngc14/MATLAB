@@ -6,10 +6,6 @@
 
 /Scripts/npy-matlab-master/
 
-/Scripts/models/
-
-/Scripts/mexPlex/
-
 /Scripts/leap/
 
 /Scripts/Kilosort-2.5/
@@ -22,27 +18,17 @@
 
 /Scripts/ComDetTBv091/
 
-/Scripts/altmany-export_fig-2323e6c/
-
 /Scripts/Kim/
 
 /Scripts/HierarchicalConsensus-1.1.1/
 
 /Scripts/PERMUTOOLS/
 
-/Scripts/scatterbar3/
-
-/Scripts/ndt.1.0.4/
-
 /Scripts/decoding_toolbox/
 
 /Scripts/+NBP/
 
-/Scripts/dPCA-master/
-
 /Scripts/SdoAnalysisToolkit-v_eNeuro2024/
-
-/Scripts/resources/
 
 /.MATLABDriveAppData/folder.ico
 
@@ -58,9 +44,3 @@
 
 /Examples/
 *.mat
-
-/Scripts/matlab/
-
-/Scripts/NeuralDecoding/ndt.1.0.4/meg_decoding-master/
-
-/Scripts/NeuralDecoding/ndt.1.0.4/external_libraries/

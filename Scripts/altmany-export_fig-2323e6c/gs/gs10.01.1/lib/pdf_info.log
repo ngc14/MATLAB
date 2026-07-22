@@ -1,0 +1,16 @@
+
+   *** Missing input file name (use -sFile=____.pdf)
+
+    usage: gs -dNODISPLAY -q -sFile=____.pdf [ options ] lib/pdf_info.ps
+
+           where "options" are:
+           -dDumpMediaSizes=false    (default true) MediaBox and CropBox for each page
+           -dDumpFontsNeeded=false   (default true)Fonts used, but not embedded
+           -dDumpXML                 print the XML Metadata from the PDF, if present
+           -dDumpFontsUsed           List all fonts used
+           -dShowEmbeddedFonts       only meaningful with -dDumpFontsUsed
+
+          If no options are given, the default is -dDumpMediaSizes -dDumpFontsNeeded
+
+%%[ Flushing: rest of job (to end-of-file) will be ignored ]%%
+%%[ Warning: PostScript error. No PDF file produced. ] %%

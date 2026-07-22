@@ -121,16 +121,17 @@ trainingLabs =  cellfun(@(t,i) t(i,:), trialLabs(goodUnits), trialInds, 'Uniform
 dsr = avg_DS(trainingSet,trainingLabs,num_cv_splits,num_trials_per_fold,nAvg);
 dsr.the_basic_DS.binned_site_info.binning_parameters = binning_parameters;
 dsr.num_times_to_repeat_each_label_per_cv_split = num_repeated_labels;
-dsr.time_periods_to_get_data_from = {binning_parameters.start_time:binning_parameters.bin_width:binning_parameters.end_time};
+dsr.time_periods_to_get_data_from = num2cell(binning_parameters.start_time:binning_parameters.bin_width:binning_parameters.end_time);
 dsr.sample_sites_with_replacement = 0;
 dsr.sites_to_use = -1;
 dsr.num_resample_sites = -1;
 dsr.randomly_shuffle_labels_before_running = 0;
 dsr.nAvg = nAvg;
+timepoints = length(dsr.time_periods_to_get_data_from);
 %%
 fp = {};
 cl = max_correlation_coefficient_CL;
-numRuns = 50;
+numRuns = 500;
 testUnits = [1, 5, 10, 20, 35, 50, 100];
 rng('shuffle');
 somaUnits = repmat({repmat({NaN(num_cv_splits,timepoints)},length(fTypes),length(testUnits))},numRuns,1);
@@ -147,15 +148,15 @@ parfor iter = 1:numRuns
             iterAcc = NaN(num_cv_splits,length(timepoints));
             for iCV = 1:num_cv_splits
                 for iTrainingInterval = 1:timepoints
-                    XTrF = cell2mat(reshape(cellfun(@(i)i{iCV}(units,:),all_XTr,'UniformOutput',false),1,1,[]));%all_XTr{iTrainingInterval};%
+                    XTrF = all_XTr{iTrainingInterval};%cell2mat(reshape(cellfun(@(i)i{iCV}(units,:),all_XTr,'UniformOutput',false),1,1,[]));%
                     for iTestingInterval = iTrainingInterval
-                        XTsF = cell2mat(reshape(cellfun(@(i)i{iCV}(units,:),all_XTrt,'UniformOutput',false),1,1,[]))%all_XTrt{iTestingInterval};%
+                        XTsF = all_XTrt{iTestingInterval};%cell2mat(reshape(cellfun(@(i)i{iCV}(units,:),all_XTrt,'UniformOutput',false),1,1,[]))%
                         if(isempty(fp))
-                            tr = XTrF;%{iCV}(units,:);
-                            XTst = XTsF;%{iCV}(units,:);
+                            tr = XTrF{iCV}(units,:);
+                            XTst = XTsF{iCV}(units,:);
                         else
-                            [~,tr] =  fp.set_properties_with_training_data(XTrF);%{iCV}(units,:));
-                            [~,XTst] =  fp.set_properties_with_training_data(XTsF);%{iCV}(units,:));
+                            [~,tr] =  fp.set_properties_with_training_data(XTrF{iCV}(units,:));
+                            [~,XTst] =  fp.set_properties_with_training_data(XTsF{iCV}(units,:));
                             %[loadings,scores,~,~,~,pcaMean] = pca(reshape(permute(tr(units,:,:),[2 1 3]),size(tr,2),[]),'Algorithm','svd','NumComponents',10);testScores = (reshape(permute(XTst(units,:,:),[2 1 3]),size(XTst,2),[]) - pcaMean) * loadings(:, 1);
                         end
                         clT= cl.train(tr, all_YTr);

@@ -101,7 +101,7 @@ allUnitsTrials = cellfun(@(a) sqrt(conv2(resize(a(:,findBins(winT(1),params.bins
     range(findBins(winT,params.bins))]),gausswin(smoothKernel)'./sum(gausswin(smoothKernel)),'valid')),siteTrialPSTHS(goodInds), 'UniformOutput',false);
 %cellfun(@(u) cell2mat(cellfun(@(t)accumarray(groupBins',t,[],@mean)',num2cell(u(:,findBins(xl(1),params.bins):findBins(xl(end),params.bins)),2),'UniformOutput',false)),normPSTH(goodInds),'UniformOutput',false);
 %% decoder setup
-num_repeated_labels = 2;
+num_repeated_labels = 4;
 num_cv_splits =10;
 num_trials_per_fold = 20;
 nAvg=2;
@@ -131,7 +131,7 @@ timepoints = length(dsr.time_periods_to_get_data_from);
 %%
 fp = {};
 cl = max_correlation_coefficient_CL;
-numRuns = 500;
+numRuns = 1000;
 testUnits = [1, 5, 10, 20, 35, 50, 100];
 rng('shuffle');
 somaUnits = repmat({repmat({NaN(num_cv_splits,timepoints)},length(fTypes),length(testUnits))},numRuns,1);
@@ -181,7 +181,12 @@ accLine = 90; trCl = [0 .7 0; 1 .5 0; 0 .2 .8; .4 .4 .4; .6 0 .2;];
 em=cell2mat(cellfun(@(a) a([2,3,6]),cellfun(@(c) mean(cell2mat(cellfun(@(a) cell2mat(cellfun(@(n) mean(n,1,'omitnan'),a,'UniformOutput',false)),c,'UniformOutput',false)),1,'omitnan'),siteSegs,'UniformOutput',false)','UniformOutput',false));
 em=[mean(em(:,1:2),1,'omitnan'),min(em(:,end)),max(em(:,end))];
 [~,ei] = arrayfun(@(a) min(abs(xl-a)),em);
-phaseNames = "all";arrayfun(@(s) string(num2str(round(s,2))),xl);
+phaseNames = arrayfun(@(s) string(num2str(round(s,2))),xl);
+figure(); hold on;
+trtsPhase = 100.*squeeze(mean(unitAccPhase(:,1:end,:,strcmp(fTypes,"Task")),2,'omitnan'));
+errorbar(testUnits,squeeze(mean(trtsPhase,1,'omitnan')),squeeze(std(trtsPhase,0,1)),'LineStyle','-','LineWidth',2);
+plot(get(gca,'XLim'),[accLine accLine],'LineWidth',1,'Color','k');ylim([25 105]); legend("FR");
+saveFigures(gcf,savePath,"_"+num2str(numRuns),[]);
 for t = 1:length(testUnits)
     nUnits=testUnits(t);
     accTUnit = cellfun(@(s) permute(vertcat(s{:,testUnits==nUnits}),[3 2 1]),somaUnits,'UniformOutput',false);
@@ -199,7 +204,7 @@ for t = 1:length(testUnits)
         end
         saveFigures(gcf,savePath,"Temporal_"+num2str(numRuns)+"_"+num2str(nUnits),[]);
     end
-    %writetable(accTable,savePath+"Decoding_"+num2str(nUnits)+"_"+num2str(numRuns),'FileType','spreadsheet','UseExcel',true);
+    writetable(accTable,savePath+"Decoding_"+num2str(nUnits)+"_"+num2str(numRuns),'FileType','spreadsheet','UseExcel',true);
 
     figure(); hold on;
     bx=boxchart(accTable,"Time-"+phaseNames(1:end),'Notch','on','MarkerStyle','none');

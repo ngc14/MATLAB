@@ -49,7 +49,7 @@ classdef euclidean_CL
         function [predicted_labels, decision_values] = test(cl, XTe)
             XT = repmat(XTe,[ones(1,length(size(XTe))),length(cl.labels)]);
             tmps = permute(repmat(cl.templates,[ones(1,length(size(XTe))),size(XTe,2)]),[1 length(size(XTe))+1,3:length(size(XTe)),2]);
-            template_corrcoeffs = sqrt(sum(XT-tmps,[1,length(size(XT))-1]).^2);
+            template_corrcoeffs = sqrt(sum(XT-tmps,[1:length(size(XT))-2]).^2);
             [~, ind] = min(squeeze(template_corrcoeffs)');
             predicted_labels = cl.labels(ind);
             decision_values = squeeze(template_corrcoeffs)';

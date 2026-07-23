@@ -63,8 +63,8 @@ classdef gaussian_naive_bayes_CL
                 num_classes,num_test_points);
 
             [~, inds] = randmax(log_likelihoods);
-            predicted_labels = cl.labels(inds)';
-            decision_values = log_likelihoods';
+            predicted_labels = cl.labels(inds);
+            decision_values = log_likelihoods;
         end
     end
 end

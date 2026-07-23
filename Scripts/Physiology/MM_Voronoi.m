@@ -1,7 +1,7 @@
 close all;
 clearvars;
 %% user input
-animal = 'Gilligan';
+animal = 'Skipper';
 RAD = 42; %28 = 0.5mm, 1.0mm^2; 42 = 0.75 mm, 2.2mm^2; 56 = 1mm, 3.4mm^2;
 siteSize = 8;
 REMOVE_NR = true;
@@ -209,8 +209,8 @@ for i = 1:numSites
                     MM_respStrength_image_flat(x,y) = respStrength(i);
                     MM_thresh_image_flat(x,y) = Thresh(i,stripeIm(x,y,temp));
                     for t = 1:temp
-                        MM_joint_image_flat2(x,y,reorderTemp(t)) = Joint_num(i,t);
-                        MM_movement_image_flat2(x,y,reorderTemp(t)) = Movement_num(i,t);
+                        MM_joint_image_flat2(x,y,(t)) = Joint_num(i,t);
+                        MM_movement_image_flat2(x,y,(t)) = Movement_num(i,t);
                         MM_thresh_image_flat2(x,y,reorderTemp(t)) = Thresh(i,t);
                     end
                 end

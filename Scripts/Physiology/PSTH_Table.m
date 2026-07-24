@@ -8,7 +8,7 @@ taskAlign = containers.Map(conditions,{{["GoSignal" "StartHold"]},{["GoSignal","
     {["GoSignal","StartHold"]}});
 taskWindow =repmat({{[winSz, 0]}},1,length(conditions));
 phaseWindows = repmat({{[0, winSz],[-winSz*(3/4),winSz*(1/4)],...
-    [-winSz*(6/4), -winSz*(2/4)],[-winSz*(1/4),winSz*(3/4)]}},1,length(conditions));
+    [-winSz*(5/4), -winSz*(1/4)],[-winSz*(1/4),winSz*(3/4)]}},1,length(conditions));
 phaseWindows{end}{3} = [-winSz/2 0];
 allSegs = params.condSegMap.values;
 [~,maxSegL]= max(cellfun(@length,allSegs));

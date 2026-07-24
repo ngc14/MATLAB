@@ -1,5 +1,5 @@
 %% load data
-winSz = 0.15;
+winSz = 0.2;
 fTypes = ["Reach","Grasp","Both","Shallow","Deep","Task"];
 conditions = ["Extra Small Sphere","Large Sphere", "Photocell"];
 phaseNames = ["Go","Reach","Hold","Withdraw"];
@@ -10,7 +10,7 @@ phaseAlign = containers.Map(conditions,cellfun(@(c) num2cell(string(c)),repmat({
     1,length(conditions)),'UniformOutput',false));
 phaseWin = repmat({{[0, winSz],[-winSz*(3/4),winSz*(1/4)],[-winSz*(5/4), -winSz*(1/4)],[-winSz*(1/4),winSz*(3/4)]}},1,length(conditions));
 phaseWin{end}{3} = [-winSz/2 0];
-smoothKernel = winSz/params.binSize;
+smoothKernel = (winSz-.05)/params.binSize;
 savePath = "S:\Lab\ngc14\Working\Revisions\Decoding\PSTH\";
 %%
 [siteDateMap,siteSegs,siteTrialPSTHS,rawSpikes,siteChannels,chMaps,~,~] = ...
@@ -100,27 +100,29 @@ xl = winT(1):params.binSize:winT(end);
 allUnitsTrials = cellfun(@(a) sqrt(conv2(resize(a(:,findBins(winT(1),params.bins):findBins(winT(end),params.bins)),[size(a,1),smoothKernel+...
     range(findBins(winT,params.bins))]),gausswin(smoothKernel)'./sum(gausswin(smoothKernel)),'valid')),siteTrialPSTHS(goodInds), 'UniformOutput',false);
 %cellfun(@(u) cell2mat(cellfun(@(t)accumarray(groupBins',t,[],@mean)',num2cell(u(:,findBins(xl(1),params.bins):findBins(xl(end),params.bins)),2),'UniformOutput',false)),normPSTH(goodInds),'UniformOutput',false);
-%% decoder setup
-num_repeated_labels = 4;
-num_cv_splits =5;
-nAvg=2;
-
-binning_parameters = struct('end_time', size(allUnitsTrials{1},2),'start_time', 1,'bin_width',1);
-binning_parameters.the_bin_start_times = binning_parameters.start_time:binning_parameters.bin_width:binning_parameters.end_time;
-
-goodUnits = find_sites_with_k_label_repetitions(trialLabs,20,arrayfun(@(a) a{1}(1),conditions,'UniformOutput',false));
-trialUnits = cellfun(@(n,b) vertcat(n{:}), num2cell(allUnitsTrials(goodUnits,:),2), 'UniformOutput',false);
 % trialInds = cellfun(@(l) ~ismember(1:length(l),cell2mat(arrayfun(@(a) randsample(find(strcmp(l,a)),5),allLabs,'UniformOutput',false)))',trialLabs,'UniformOutput',false);
 % testingSet = cellfun(@(t,i) t(~i,:), trialUnits,trialInds,'UniformOutput',false);
 % testingLabs =  cellfun(@(t,i) t(~i,:), trialLabs, trialInds, 'UniformOutput',false);
+%% decoder setup
+testUnits = [1, 5, 10, 20, 35, 50, 100];
+num_repeated_labels = 3;
+num_cv_splits = 10;
+nAvg = 2;
+numRuns = 50;
+fp = {};
+cl = max_correlation_coefficient_CL;
+
+goodUnits = find_sites_with_k_label_repetitions(trialLabs,num_repeated_labels*num_cv_splits,arrayfun(@(a) a{1}(1),conditions,'UniformOutput',false));
+trialUnits = cellfun(@(n,b) vertcat(n{:}), num2cell(allUnitsTrials(goodUnits,:),2), 'UniformOutput',false);
 trialInds =  cellfun(@(t) ~any(isnan(t),2), trialUnits, 'UniformOutput',false);
 trainingSet = cellfun(@(t,i) t(i,:), trialUnits, trialInds, 'UniformOutput',false);
 trainingLabs =  cellfun(@(t,i) t(i,:), trialLabs(goodUnits), trialInds, 'UniformOutput',false);
 
 dsr = avg_DS(trainingSet,trainingLabs,num_cv_splits,nAvg);
+binning_parameters = struct('end_time', size(allUnitsTrials{1},2),'start_time', 1,'bin_width',1);
 dsr.the_basic_DS.binned_site_info.binning_parameters = binning_parameters;
-dsr.num_times_to_repeat_each_label_per_cv_split = num_repeated_labels;
 dsr.time_periods_to_get_data_from = num2cell(binning_parameters.start_time:binning_parameters.bin_width:binning_parameters.end_time);
+dsr.num_times_to_repeat_each_label_per_cv_split = num_repeated_labels;
 dsr.sample_sites_with_replacement = 0;
 dsr.sites_to_use = -1;
 dsr.num_resample_sites = -1;
@@ -128,14 +130,10 @@ dsr.randomly_shuffle_labels_before_running = 0;
 dsr.nAvg = nAvg;
 timepoints = length(dsr.time_periods_to_get_data_from);
 %%
-fp = {};
-cl = max_correlation_coefficient_CL;
-numRuns = 1000;
-testUnits = [1, 5, 10, 20, 35, 50, 100];
-rng('shuffle');
 somaUnits = repmat({repmat({NaN(num_cv_splits,timepoints)},length(fTypes),length(testUnits))},numRuns,1);
 uUnits = repmat({cell(length(fTypes),length(testUnits))},numRuns,1);
 hbar = parforProgress(numRuns);
+rng('shuffle');
 parfor iter = 1:numRuns
     rs = RandStream.create('threefry4x64_20','NumStreams',numRuns,'StreamIndices',iter,'Seed','shuffle');
     RandStream.setGlobalStream(rs);

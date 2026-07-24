@@ -102,14 +102,13 @@ allUnitsTrials = cellfun(@(a) sqrt(conv2(resize(a(:,findBins(winT(1),params.bins
 %cellfun(@(u) cell2mat(cellfun(@(t)accumarray(groupBins',t,[],@mean)',num2cell(u(:,findBins(xl(1),params.bins):findBins(xl(end),params.bins)),2),'UniformOutput',false)),normPSTH(goodInds),'UniformOutput',false);
 %% decoder setup
 num_repeated_labels = 4;
-num_cv_splits =10;
-num_trials_per_fold = 20;
+num_cv_splits =5;
 nAvg=2;
 
 binning_parameters = struct('end_time', size(allUnitsTrials{1},2),'start_time', 1,'bin_width',1);
 binning_parameters.the_bin_start_times = binning_parameters.start_time:binning_parameters.bin_width:binning_parameters.end_time;
 
-goodUnits = find_sites_with_k_label_repetitions(trialLabs,30,arrayfun(@(a) a{1}(1),conditions,'UniformOutput',false));
+goodUnits = find_sites_with_k_label_repetitions(trialLabs,20,arrayfun(@(a) a{1}(1),conditions,'UniformOutput',false));
 trialUnits = cellfun(@(n,b) vertcat(n{:}), num2cell(allUnitsTrials(goodUnits,:),2), 'UniformOutput',false);
 % trialInds = cellfun(@(l) ~ismember(1:length(l),cell2mat(arrayfun(@(a) randsample(find(strcmp(l,a)),5),allLabs,'UniformOutput',false)))',trialLabs,'UniformOutput',false);
 % testingSet = cellfun(@(t,i) t(~i,:), trialUnits,trialInds,'UniformOutput',false);
@@ -118,7 +117,7 @@ trialInds =  cellfun(@(t) ~any(isnan(t),2), trialUnits, 'UniformOutput',false);
 trainingSet = cellfun(@(t,i) t(i,:), trialUnits, trialInds, 'UniformOutput',false);
 trainingLabs =  cellfun(@(t,i) t(i,:), trialLabs(goodUnits), trialInds, 'UniformOutput',false);
 
-dsr = avg_DS(trainingSet,trainingLabs,num_cv_splits,num_trials_per_fold,nAvg);
+dsr = avg_DS(trainingSet,trainingLabs,num_cv_splits,nAvg);
 dsr.the_basic_DS.binned_site_info.binning_parameters = binning_parameters;
 dsr.num_times_to_repeat_each_label_per_cv_split = num_repeated_labels;
 dsr.time_periods_to_get_data_from = num2cell(binning_parameters.start_time:binning_parameters.bin_width:binning_parameters.end_time);

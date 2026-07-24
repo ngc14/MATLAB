@@ -202,8 +202,6 @@ properties (GetAccess = 'public', SetAccess = 'private')
                                 
       initialized = 0;
       label_names_to_label_numbers_mapping = [];
-      
-      num_trials_per_split;
       data_loaded_as_spike_counts;   % records whether the data was loaded as spike counts (rather than firing rates)
       % testingSet;
       % testingLabs;
@@ -218,9 +216,9 @@ methods
     
     
         % the constructor
-        function ds = basic_DS(binned_data_name, specific_binned_label_name,num_cv_splits, num_trials_per_split, load_data_as_spike_counts)
+        function ds = basic_DS(binned_data_name, specific_binned_label_name,num_cv_splits, load_data_as_spike_counts)
             
-            if nargin < 5
+            if nargin < 4
                 load_data_as_spike_counts = 0;
             end
             
@@ -253,7 +251,6 @@ methods
                 
             ds.num_cv_splits = num_cv_splits;     
             
-            ds.num_trials_per_split = num_trials_per_split;
             ds.data_loaded_as_spike_counts = load_data_as_spike_counts;   % might as well save this information too
             % ds.testingSet = testingSet;
             % ds.testingLabs = testingLabs;
@@ -285,7 +282,6 @@ methods
             the_properties.randomly_shuffle_labels_before_running = ds.randomly_shuffle_labels_before_running;
             the_properties.binned_site_info = ds.binned_site_info;
             the_properties.data_loaded_as_spike_counts = ds.data_loaded_as_spike_counts;
-            the_properties.num_trials_per_split = ds.num_trials_per_split;
             %the_properties.use_random_subset_of_k_labels_each_time_data_is_retrieved = ds.use_random_subset_of_k_labels_each_time_data_is_retrieved;
             
             % if haven't converted to ds.label_names_to_use to strings yet (b/c get_data has not yet been called), or if the_labels is numbers, just return input set by user
@@ -461,7 +457,6 @@ methods
             the_labels = ds.the_labels;            
             num_cv_splits = ds.num_cv_splits;            
             num_times_to_repeat_each_label_per_cv_split =  ds.num_times_to_repeat_each_label_per_cv_split;  
-            num_trial_per_split = ds.num_trials_per_split;
             curr_resample_sites_to_use = ds.curr_resample_sites_to_use;
             label_names_to_use = ds.label_names_to_use;  if size(label_names_to_use, 1) ~= 1, label_names_to_use = label_names_to_use'; end  % make sure labels numbers are in the correct orientation
             sites_to_use = ds.sites_to_use;
@@ -469,6 +464,7 @@ methods
             num_resample_sites = ds.num_resample_sites;
             sample_sites_with_replacement = ds.sample_sites_with_replacement;   
             create_simultaneously_recorded_populations = ds.create_simultaneously_recorded_populations;
+            num_trials_per_fold = num_cv_splits*num_times_to_repeat_each_label_per_cv_split;
             %use_random_subset_of_k_labels_each_time_data_is_retrieved = ds.use_random_subset_of_k_labels_each_time_data_is_retrieved;
             % tSet = cell2mat(cellfun(@(r) reshape(r,size(r,1),1,[]), ds.testingSet,'UniformOutput',false)');
             % tLabs = double(cell2mat(cellfun(@(t) renamecats(categorical(t),categories(categorical(t)),arrayfun(@string,1:length(unique(t)))), ds.testingLabs, 'UniformOutput', false)));
@@ -554,7 +550,7 @@ methods
                   
            
            % pre-allocate memory
-           all_data_point_labels = NaN .* ones(length(unique(label_names_to_use)) * num_cv_splits * num_times_to_repeat_each_label_per_cv_split, 1);           
+           all_data_point_labels = NaN .* ones(length(unique(label_names_to_use)) * num_trials_per_fold, 1);           
            start_boostrap_ind = 1;  
             
            
@@ -569,7 +565,7 @@ methods
 
        
                % pre-allocate memory. 
-                the_resample_data = NaN .* ones(length(unique(label_names_to_use)) * num_trial_per_split, length(curr_resample_sites_to_use), size(the_data{1}, 2)); 
+                the_resample_data = NaN .* ones(length(unique(label_names_to_use)) * num_trials_per_fold, length(curr_resample_sites_to_use), size(the_data{1}, 2)); 
           
 
                 % if someone has changed the data or the labels after they have already set create_simultaneously_recorded_populations = 0, then the format of these variables needs to be converted back
@@ -588,14 +584,14 @@ methods
                         curr_trials_to_use = find(the_labels{iNeuron} == iLabel);  %find(ds.the_labels{iNeuron} == iLabel);
                         curr_trials_to_use = curr_trials_to_use(randperm(length(curr_trials_to_use)));
 
-                        if length(curr_trials_to_use) < (num_trial_per_split)    
+                        if length(curr_trials_to_use) < (num_trials_per_fold)    
                             error(['Requestion data from more trials of a given condition than has been recorded.  This is due to ' ...
                                 '(ds.num_cv_splits * ds.num_times_to_repeat_each_label_per_cv_split) being greater than the number of times a given condition ' ...
                                 'is present in the data (for at least one site). Make sure that only sites that have enough repetitions of each condition are used ' ...
                                 '(this can be done by setting ds.site_to_use = find_sites_with_at_least_k_repeats_of_each_label(the_labels_to_use, num_cv_splits) )']);  
                             return;
                         else
-                            curr_trials_to_use = curr_trials_to_use(1:(num_trial_per_split));
+                            curr_trials_to_use = curr_trials_to_use(1:(num_trials_per_fold));
                         end
 
 
@@ -622,7 +618,7 @@ methods
            elseif  create_simultaneously_recorded_populations > 0
             
                                
-               the_resample_data = NaN .* ones(length(unique(label_names_to_use)) * num_trial_per_split, length(curr_resample_sites_to_use), size(the_data, 3)); 
+               the_resample_data = NaN .* ones(length(unique(label_names_to_use)) * num_trials_per_fold, length(curr_resample_sites_to_use), size(the_data, 3)); 
  
                the_data = the_data(:, curr_resample_sites_to_use, :);
 
@@ -634,11 +630,11 @@ methods
                     curr_trials_to_use = find(the_labels == iLabel);
                     curr_trials_to_use = curr_trials_to_use(randperm(length(curr_trials_to_use)));
 
-                    if length(curr_trials_to_use) < (num_cv_splits * num_times_to_repeat_each_label_per_cv_split)
+                    if length(curr_trials_to_use) < (num_trials_per_fold)
                         error('problems:  asking for more trials of a given stimuli type then were recorded in the experiment');  % maybe this should be an error
                         return;
                     else
-                        curr_trials_to_use = curr_trials_to_use(1:(num_cv_splits * num_times_to_repeat_each_label_per_cv_split));
+                        curr_trials_to_use = curr_trials_to_use(1:(num_trials_per_fold));
                     end
 
                     the_resample_data(start_boostrap_ind:(start_boostrap_ind + length(curr_trials_to_use) - 1), :, :) = the_data(curr_trials_to_use, :, :);                
@@ -681,9 +677,9 @@ methods
                     curr_cv_inds = [];  %NaN .* ones(num_times_to_repeat_each_label_per_cv_split * length(ds.label_names_to_use), 1);
 
                     for iNumRepeatsPerLabel = 1:num_times_to_repeat_each_label_per_cv_split
-                        curr_cv_inds  = [curr_cv_inds cv_start_ind:(num_trial_per_split):size(the_resample_data, 1)];cv_start_ind = cv_start_ind + 1;
-                        %curr_cv_inds = randperm(num_trial_per_split,num_times_to_repeat_each_label_per_cv_split);
-                        %curr_cv_inds = double(cell2mat(arrayfun(@(a) curr_cv_inds+(a*num_trial_per_split),0:length(label_names_to_use)-1,'UniformOutput',false)));
+                        curr_cv_inds  = [curr_cv_inds cv_start_ind:(num_trials_per_fold):size(the_resample_data, 1)];cv_start_ind = cv_start_ind + 1;
+                        %curr_cv_inds = randperm(num_trials_per_fold,num_times_to_repeat_each_label_per_cv_split);
+                        %curr_cv_inds = double(cell2mat(arrayfun(@(a) curr_cv_inds+(a*num_trials_per_fold),0:length(label_names_to_use)-1,'UniformOutput',false)));
                     end
                     
                     

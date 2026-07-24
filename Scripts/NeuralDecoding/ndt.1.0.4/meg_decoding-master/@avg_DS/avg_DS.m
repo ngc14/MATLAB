@@ -193,12 +193,12 @@ methods
 
     
         % the constructor
-        function ds = avg_DS(binned_data_name, specific_binned_label_name, num_cv_splits,num_labels_per_split, nAvg,load_data_as_spike_counts)
+        function ds = avg_DS(binned_data_name, specific_binned_label_name, num_cv_splits, nAvg,load_data_as_spike_counts)
             if nargin < 7
                 load_data_as_spike_counts = 0;
             end
             
-            ds.the_basic_DS = basic_DS(binned_data_name, specific_binned_label_name, num_cv_splits, num_labels_per_split,load_data_as_spike_counts);   % set properties using parent constructor
+            ds.the_basic_DS = basic_DS(binned_data_name, specific_binned_label_name, num_cv_splits,load_data_as_spike_counts);   % set properties using parent constructor
             ds.nAvg = nAvg;
             
             

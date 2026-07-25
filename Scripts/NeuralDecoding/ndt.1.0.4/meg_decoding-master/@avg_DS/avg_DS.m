@@ -290,9 +290,9 @@ methods
                     perm_tr = randperm(length(indTr));
                     perm_te = randperm(length(indTe));
                     
-                    for iAvg = 1:floor(length(indTr)/ds.nAvg)
+                    for iAvg = 1:ceil(length(indTr)/ds.nAvg)
                       
-                        avg_inds = (iAvg-1)*ds.nAvg+1:(iAvg)*ds.nAvg;
+                        avg_inds = (iAvg-1)*ds.nAvg+1:min(length(indTr),iAvg*ds.nAvg);
                         
                         %average training data
                         curr_train_ind = (iLabel - 1)*floor(length(indTr)/ds.nAvg)+iAvg;

@@ -10,8 +10,8 @@ phaseAlign = containers.Map(conditions,cellfun(@(c) num2cell(string(c)),repmat({
     1,length(conditions)),'UniformOutput',false));
 phaseWin = repmat({{[0, winSz],[-winSz*(3/4),winSz*(1/4)],[-winSz*(5/4), -winSz*(1/4)],[-winSz*(1/4),winSz*(3/4)]}},1,length(conditions));
 phaseWin{end}{3} = [-winSz/2 0];
-smoothKernel = (winSz-.05)/params.binSize;
-savePath = "S:\Lab\ngc14\Working\Revisions\Decoding\PSTH\";
+smoothKernel = fix((winSz-.05)/params.binSize);
+savePath = "S:\Lab\ngc14\Working\Revisions\Decoding\MaxCorr\Fr_Sqrt\";
 %%
 [siteDateMap,siteSegs,siteTrialPSTHS,rawSpikes,siteChannels,chMaps,~,~] = ...
     getAllSessions(params,"Single","M1","");
@@ -132,9 +132,9 @@ timepoints = length(dsr.time_periods_to_get_data_from);
 %%
 somaUnits = repmat({repmat({NaN(num_cv_splits,timepoints)},length(fTypes),length(testUnits))},numRuns,1);
 uUnits = repmat({cell(length(fTypes),length(testUnits))},numRuns,1);
-hbar = parforProgress(numRuns);
+%hbar = parforProgress(numRuns);
 rng('shuffle');
-parfor iter = 1:numRuns
+for iter = 1:numRuns
     rs = RandStream.create('threefry4x64_20','NumStreams',numRuns,'StreamIndices',iter,'Seed','shuffle');
     RandStream.setGlobalStream(rs);
     for f = 1:length(fTypes)
@@ -146,8 +146,8 @@ parfor iter = 1:numRuns
             for iCV = 1:num_cv_splits
                 for iTrainingInterval = 1:timepoints
                     XTrF = all_XTr{iTrainingInterval};%cell2mat(reshape(cellfun(@(i)i{iCV}(units,:),all_XTr,'UniformOutput',false),1,1,[]));%
-                    for iTestingInterval = iTrainingInterval
-                        XTsF = all_XTrt{iTestingInterval};%cell2mat(reshape(cellfun(@(i)i{iCV}(units,:),all_XTrt,'UniformOutput',false),1,1,[]))%
+                    %for iTestingInterval = iTrainingInterval
+                        XTsF = all_XTrt{iTrainingInterval};%cell2mat(reshape(cellfun(@(i)i{iCV}(units,:),all_XTrt,'UniformOutput',false),1,1,[]))%
                         if(isempty(fp))
                             tr = XTrF{iCV}(units,:);
                             XTst = XTsF{iCV}(units,:);
@@ -158,8 +158,8 @@ parfor iter = 1:numRuns
                         end
                         clT= cl.train(tr, all_YTr);
                         [ia,~] = clT.test(XTst);
-                        iterAcc(iCV,iTestingInterval)= sum(ia-all_Ytrt==0)/length(all_Ytrt);
-                    end
+                        iterAcc(iCV,iTrainingInterval)= sum(ia-all_Ytrt==0)/length(all_Ytrt);
+                    %end
                 end
             end
             somaUnits{iter}{f,n} = mean(iterAcc,1,'omitnan');

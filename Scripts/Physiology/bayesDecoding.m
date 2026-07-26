@@ -38,17 +38,19 @@ siteTrialPSTHS = cellfun(@(n) [n{:}]' ,siteTrialPSTHS, 'UniformOutput',false);
 siteTrialPSTHS = cellfun(@(c) cellfun(@(a) vertcat(a{:}),c,'UniformOutput',false),siteTrialPSTHS,'UniformOutput',false);
 siteTrialPSTHS = cellfun(@(s) vertcat(s{:}), num2cell([siteTrialPSTHS{:}],2),'UniformOutput',false);
 %%
-replaceVals = cell2mat(cellfun(@(c) cellfun(@(s) ~all(cellfun(@iscell,s)) | any(size(s)==[0 0]),c),rawSpikes,'Uniformoutput',false));
-for cc = 1:length(rawSpikes)
-    rv = replaceVals(:,cc);
-    if(any(rv))
-        fillSize = num2cell(cell2mat(cellfun(@(m) max(cell2mat(m)),[num2cell(cellfun(@(s) size(s), ...
-            [rawSpikes{~ismember(1:size(replaceVals,2),cc)}],'Uniformoutput',false),2),num2cell(cellfun(@(s) size(s{1}),...
-            [rawSpikes{~ismember(1:size(replaceVals,2),cc)}], 'UniformOutput', false),2),],'Uniformoutput',false)),2);
-        rawSpikes{cc}(rv) = cellfun(@(f) repmat(repmat({repmat({NaN},[1,f(end)])},[1,f(1)]),1,...
-            length(cell2mat(params.PSTHAlignments.values(cellstr(conditions(cc)))))),fillSize(rv),'UniformOutput',false);
-        siteSegs{cc}(rv) = cellfun(@(f) repmat({NaN(f(end),length(params.condSegMap(string(conditions{cc}))))},1,length(cell2mat(...
-            params.PSTHAlignments.values(cellstr(conditions(cc)))))),fillSize(rv),'UniformOutput',false);
+if(0)
+    replaceVals = cell2mat(cellfun(@(c) cellfun(@(s) ~all(cellfun(@iscell,s)) | any(size(s)==[0 0]),c),rawSpikes,'Uniformoutput',false));
+    for cc = 1:length(rawSpikes)
+        rv = replaceVals(:,cc);
+        if(any(rv))
+            fillSize = num2cell(cell2mat(cellfun(@(m) max(cell2mat(m)),[num2cell(cellfun(@(s) size(s), ...
+                [rawSpikes{~ismember(1:size(replaceVals,2),cc)}],'Uniformoutput',false),2),num2cell(cellfun(@(s) size(s{1}),...
+                [rawSpikes{~ismember(1:size(replaceVals,2),cc)}], 'UniformOutput', false),2),],'Uniformoutput',false)),2);
+            rawSpikes{cc}(rv) = cellfun(@(f) repmat(repmat({repmat({NaN},[1,f(end)])},[1,f(1)]),1,...
+                length(cell2mat(params.PSTHAlignments.values(cellstr(conditions(cc)))))),fillSize(rv),'UniformOutput',false);
+            siteSegs{cc}(rv) = cellfun(@(f) repmat({NaN(f(end),length(params.condSegMap(string(conditions{cc}))))},1,length(cell2mat(...
+                params.PSTHAlignments.values(cellstr(conditions(cc)))))),fillSize(rv),'UniformOutput',false);
+        end
     end
 end
 % xyLoc = num2cell(mapSites2Units(cellfun(@length,siteChannels),num2cell([sdm.x,sdm.y],2)),2);
@@ -94,7 +96,7 @@ spCounts = cellfun(@(cb) [cb{:}]' ,spCounts, 'UniformOutput',false);
 spCounts = cellfun(@(c) cellfun(@(a) [a{:}], c,'UniformOutput',false),spCounts,'UniformOutput',false);
 spCounts = cellfun(@(s) cell2mat(vertcat(s{:})), num2cell([spCounts{:}],2), 'UniformOutput',false);
 allUnitsTrials = spCounts(goodInds);
-clear spCounts
+clear spCounts rawSpikes
 %% get trial PSTHs
 xl = winT(1):params.binSize:winT(end);
 allUnitsTrials = cellfun(@(a) sqrt(conv2(resize(a(:,findBins(winT(1),params.bins):findBins(winT(end),params.bins)),[size(a,1),smoothKernel+...
@@ -120,7 +122,7 @@ trainingLabs =  cellfun(@(t,i) t(i,:), trialLabs(goodUnits), trialInds, 'Uniform
 
 dsr = avg_DS(trainingSet,trainingLabs,num_cv_splits,nAvg);
 binning_parameters = struct('end_time', size(allUnitsTrials{1},2),'start_time', 1,'bin_width',1);
-dsr.the_basic_DS.binned_site_info.binning_parameters = binning_parameters;
+dsr.the_basic_DS.binned_site_info.binning_parameters = binning_parameters; %
 dsr.time_periods_to_get_data_from = num2cell(binning_parameters.start_time:binning_parameters.bin_width:binning_parameters.end_time);
 dsr.num_times_to_repeat_each_label_per_cv_split = num_repeated_labels;
 dsr.sample_sites_with_replacement = 0;
@@ -132,17 +134,17 @@ timepoints = length(dsr.time_periods_to_get_data_from);
 %%
 somaUnits = repmat({repmat({NaN(num_cv_splits,timepoints)},length(fTypes),length(testUnits))},numRuns,1);
 uUnits = repmat({cell(length(fTypes),length(testUnits))},numRuns,1);
-%hbar = parforProgress(numRuns);
+hbar = parforProgress(numRuns);
 rng('shuffle');
-for iter = 1:numRuns
+parfor iter = 1:numRuns
     rs = RandStream.create('threefry4x64_20','NumStreams',numRuns,'StreamIndices',iter,'Seed','shuffle');
     RandStream.setGlobalStream(rs);
+    [all_XTr, all_YTr, all_XTrt, all_Ytrt] = dsr.get_data;
     for f = 1:length(fTypes)
         for n = 1:length(testUnits)
             popUnits = find(ismember(find(goodUnits),find(subpopulations{f})));
             units =  popUnits(randperm(length(popUnits),min(length(popUnits),testUnits(n))));
-            [all_XTr, all_YTr, all_XTrt, all_Ytrt] = dsr.get_data;
-            iterAcc = NaN(num_cv_splits,length(timepoints));
+            iterAcc = NaN(num_cv_splits,timepoints);
             for iCV = 1:num_cv_splits
                 for iTrainingInterval = 1:timepoints
                     XTrF = all_XTr{iTrainingInterval};%cell2mat(reshape(cellfun(@(i)i{iCV}(units,:),all_XTr,'UniformOutput',false),1,1,[]));%

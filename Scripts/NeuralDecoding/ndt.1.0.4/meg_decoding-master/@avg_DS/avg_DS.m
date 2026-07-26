@@ -194,7 +194,7 @@ methods
     
         % the constructor
         function ds = avg_DS(binned_data_name, specific_binned_label_name, num_cv_splits, nAvg,load_data_as_spike_counts)
-            if nargin < 7
+            if nargin < 5
                 load_data_as_spike_counts = 0;
             end
             
@@ -275,8 +275,10 @@ methods
             for iCV = 1:length(XTr_all_time_cv{1})
                 
                 nCh = size(XTr_all_time_cv{1}{1},1);
-                nTrain = floor(length(YTr_all)/ds.nAvg);
-                nTest = floor(length(YTe_all)/ds.nAvg);
+                nTrain = length(ds.the_basic_DS.label_names_to_use)*floor(length(YTr_all)/length(ds.the_basic_DS.label_names_to_use)/ds.nAvg)+...
+                    rem(length(YTr_all),ds.nAvg)*length(ds.the_basic_DS.label_names_to_use);
+                nTest = length(ds.the_basic_DS.label_names_to_use)*floor(length(YTe_all)/length(ds.the_basic_DS.label_names_to_use)/ds.nAvg)+...
+                    rem(length(YTe_all),ds.nAvg)*length(ds.the_basic_DS.label_names_to_use);
                 
                 XTr_temp{iTimePeriod}{iCV} = zeros(nCh, nTrain);
                 YTr_temp = zeros(nTrain,1);
@@ -292,20 +294,20 @@ methods
                     
                     for iAvg = 1:ceil(length(indTr)/ds.nAvg)
                       
-                        avg_inds = (iAvg-1)*ds.nAvg+1:min(length(indTr),iAvg*ds.nAvg);
+                        avg_inds = (iAvg-1)*ds.nAvg+1:(iAvg*ds.nAvg);
                         
                         %average training data
-                        curr_train_ind = (iLabel - 1)*floor(length(indTr)/ds.nAvg)+iAvg;
+                        curr_train_ind = (iLabel - 1)*ceil(length(indTr)/ds.nAvg)+iAvg;
 
-                        tempTr = XTr_all_time_cv{iTimePeriod}{iCV}(:,indTr(perm_tr(avg_inds)));
-                        XTr_temp{iTimePeriod}{iCV}(:,curr_train_ind) = mean(tempTr,2);
+                        tempTr = XTr_all_time_cv{iTimePeriod}{iCV}(:,indTr(perm_tr(avg_inds(ismember(avg_inds,1:length(indTr))))));
+                        XTr_temp{iTimePeriod}{iCV}(:,curr_train_ind) = mean(tempTr',1)';
                         YTr_temp(curr_train_ind) = ds.the_basic_DS.label_names_to_use(iLabel);
                      
                         %average test data
-                        if iAvg <= floor(length(indTe)/ds.nAvg)
-                            curr_test_ind = (iLabel - 1)*floor(length(indTe)/ds.nAvg)+iAvg;
-                            tempTe = XTe_all_time_cv{iTimePeriod}{iCV}(:,indTe(perm_te(avg_inds)));
-                            XTe_temp{iTimePeriod}{iCV}(:,curr_test_ind) = mean(tempTe,2);
+                        if iAvg <= ceil(length(indTe)/ds.nAvg)
+                            curr_test_ind = (iLabel - 1)*ceil(length(indTe)/ds.nAvg)+iAvg;
+                            tempTe = XTe_all_time_cv{iTimePeriod}{iCV}(:,indTe(perm_te(avg_inds(ismember(avg_inds,1:length(indTe))))));
+                            XTe_temp{iTimePeriod}{iCV}(:,curr_test_ind) = mean(tempTe',1)';
                             YTe_temp(curr_test_ind) = ds.the_basic_DS.label_names_to_use(iLabel);
                         end
                     end

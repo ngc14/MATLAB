@@ -14,12 +14,14 @@ function queue = parforProgress(totalIterations)
     function updateProgress(~)
         count = count + 1;
         shareComplete = count / totalIterations;
+        tIter = toc(st);
         waitbar(shareComplete, progressBar,['Processed ' num2str(count),...
-            ' of ', num2str(totalIterations), ' instances.']);
+            ' of ', num2str(totalIterations), ' instances (', num2str(fix(tIter)), ...
+            ' s). Estimated ', num2str(fix((totalIterations-count)*(tIter/count))), ' s remaining']);
         if count == totalIterations
             close(progressBar);
             count = [];
-            disp(['Processed ', num2str(totalIterations), ' instances in ', num2str(toc(st)), ' seconds.']);
+            disp(['Processed ', num2str(totalIterations), ' instances in ', num2str(tIter), ' seconds.']);
         end
     end
     % Add listener to the DataQueue

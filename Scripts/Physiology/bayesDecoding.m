@@ -98,7 +98,7 @@ numRuns = 1000;
 fp = {};
 cl = max_correlation_coefficient_CL;
 
-binning_parameters = struct('end_time', size(allUnitsTrials{1},2),'start_time', 1,'bin_width',1);
+binning_parameters = struct('end_time', length(timepoints),'start_time', 1,'bin_width',1);
 dsr.the_basic_DS.binned_site_info.binning_parameters = binning_parameters;
 dsr.time_periods_to_get_data_from = num2cell(binning_parameters.start_time:binning_parameters.bin_width:binning_parameters.end_time);
 dsr.num_times_to_repeat_each_label_per_cv_split = num_repeated_labels;

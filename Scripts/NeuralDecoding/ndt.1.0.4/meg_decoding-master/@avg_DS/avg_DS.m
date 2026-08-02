@@ -279,13 +279,7 @@ methods
                     rem(length(YTr_all),ds.nAvg)*length(ds.the_basic_DS.label_names_to_use);
                 nTest = length(ds.the_basic_DS.label_names_to_use)*floor(length(YTe_all)/length(ds.the_basic_DS.label_names_to_use)/ds.nAvg)+...
                     rem(length(YTe_all),ds.nAvg)*length(ds.the_basic_DS.label_names_to_use);
-                
-                XTr_temp{iTimePeriod}{iCV} = zeros(nCh, nTrain);
-                YTr_temp = zeros(nTrain,1);
-                
-                XTe_temp{iTimePeriod}{iCV} = zeros(nCh, nTest);
-                YTe_temp = zeros(nTest,1);
-                
+                                
                 for iLabel = 1:length(ds.the_basic_DS.label_names_to_use)
                     indTr=find(YTr_all==ds.the_basic_DS.label_names_to_use(iLabel));
                     indTe=find(YTe_all==ds.the_basic_DS.label_names_to_use(iLabel));

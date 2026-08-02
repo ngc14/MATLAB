@@ -8,16 +8,16 @@ num_cv_splits = 10;
 nAvg = 2;
 accLine = 80;
 trCl = [0 .7 0; 1 .5 0; 0 .2 .8; .4 .4 .4; .6 0 .2;];
-
-xl = winT(1):params.binSize:winT(end);
-timepoints = arrayfun(@(s) string(num2str(round(s,2))),xl);
-smoothKernel = fix((winSz-.05)/params.binSize);
 savePath = "S:\Lab\ngc14\Working\Revisions\Decoding\MaxCorr\Fr_Sqrt\";
 
 params = PhysRecording(["Extra Small Sphere","Large Sphere", "Photocell"],.01,.15,-6,5,...
     containers.Map(["Extra Small Sphere","Large Sphere", "Photocell"],repmat({"StartReach"},1,3)));
+xl = winT(1):params.binSize:winT(end);
+timepoints = arrayfun(@(s) string(num2str(round(s,2))),xl);
+smoothKernel = fix((winSz-.05)/params.binSize);
+
 taskAlign = containers.Map(params.condNames,repmat({{["GoSignal" "StartHold"]}},1,length(params.condNames)));
-phaseAlign = containers.Map(params.condNames,cellfun(@(c) num2cell(string(c)),...
+phaseAlign = containers.Map(params.condNames,cellfun(@(c) num2cell(cell2mat(c)),...
     repmat({{phaseNames}},1,length(params.condNames)),'UniformOutput',false));
 phaseWin = repmat({{[0, winSz],[-winSz*(3/4),winSz*(1/4)],[-winSz*(5/4), -winSz*(1/4)],[-winSz*(1/4),winSz*(3/4)]}},1,length(params.condNames));
 phaseWin{strcmp(params.condNames,"Photocell")}{contains(phaseNames,"Hold")} = [-winSz/2 0];
@@ -40,7 +40,7 @@ taskUnits = cellfun(@cell2mat, taskUnits,'UniformOutput',false);
 rgInds = cellfun(@(v) cell2mat(vertcat(v{:})), rgInds, 'UniformOutput',false);
 rgVals = cellfun(@(v) vertcat(v{:}), rgVals, 'UniformOutput',false);
 rgVals = cellfun(@(c) cell2mat(cellfun(@(d) mean(cell2mat(d),2,'omitnan'),c,'UniformOutput',false)), rgVals,'UniformOutput',false);
-clear phaseFR rawSpikes
+clear phaseFR rawSpikes taskFR taskBaseline
 %% optional baseline normalization
 goSegs = cellfun(@(c,p) cellfun(@(a) cell2mat(cellfun(@(t) findBins(t(:,strcmp(p,"GoSignal"))-.5,...
     params.bins),a,'UniformOutput',false)),c,'UniformOutput',false),siteSegs,params.condSegMap.values,'UniformOutput',false);
@@ -92,6 +92,7 @@ subpopulations = cellfun(@(s) ismember(goodUnitsTrials,find(s)), subpopulations,
 dsr = avg_DS(trainingSet(goodUnitsTrials),trainingLabs(goodUnitsTrials),num_cv_splits,nAvg);
 % trialCondTable = getTrialPhaseTable(phaseFR(1:length(conditions)),phaseNames,arrayfun(@(a) a{1}(1),conditions,'UniformOutput',false),sdm);
 % trialConds = arrayfun(@(t) table2cell(trialConds(trialCondTable.Unit==t & ~all(isnan(trialCondTable{:,contains(trialCondTable.Properties.VariableNames,phaseNames)}),2),:)),unique(trialCondTable.Unit),'UniformOutput',false);
+clear trialUnits trialInds trialConds trainingSet trainingLabs
 %% decoder setup
 testUnits = [1,10,20,30,40,50,60,70,80,90,100];
 numRuns = 1000;
@@ -111,7 +112,7 @@ dsr.nAvg = nAvg;
 somaUnits= repmat({repmat({NaN(num_cv_splits,length(timepoints))},length(fTypes),length(testUnits))},numRuns,1);
 uUnits = repmat({cell(length(fTypes),length(testUnits))},numRuns,1);
 hbar = parforProgress(numRuns);
-rng('shuffle');
+rng('default');
 parfor iter = 1:numRuns
     rs = RandStream.create('threefry4x64_20','NumStreams',numRuns,'StreamIndices',iter,'Seed','shuffle');
     RandStream.setGlobalStream(rs);
@@ -238,19 +239,20 @@ end
 %allBxs= bx.boxplotGroup(1:end).Children; set(allBxs(contains(string({allBxs.Tag}),"Whisker")));
 %% permutation testing
 nUnits = testUnits(7);
-permutationFactor = 4;
-fStat = NaN(1,permutationFactor*numRuns);
+permutationFactor = 10;
 shuffleGroups = {{somatotopicLabs,"Task"} {fTypes(1:3),"Arm"}, {fTypes(1:3),"Hand"}, {fTypes(4:5),"Arm"}, {fTypes(4:5),"Hand"}};
-
 shuffleGroups = cellfun(@(s) cellfun(@(i) find(contains(fTypes,i)),s,'UniformOutput',false), shuffleGroups, 'UniformOutput',false);
+shuffleGroups = shuffleGroups(1);
+F_perm = NaN(numRuns,length(shuffleGroups));
+
 groupPop = cellfun(@(sh) cellfun(@(tf) goodUnitsTrials(ismember(goodUnitsTrials,find(subpopulations{sh{2}} & tf)))', subpopulations(sh{1}),'UniformOutput',false),shuffleGroups,'UniformOutput',false);
+shuffledPop = cellfun(@(g) unique([g{:}]),groupPop,"UniformOutput",false);
+
 groupCount = cellfun(@(g) cellfun(@length,g),groupPop,'Uniformoutput',false);
 fStart = cellfun(@(g) [1,cumsum(g(1:end-1))+1], groupCount, 'UniformOutput', false);
 fStop = cellfun(@(g) cumsum(g), groupCount, 'UniformOutput',false);
-shuffledPop = cellfun(@(g) unique([g{:}]),groupPop,"UniformOutput",false);
-F_perm = NaN(permutationFactor*numRuns,length(timepoints),length(shuffleGroups));
-hbar = parforProgress(permutationFactor*numRuns);
-parfor p = 1:(numRuns*permutationFactor)
+hbar = parforProgress(numRuns);
+parfor p = 1:(numRuns)
     permInd = cellfun(@(s) randperm(length(s),length(s)), shuffledPop,'UniformOutput',false);
     shufflePop =  cellfun(@(s,p,f,g) arrayfun(@(t,e) s(p(t:e)),f,g,'UniformOutput',false),...
         shuffledPop,permInd,fStart,fStop,'UniformOutput',false);
@@ -263,28 +265,24 @@ parfor p = 1:(numRuns*permutationFactor)
         iterAcc= cell(num_cv_splits,length(timepoints));
         for iCV = 1:num_cv_splits
             for iTrainingInterval = 1:length(timepoints)
-                XTrF = all_XTr{iTrainingInterval};
-                XTsF = all_XTrt{iTrainingInterval};
                 if(isempty(fp))
-                    tr = cellfun(@(u) cellfun(@(i) XTrF{iCV}(i,:),u,'UniformOutput',false),units,'UniformOutput',false);
-                    XTst = cellfun(@(u) cellfun(@(i) XTsF{iCV}(i,:),u,'UniformOutput',false),units,'UniformOutput',false);
+                    tr = cellfun(@(g) cellfun(@(u) all_XTr{iTrainingInterval}{iCV}(u,:),g,'Uniformoutput',false),units,'UniformOutput',false);
+                    XTst = cellfun(@(g) cellfun(@(u) all_XTrt{iTrainingInterval}{iCV}(u,:),g,'Uniformoutput',false),units,'UniformOutput',false);
                 else
-                    [~,tr] =  cellfun(@(u) cellfun(@(i) fp.set_properties_with_training_data(XTrF{iCV}(i,:)),u,'UniformOutput',false),units,'UniformOutput',false);
-                    [~,XTst] =  cellfun(@(u) cellfun(@(i) fp.set_properties_with_training_data(XTsF{iCV}(i,:)),u,'UniformOutput',false),units,'UniformOutput',false);
+                    [~,tr] =  cellfun(@(g) cellfun(@(u) fp.set_properties_with_training_data(all_XTr{iTrainingInterval}{iCV}(u,:)),g,'Uniformoutput',false),units,'UniformOutput',false);
+                    [~,XTst] =  cellfun(@(g) cellfun(@(u) fp.set_properties_with_training_data(all_XTrt{iTrainingInterval}{iCV}(u,:)),g,'Uniformoutput',false),units,'UniformOutput',false);
                 end
-                clT = cellfun(@(t) cellfun(@(p) cl.train(p,all_YTr),t,'UniformOutput',false),tr,'UniformOutput',false);
+                clT= cellfun(@(t) cellfun(@(p) cl.train(p,all_YTr),t,'UniformOutput',false),tr,'UniformOutput',false);
                 [ia,~] = cellfun(@(g,tx) cellfun(@(c,st) c.test(st),g,tx,'UniformOutput',false),clT,XTst,'UniformOutput',false);
-                iterAcc{iCV,iTrainingInterval} = cellfun(@(g) cellfun(@(e) sum(e-all_Ytrt==0)/length(all_Ytrt),g),ia,'UniformOutput',false);
+                iterAcc{iCV,iTrainingInterval}= cellfun(@(g) cellfun(@(e) sum(e-all_Ytrt==0)/length(all_Ytrt),g),ia,'UniformOutput',false);
             end
         end
-        shuffledGroups = cellfun(@(v)cellfun(@(g) mean(cell2mat(g),1,'omitnan'),num2cell(vertcat(v{:}),1),'UniformOutput',false)',...
-            num2cell(iterAcc,1),'UniformOutput',false);
-        shuffleUnits{i} = [shuffledGroups{:}];
+        iterAcc = cellfun(@(i) cellfun(@(c) mean(cell2mat(c),1,'omitnan'),num2cell(vertcat(i{:}),1),'UniformOutput',false)', num2cell(iterAcc,1), 'UniformOutput',false);
+        shuffleUnits{i} = cellfun(@(r) mean(cell2mat(r'),1,'omitnan'),num2cell([iterAcc{:}],2),'UniformOutput',false);
     end
-    shuffleTests =cellfun(@squeeze,num2cell(cat(3,shuffleUnits{:}),[2 3]),'UniformOutput',false);
-    shuffleTests = cellfun(@(p) squeeze(num2cell(cell2mat(permute(p,[2 3 1])),[1 2])),shuffleTests,'UniformOutput',false);
-    [~, tbl_shuff] = cellfun(@(g,n) cellfun(@(y) anova1(y,fTypes(n{1}), 'off'),g,'UniformOutput',false),shuffleTests,shuffleGroups','UniformOutput',false);
-    F_perm(p,:,:) = cell2mat(cellfun(@(g) cellfun(@(f) f{2, 5},g), tbl_shuff,'UniformOutput',false)');
+    shuffleTests = cellfun(@(p) cell2mat(p'),num2cell([shuffleUnits{:}],2),'UniformOutput',false);
+    [~, tbl_shuff] = cellfun(@(y,n)anova1(100.*y,fTypes(n{1}), 'off'),shuffleTests,shuffleGroups','UniformOutput',false);
+    F_perm(p,:) = cellfun(@(g) g{2, 5}, tbl_shuff)';
     send(hbar,p);
 end
 for s = 1:size(unitAccPhaseS,4)

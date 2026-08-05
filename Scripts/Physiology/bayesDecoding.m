@@ -88,6 +88,11 @@ subpopulations(end+1:end+length(somatotopicLabs)) = cellfun(@(s) strcmp(unitSoma
 
 %subpopulations = arrayfun(@(s) all(horzcat(subpopulations{contains(fTypes,strsplit(s,"-"))}),2), newFTypes, 'UniformOutput', false);
 goodUnitsTrials = find_sites_with_k_label_repetitions(trainingLabs,num_repeated_labels*num_cv_splits,arrayfun(@(a) a{1}(1),params.condNames,'UniformOutput',false))';
+
+subpopulations = arrayfun(@(s) cellfun(@(f) f(goodUnits) & strcmp(unitSomatotopy(goodUnits),s),fUnits,'UniformOutput',false),["Arm","Hand"],'UniformOutput',false);
+subpopulations = [subpopulations{:}];
+fTypes = reshape(fTypes(1:5)'+["-Arm","-Hand"],[],1)';
+
 subpopulations = cellfun(@(s) ismember(goodUnitsTrials,find(s)), subpopulations,'UniformOutput',false);
 dsr = avg_DS(trainingSet(goodUnitsTrials),trainingLabs(goodUnitsTrials),num_cv_splits,nAvg);
 % trialCondTable = getTrialPhaseTable(phaseFR(1:length(conditions)),phaseNames,arrayfun(@(a) a{1}(1),conditions,'UniformOutput',false),sdm);
@@ -95,6 +100,7 @@ dsr = avg_DS(trainingSet(goodUnitsTrials),trainingLabs(goodUnitsTrials),num_cv_s
 clear trialUnits trialInds trialConds trainingSet trainingLabs
 %% decoder setup
 testUnits = [1,10,20,30,40,50,60,70,80,90,100];
+testUnits = 60;
 numRuns = 1000;
 fp = {};
 cl = max_correlation_coefficient_CL;
@@ -147,43 +153,42 @@ parfor iter = 1:numRuns
     end
     send(hbar, iter);
 end
-delete(gcp('nocreate'));
 unitAccPhase = cellfun(@(p) cell2mat(permute(cellfun(@(m) squeeze(mean(m,1,'omitnan')),p,'Uniformoutput',false),...
     (length(size(p{1}))+ length(size(p))):-1:1)),somaUnits,'UniformOutput',false);
 unitAccPhase = vertcat(unitAccPhase{:});
 uUnits = cellfun(@(p) cellfun(@(r) resize(r,[1,max(testUnits)],'FillValue',NaN),p,'UniformOutput',false),uUnits,'UniformOutput',false);
-allAcc = squeeze(mean(unitAccPhase(:,:,testUnits==nUnits,:),2,'omitnan'));
 %%
 em=cell2mat(cellfun(@(a) a([2,3,6]),cellfun(@(c) mean(cell2mat(cellfun(@(a) cell2mat(cellfun(@(n) mean(n,1,'omitnan'),a,'UniformOutput',false)),c,'UniformOutput',false)),1,'omitnan'),siteSegs,'UniformOutput',false)','UniformOutput',false));
 em=[mean(em(:,1:2),1,'omitnan'),min(em(:,end)),max(em(:,end))];
 somaOrder = [find(contains(fTypes,"Arm")), find(contains(fTypes,"Hand"))];
-somaOrder = 1:length(fTypes);
 trtsPhase = 100.*squeeze(mean(unitAccPhase(:,1:end,:,:),2,'omitnan'));
 testTicks = linspace(1,550,length(testUnits));
 
-nAx = 2; nLs = length(fTypes)/nAx; nL = mod(length(fTypes),nAx);
-figure(); colororder(trCl); nt = tiledlayout(1,nAx);
-arrayfun(@(d) errorbar(nexttile(nt,d),squeeze(mean(trtsPhase(:,:,somaOrder((nLs*(d-1))+(1:(nLs+nL)))),1,'omitnan')),squeeze(std(...
-    trtsPhase(:,:,somaOrder((nLs*(d-1))+(1:(nLs+nL)))),0,1)),'LineWidth',2),1:nAx);
-arrayfun(@(d) legend(nexttile(nt,d),fTypes(somaOrder((nLs*(d-1))+(1:(nLs+nL)))),'location','southeast'),1:nAx);
-arrayfun(@(d) set(nexttile(nt,d),'ylim',[30 100],'xtick',1:length(testTicks),'xticklabels',testUnits),1:nAx);
-saveFigures(gcf,savePath,"Errorbars-"+num2str(numRuns),[]);
+if(length(testUnits)>1)
+    nAx = 2; nLs = length(fTypes)/nAx; nL = mod(length(fTypes),nAx);
+    figure(); colororder(trCl); nt = tiledlayout(1,nAx);
+    arrayfun(@(d) errorbar(nexttile(nt,d),squeeze(mean(trtsPhase(:,:,somaOrder((nLs*(d-1))+(1:(nLs+nL)))),1,'omitnan')),squeeze(std(...
+        trtsPhase(:,:,somaOrder((nLs*(d-1))+(1:(nLs+nL)))),0,1)),'LineWidth',2),1:nAx);
+    arrayfun(@(d) legend(nexttile(nt,d),fTypes(somaOrder((nLs*(d-1))+(1:(nLs+nL)))),'location','southeast'),1:nAx);
+    arrayfun(@(d) set(nexttile(nt,d),'ylim',[30 100],'xtick',1:length(testTicks),'xticklabels',testUnits),1:nAx);
+    saveFigures(gcf,savePath,"Errorbars-"+num2str(numRuns),[]);
 
-nAx = 3; nLs = floor(length(fTypes)/nAx); nL = mod(length(fTypes),nAx);
-figure(); colororder(trCl); nt=tiledlayout(1,nAx);
-arrayfun(@(d) boxchart(nexttile(nt,d),reshape(repmat(testTicks,size(trtsPhase,1),1,nLs+(nL*(d==nAx))),1,[]),reshape(...
-    trtsPhase(:,:,ismember(fTypes,fTypes((nLs*(d-1))+(1:(nLs+(nL*(d==nAx))))))),1,[]),'GroupByColor',reshape(permute(...
-    repmat(1:(nLs+(nL*(d==nAx))),size(trtsPhase,1),1,length(testTicks)),[1 3 2]),1,[]),'Notch','on','MarkerStyle','none','BoxWidth',30,'BoxFaceAlpha',1),1:nAx);
-arrayfun(@(d) legend(nexttile(nt,d),fTypes((nLs*(d-1))+(1:(nLs+(nL*(d==nAx))))),'location','southeast'),1:nAx);
-arrayfun(@(d) set(nexttile(nt,d),'ylim',[30 100],'xtick',testTicks,'xticklabels',testUnits),1:nAx);
-saveFigures(gcf,savePath,"Boxplots-"+num2str(numRuns),[]);
+    nAx = 3; nLs = floor(length(fTypes)/nAx); nL = mod(length(fTypes),nAx);
+    figure(); colororder(trCl); nt=tiledlayout(1,nAx);
+    arrayfun(@(d) boxchart(nexttile(nt,d),reshape(repmat(testTicks,size(trtsPhase,1),1,nLs+(nL*(d==nAx))),1,[]),reshape(...
+        trtsPhase(:,:,ismember(fTypes,fTypes((nLs*(d-1))+(1:(nLs+(nL*(d==nAx))))))),1,[]),'GroupByColor',reshape(permute(...
+        repmat(1:(nLs+(nL*(d==nAx))),size(trtsPhase,1),1,length(testTicks)),[1 3 2]),1,[]),'Notch','on','MarkerStyle','none','BoxWidth',30,'BoxFaceAlpha',1),1:nAx);
+    arrayfun(@(d) legend(nexttile(nt,d),fTypes((nLs*(d-1))+(1:(nLs+(nL*(d==nAx))))),'location','southeast'),1:nAx);
+    arrayfun(@(d) set(nexttile(nt,d),'ylim',[30 100],'xtick',testTicks,'xticklabels',testUnits),1:nAx);
+    saveFigures(gcf,savePath,"Boxplots-"+num2str(numRuns),[]);
 
-figure(); hold on; 
-[~,maxT] = max(100.*unitAccPhase(:,:,:,end-(length(somatotopicLabs)-1):end)>=accLine,[],2);
-maxT(maxT==1) = length(xl);
-figure(); errorbar(testUnits,squeeze(mean(xl(maxT),1,'omitnan')),squeeze(std(xl(maxT),0,1)));
-legend(somatotopicLabs);
-saveFigures(gcf,savePath,"Latency_Somatotopy-"+num2str(numRuns),[]);
+    figure(); hold on;
+    [~,maxT] = max(100.*unitAccPhase(:,:,:,end-(length(somatotopicLabs)-1):end)>=accLine,[],2);
+    maxT(maxT==1) = length(xl);
+    figure(); errorbar(testUnits,squeeze(mean(xl(maxT),1,'omitnan')),squeeze(std(xl(maxT),0,1)));
+    legend(somatotopicLabs);
+    saveFigures(gcf,savePath,"Latency_Somatotopy-"+num2str(numRuns),[]);
+end
 
 for t = 1:length(testUnits)
     nUnits=testUnits(t);
@@ -211,7 +216,6 @@ for t = 1:length(testUnits)
     xticklabels(fTypes);
     saveFigures(gcf,savePath,"Groups_"+num2str(numRuns)+"_"+num2str(nUnits),[]);
 
-    if(0)
     figure(); hold on;
     bx=boxchart(accTable,"Time-"+timepoints(1:end),'Notch','on','MarkerStyle','none');
     xticks(1:5:length(timepoints));xticklabels(string(timepoints(1:5:end)));newXLim = [-.1 .1]+double(get(gca,'XLim'));
@@ -235,66 +239,68 @@ for t = 1:length(testUnits)
     xticks(1:2);xticklabels(["Shallow","Deep"]);
     plot([-1 1]+double(get(gca,'XLim')),[accLine accLine],'LineWidth',1,'Color','k');ylim([25 105]);
     saveFigures(gcf,savePath,"Laminar_"+num2str(numRuns)+"_"+num2str(nUnits),[]);
-    end
 end
 %allBxs= bx.boxplotGroup(1:end).Children; set(allBxs(contains(string({allBxs.Tag}),"Whisker")));
 %% permutation testing
-nUnits = testUnits(7);
-logFile = savePath+"permutation_log.txt";
-if exist(logFile, 'file')
-    doneTasks = importdata(logFile);
-end
-permutationFactor = 10;
+permutations = 10000;
+allAcc = squeeze(mean(unitAccPhase(:,:,testUnits==nUnits,:),2,'omitnan'));
 shuffleGroups = {{somatotopicLabs,"Task"} {fTypes(1:3),"Arm"}, {fTypes(1:3),"Hand"}, {fTypes(4:5),"Arm"}, {fTypes(4:5),"Hand"}};
 shuffleGroups = cellfun(@(s) cellfun(@(i) find(contains(fTypes,i)),s,'UniformOutput',false), shuffleGroups, 'UniformOutput',false);
-F_perm = cell(numRuns,length(shuffleGroups));
+F_perm = cell(permutations,length(shuffleGroups));
+hbar = parforProgress(permutations);
 
-groupPop = cellfun(@(sh) cellfun(@(tf) goodUnitsTrials(ismember(goodUnitsTrials,find(subpopulations{sh{2}} & tf)))', subpopulations(sh{1}),'UniformOutput',false),shuffleGroups,'UniformOutput',false);
-shuffledPop = cellfun(@(g) unique([g{:}]),groupPop,"UniformOutput",false);
-
-groupCount = cellfun(@(g) cellfun(@length,g),groupPop,'Uniformoutput',false);
-fStart = cellfun(@(g) [1,cumsum(g(1:end-1))+1], groupCount, 'UniformOutput', false);
-fStop = cellfun(@(g) cumsum(g), groupCount, 'UniformOutput',false);
-hbar = parforProgress(numRuns);
-for p = 1:(numRuns)
-    permInd = cellfun(@(s) randperm(length(s),length(s)), shuffledPop,'UniformOutput',false);
-    shufflePop =  cellfun(@(s,p,f,g) arrayfun(@(t,e) s(p(t:e)),f,g,'UniformOutput',false),...
-        shuffledPop,permInd,fStart,fStop,'UniformOutput',false);
-    shuffleUnits= repmat({},numRuns/permutationFactor,1);
-    parfor i = 1:(numRuns/(permutationFactor/2))
-        rs = RandStream.create('threefry4x64_20','NumStreams',numRuns/(permutationFactor/2),'StreamIndices',i,'Seed','shuffle');
-        RandStream.setGlobalStream(rs);
-        [all_XTr, all_YTr, all_XTrt, all_Ytrt] = dsr.get_data;
-        units = cellfun(@(s) cellfun(@(p) p(1:min(length(p),nUnits)),s,'UniformOutput',false),shufflePop,'UniformOutput',false);
-        iterAcc= cell(num_cv_splits,length(timepoints));
-        for iCV = 1:num_cv_splits
-            for iTrainingInterval = 1:length(timepoints)
-                if(isempty(fp))
-                    tr = cellfun(@(g) cellfun(@(u) all_XTr{iTrainingInterval}{iCV}(u,:),g,'Uniformoutput',false),units,'UniformOutput',false);
-                    XTst = cellfun(@(g) cellfun(@(u) all_XTrt{iTrainingInterval}{iCV}(u,:),g,'Uniformoutput',false),units,'UniformOutput',false);
-                else
-                    [~,tr] =  cellfun(@(g) cellfun(@(u) fp.set_properties_with_training_data(all_XTr{iTrainingInterval}{iCV}(u,:)),g,'Uniformoutput',false),units,'UniformOutput',false);
-                    [~,XTst] =  cellfun(@(g) cellfun(@(u) fp.set_properties_with_training_data(all_XTrt{iTrainingInterval}{iCV}(u,:)),g,'Uniformoutput',false),units,'UniformOutput',false);
-                end
-                clT= cellfun(@(t) cellfun(@(p) cl.train(p,all_YTr),t,'UniformOutput',false),tr,'UniformOutput',false);
-                [ia,~] = cellfun(@(g,tx) cellfun(@(c,st) c.test(st),g,tx,'UniformOutput',false),clT,XTst,'UniformOutput',false);
-                iterAcc{iCV,iTrainingInterval}= cellfun(@(g) cellfun(@(e) sum(e-all_Ytrt==0)/length(all_Ytrt),g),ia,'UniformOutput',false);
-            end
+parfor p = 1:(permutations)
+    rt = RandStream.create('threefry4x64_20','NumStreams',permutations,'StreamIndices',p,'Seed','shuffle');
+    RandStream.setGlobalStream(rt);
+    if(0)
+        groupPop = cellfun(@(sh) cellfun(@(tf) goodUnitsTrials(ismember(goodUnitsTrials,...
+            find(all(horzcat(subpopulations{sh{2}}),2) & tf)))', subpopulations(sh{1}),'UniformOutput',false),shuffleGroups,'UniformOutput',false);
+        shuffledPop = cellfun(@(g) unique([g{:}]),groupPop,"UniformOutput",false);
+        groupCount = cellfun(@(g) cellfun(@length,g),groupPop,'Uniformoutput',false);
+        fStart = cellfun(@(g) [1,cumsum(g(1:end-1))+1], groupCount, 'UniformOutput', false);
+        fStop = cellfun(@(g) cumsum(g), groupCount, 'UniformOutput',false);
+        shuffleUnits= repmat({},permutations,1);
+        for i = 1:permutations
+            rs = RandStream.create('threefry4x64_20','NumStreams',permutations,'StreamIndices',i,'Seed','shuffle');
+            RandStream.setGlobalStream(rs);
+            iterAcc = shufflePermTest(shuffledPop,fStart,fStop,nUnits,dsr,fp);
+            shuffleUnits{i} = cellfun(@(r) mean(cell2mat(r'),1,'omitnan'),num2cell([iterAcc{:}],2),'UniformOutput',false);
         end
-        iterAcc = cellfun(@(i) cellfun(@(c) mean(cell2mat(c),1,'omitnan'),num2cell(vertcat(i{:}),1),'UniformOutput',false)', num2cell(iterAcc,1), 'UniformOutput',false);
-        shuffleUnits{i} = cellfun(@(r) mean(cell2mat(r'),1,'omitnan'),num2cell([iterAcc{:}],2),'UniformOutput',false);
+    else
+        shuffleUnits = cell(1,length(shuffleGroups));
+        for s = 1:length(shuffleGroups)
+            shuffledAcc = allAcc(:,shuffleGroups{s}{1});
+            shuffledAcc = shuffledAcc(:);
+            shuffleUnits{s} = shuffledAcc(randperm(length(shuffledAcc)));
+        end
     end
-    F_perm(p,:) = cellfun(@(p) cell2mat(p'),num2cell([shuffleUnits{:}],2),'UniformOutput',false)';
+    F_perm(p,:) = shuffleUnits;
     send(hbar,p);
 end
-%
+%%
+diffRatio = NaN(length(shuffleGroups),max(cellfun(@(s) nchoosek(length(s{1}),2),shuffleGroups)));
 for s = 1:length(shuffleGroups)
-    [~,fstat] = cellfun(@(f) anova1(f{s},'off'), F_perm,'UniformOutput',false);
-    fstat = cellfun(@(f) f{2,6}, fstat);
-    if((sum(fstat>=F_obs)+1)/(length(F_perm)+1)>0.001)
+    groupIDs = repelem(fTypes(shuffleGroups{s}{1}),size(allAcc,1));
+    fo = anova(100.*allAcc(:,shuffleGroups{s}{1}));
+    fo =fo.stats.F(1);
+    fs = NaN(length(F_perm(:,s)),1);
+    hbar = parforProgress(length(F_perm));
+    parfor p = 1:length(F_perm)
+        an = anova(groupIDs,100.*F_perm{p,s},"FactorNames","subpopulation");
+        fs(p) = an.stats.F(1);
+        send(hbar,p);
+    end
+    if((1+sum(fs>=fo))/(length(F_perm)+1)<0.001)
         pairs = nchoosek(1:length(shuffleGroups{s}{1}),2);
-        diffO = mean(allAcc(:,shuffleGroups{s}{1}(pairs(:,1)))-allAcc(:,shuffleGroups{s}{1}(pairs(:,2))),1,'omitnan');
-        diffRatio = cellfun(@(f) diff(f(:,pairs),1,2),F_perm,'UniformOutput',false);
+        diffO = 100.*mean(allAcc(:,shuffleGroups{s}{1}(pairs(:,1)))-allAcc(:,shuffleGroups{s}{1}(pairs(:,2))),1,'omitnan');
+        for p = 1:length(diffO)
+            currPair = ismember(groupIDs,fTypes(shuffleGroups{s}{1}(pairs(p,:))));
+            allDiffs = NaN(length(F_perm),1);
+            parfor f = 1:length(F_perm)
+                allDiffs(f)= diff(groupsummary(100.*F_perm{f,s}(currPair),groupIDs(currPair)',"mean"));
+            end
+            diffRatio(s,p) = (1+sum(abs(allDiffs)>=abs(diffO(p))))/(length(F_perm)+1);
+        end
     end
 end
 %%
@@ -307,6 +313,31 @@ for tr = 1:timepoints
 end
 plot([0,max(testUnits)]+[0 1],[accLine accLine],'LineWidth',1,'Color','k'); ylim([0 100]);
 %saveFigures(gcf,savePath,"NUnits_"+num2str(numRuns),[]);
+
+%%
+function iterAcc = shufflePermTest(shuffledPop,fStart,fStop,nUnits,dsr,fp)
+permInd = cellfun(@(s) randperm(length(s),length(s)), shuffledPop,'UniformOutput',false);
+shufflePop =  cellfun(@(s,p,f,g) arrayfun(@(t,e) s(p(t:e)),f,g,'UniformOutput',false),...
+    shuffledPop,permInd,fStart,fStop,'UniformOutput',false);
+units = cellfun(@(s) cellfun(@(p) p(1:min(length(p),nUnits)),s,'UniformOutput',false),shufflePop,'UniformOutput',false);
+[all_XTr, all_YTr, all_XTrt, all_Ytrt] = dsr.get_data;
+iterAcc= cell(dsr.the_basic_DS.num_cv_splits,length(dsr.time_periods_to_get_data_from));
+for iCV = 1:dsr.the_basic_DS.num_cv_splits
+    for iTrainingInterval = 1:length(dsr.time_periods_to_get_data_from)
+        if(isempty(fp))
+            tr = cellfun(@(g) cellfun(@(u) all_XTr{iTrainingInterval}{iCV}(u,:),g,'Uniformoutput',false),units,'UniformOutput',false);
+            XTst = cellfun(@(g) cellfun(@(u) all_XTrt{iTrainingInterval}{iCV}(u,:),g,'Uniformoutput',false),units,'UniformOutput',false);
+        else
+            [~,tr] =  cellfun(@(g) cellfun(@(u) fp.set_properties_with_training_data(all_XTr{iTrainingInterval}{iCV}(u,:)),g,'Uniformoutput',false),units,'UniformOutput',false);
+            [~,XTst] =  cellfun(@(g) cellfun(@(u) fp.set_properties_with_training_data(all_XTrt{iTrainingInterval}{iCV}(u,:)),g,'Uniformoutput',false),units,'UniformOutput',false);
+        end
+        clT= cellfun(@(t) cellfun(@(p) cl.train(p,all_YTr),t,'UniformOutput',false),tr,'UniformOutput',false);
+        [ia,~] = cellfun(@(g,tx) cellfun(@(c,st) c.test(st),g,tx,'UniformOutput',false),clT,XTst,'UniformOutput',false);
+        iterAcc{iCV,iTrainingInterval}= cellfun(@(g) cellfun(@(e) sum(e-all_Ytrt==0)/length(all_Ytrt),g),ia,'UniformOutput',false);
+    end
+end
+iterAcc = cellfun(@(i) cellfun(@(c) mean(cell2mat(c),1,'omitnan'),num2cell(vertcat(i{:}),1),'UniformOutput',false)', num2cell(iterAcc,1), 'UniformOutput',false);
+end
 %%
 function [predVals,units] = fastTest(cl,tst)
 curr_lambdas = repmat(cl, [1, 1, size(tst, 2)]);

@@ -244,7 +244,7 @@ end
 %% permutation testing
 permutations = 10000;
 allAcc = squeeze(mean(unitAccPhase(:,:,testUnits==nUnits,:),2,'omitnan'));
-shuffleGroups = {{somatotopicLabs,"Task"} {fTypes(1:3),"Arm"}, {fTypes(1:3),"Hand"}, {fTypes(4:5),"Arm"}, {fTypes(4:5),"Hand"}};
+shuffleGroups = {{fTypes(1:3)}, {fTypes(4:5)}, {fTypes(6:8)}, {fTypes(9:10)}};
 shuffleGroups = cellfun(@(s) cellfun(@(i) find(contains(fTypes,i)),s,'UniformOutput',false), shuffleGroups, 'UniformOutput',false);
 F_perm = cell(permutations,length(shuffleGroups));
 hbar = parforProgress(permutations);
@@ -299,7 +299,7 @@ for s = 1:length(shuffleGroups)
             parfor f = 1:length(F_perm)
                 allDiffs(f)= diff(groupsummary(100.*F_perm{f,s}(currPair),groupIDs(currPair)',"mean"));
             end
-            diffRatio(s,p) = (1+sum(abs(allDiffs)>=abs(diffO(p))))/(length(F_perm)+1);
+            diffRatio(s,p) = (1+sum(abs(allDiffs)>=abs(diffO(p))))/(length(F_perm)+1)
         end
     end
 end

@@ -42,20 +42,21 @@ rgVals = cellfun(@(v) vertcat(v{:}), rgVals, 'UniformOutput',false);
 rgVals = cellfun(@(c) cell2mat(cellfun(@(d) mean(cell2mat(d),2,'omitnan'),c,'UniformOutput',false)), rgVals,'UniformOutput',false);
 clear phaseFR rawSpikes taskFR taskBaseline
 %% optional baseline normalization
-goSegs = cellfun(@(c,p) cellfun(@(a) cell2mat(cellfun(@(t) findBins(t(:,strcmp(p,"GoSignal"))-.5,...
+goSegs = cellfun(@(c,p) cellfun(@(a) cell2mat(cellfun(@(t) findBins(t(:,strcmp(p,"GoSignal"))-4,...
     params.bins),a,'UniformOutput',false)),c,'UniformOutput',false),siteSegs,params.condSegMap.values,'UniformOutput',false);
 normBaseline = cellfun(@(p,t)cellfun(@(a,n) [max(1,median(cell2mat(reshape(cellfun(@(s) ...
-    permute(mean(a(:,max(1,s):max(1,s)+(1/params.binSize),:),[2],'omitnan'),[1 3 2]),...
+    permute(mean(a(:,max(1,s):max(1,s)+(3/params.binSize),:),[2],'omitnan'),[1 3 2]),...
     num2cell(n),'UniformOutput',false),[1,1,length(n)])),3,'omitnan'))],p,t,'UniformOutput',false),siteTrialPSTHS,goSegs,"UniformOutput",false);
 normBaseline = cellfun(@(cc) vertcat(cc{:}),cellfun(@(c) cellfun(@(n) num2cell(n,2), c,'UniformOutput',false),normBaseline,'UniformOutput',false),'UniformOutput',false);
-normBaseline = cellfun(@(d) horzcat(d{:}), num2cell(horzcat(normBaseline{:}),2),'UniformOutput',false);
 clear goSegs
 %%
 siteTrialPSTHS = cellfun(@(cp) cellfun(@(s)cellfun(@(r) squeeze(num2cell(r,[1,2]))',s,'UniformOutput',false)',cellfun(@(p)...
     num2cell(permute(permute(p,[1 3 2]),[1 3 2]),[2,3]),vertcat(cp(:)),'UniformOutput',false),'UniformOutput',false),siteTrialPSTHS,'Uniformoutput', false);
 siteTrialPSTHS = cellfun(@(n) [n{:}]' ,siteTrialPSTHS, 'UniformOutput',false);
 siteTrialPSTHS = cellfun(@(c) cellfun(@(a) vertcat(a{:}),c,'UniformOutput',false),siteTrialPSTHS,'UniformOutput',false);
+%avgUnits = cellfun(@(cs,cb) cellfun(@(s,b) mean(s,1,'omitnan')./mean(max(1,b),2,'omitnan'),cs,cb,'UniformOutput',false),siteTrialPSTHS,normBaseline,'UniformOutput',false)
 siteTrialPSTHS = cellfun(@(s) vertcat(s{:}), num2cell([siteTrialPSTHS{:}],2),'UniformOutput',false);
+normBaseline = cellfun(@(d) horzcat(d{:}), num2cell(horzcat(normBaseline{:}),2),'UniformOutput',false);
 %% only use units that are task modulated according to the task phase window
 rUnits = cellfun(@(rg,r,t) rg==1 & r < 1 & t==1, rgInds, rgVals,taskUnits, 'UniformOutput',false);
 gUnits = cellfun(@(rg,r,t) rg==1 & r >= 1 & t==1, rgInds, rgVals,taskUnits, 'UniformOutput',false);

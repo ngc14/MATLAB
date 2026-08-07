@@ -40,7 +40,6 @@ taskUnits = cellfun(@cell2mat, taskUnits,'UniformOutput',false);
 rgInds = cellfun(@(v) cell2mat(vertcat(v{:})), rgInds, 'UniformOutput',false);
 rgVals = cellfun(@(v) vertcat(v{:}), rgVals, 'UniformOutput',false);
 rgVals = cellfun(@(c) cell2mat(cellfun(@(d) mean(cell2mat(d),2,'omitnan'),c,'UniformOutput',false)), rgVals,'UniformOutput',false);
-clear phaseFR rawSpikes taskFR taskBaseline
 %% optional baseline normalization
 goSegs = cellfun(@(c,p) cellfun(@(a) cell2mat(cellfun(@(t) findBins(t(:,strcmp(p,"GoSignal"))-4,...
     params.bins),a,'UniformOutput',false)),c,'UniformOutput',false),siteSegs,params.condSegMap.values,'UniformOutput',false);
@@ -48,7 +47,7 @@ normBaseline = cellfun(@(p,t)cellfun(@(a,n) [max(1,median(cell2mat(reshape(cellf
     permute(mean(a(:,max(1,s):max(1,s)+(3/params.binSize),:),[2],'omitnan'),[1 3 2]),...
     num2cell(n),'UniformOutput',false),[1,1,length(n)])),3,'omitnan'))],p,t,'UniformOutput',false),siteTrialPSTHS,goSegs,"UniformOutput",false);
 normBaseline = cellfun(@(cc) vertcat(cc{:}),cellfun(@(c) cellfun(@(n) num2cell(n,2), c,'UniformOutput',false),normBaseline,'UniformOutput',false),'UniformOutput',false);
-clear goSegs
+clear goSegs phaseFR rawSpikes taskFR taskBaseline
 %% combined conditions of PSTHS to get trial PSTHS organized by units
 siteTrialPSTHS = cellfun(@(cp) cellfun(@(s)cellfun(@(r) squeeze(num2cell(r,[1,2]))',s,'UniformOutput',false)',cellfun(@(p)...
     num2cell(permute(permute(p,[1 3 2]),[1 3 2]),[2,3]),vertcat(cp(:)),'UniformOutput',false),'UniformOutput',false),siteTrialPSTHS,'Uniformoutput', false);
@@ -73,7 +72,7 @@ unitTypeT(unitCondAssign(sum(isMaxTie(unitCondAssign,:),2)==3)) = 3;
 unitTypeT(unitCondAssign(sum(isMaxTie(unitCondAssign,:),2)==2 & ~isMaxTie(unitCondAssign,end))) = 3;
 unitTypeT = rUnits{1}.*1 + gUnits{1}.*2 + bothUnits{1}.*3;
 fUnits = {unitTypeT==1, unitTypeT==2, unitTypeT==3,mappedChannels<=16,mappedChannels>16,goodUnits};
-clear isMaxTie unitsConds unitTypeT unitTypeV
+clear isMaxTie unitsConds unitTypeT unitTypeV goSegs normBaseline
 %% organize training PSTHS and condition labels and subpopulation indicies
 trialUnits = cellfun(@(a) sqrt(conv2(resize(a(:,findBins(winT(1),params.bins):findBins(winT(end),params.bins)),[size(a,1),smoothKernel+...
     range(findBins(winT,params.bins))]),gausswin(smoothKernel)'./sum(gausswin(smoothKernel)),'valid')),siteTrialPSTHS(goodUnits), 'UniformOutput',false);

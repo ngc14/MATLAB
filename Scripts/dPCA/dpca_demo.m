@@ -179,9 +179,8 @@ for nc = 1:length(combinedParams)
         subplot(1,3,c); hold on; view(10,-15); xlim([-2 2.5]); ylim([-2 1.5]);
         [~,z,tr] = procrustes(squeeze(projTArm(st+[1:dims],c,:))',squeeze(projTHand(st+[1:dims],c,:))',"scaling",false,"reflection",'best');
         %zt = tr.b*squeeze(projTHand(st+[1:dims],c,:))'*tr.T + tr.c; zt=NaN(size(zt));z=zt;z(:,[pDims,find(~ismember(1:3,pDims))])=zt(:,1:3);
-        title(params.condAbbrev(conditions(c)) + ", dist: "+ num2str(...
-            procrustes(squeeze(projTArm(st+pDims,c,:))',squeeze(projTHand(st+pDims,c,:))',"scaling",false,"reflection",'best'),'%.2f'));
-        %plot3(z(:,1),z(:,2),z(:,3),'k','LineWidth',0.25); scatter3(z(1,1),z(1,2),z(1,3),'black','x','sizeData',150);
+        title(params.condAbbrev(conditions(c))); %+ ", dist: "+ num2str(procrustes(squeeze(projTArm(st+pDims,c,:))',squeeze(projTHand(st+pDims,c,:))',"scaling",false,"reflection",'best'),'%.2f');
+        %plot3(z(:,1),z(:,2),z(:,3),'Color',lineColor,'LineStyle',ls,'LineWidth',1.5); scatter3(z(1,1),z(1,2),z(1,3),'black','x','sizeData',150);
         plot3(squeeze(projT(st+1,c,:)),squeeze(projT(st+2,c,:)),squeeze(projT(st+3,c,:)),'Color',lineColor,'LineStyle',ls,'LineWidth',1.5);
         scatter3(projT(st+1,1),projT(st+2,1),projT(st+3,1),'black','*','sizeData',250);
         arrayfun(@(e) scatter3(projT(st+1,c,e),projT(st+2,c,e),projT(st+3,c,e),'filled','MarkerFaceColor',lineColor),round(mean(segVals{c}(:,1:3),1,'omitnan')))

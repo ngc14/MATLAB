@@ -1,26 +1,32 @@
 %% load data
-winSz = 0.2;
+phaseWindowSz = 0.2;
 fTypes = ["Reach","Grasp","Both","Shallow","Deep","Task"];
 phaseNames = ["GoSignal","StartReach","StartHold","StartWithdraw"];
-winT = [-.5 .5];
-num_repeated_labels = 3;
-num_cv_splits = 10;
+eventAlign = {"StartReach"};
+winAroundEvent = [-.5 .5];
+nRepeatedCondTests = 2;
+nCVFolds = 10;
 nAvg = 2;
-accLine = 80;
-trCl = [0 .7 0; 1 .5 0; 0 .2 .8; .4 .4 .4; .6 0 .2;];
+nRuns = 1000;
+permutations = 1000;
+nInputUnits = 60; %[1,10,20,30,40,50,60,70,80,90,100];
+pVal = .01;
+fp = {};
+classifier = max_correlation_coefficient_CL;
+shuffleGroups = {fTypes(end-length(somatotopicLabs)+1:end)}; %{fTypes(1:3), fTypes(4:5), fTypes(6:8), fTypes(9:10)};
 savePath = "S:\Lab\ngc14\Working\Revisions\Decoding\MaxCorr\Fr_Sqrt\";
 
 params = PhysRecording(["Extra Small Sphere","Large Sphere", "Photocell"],.01,.15,-6,5,...
-    containers.Map(["Extra Small Sphere","Large Sphere", "Photocell"],repmat({"StartReach"},1,3)));
-xl = winT(1):params.binSize:winT(end);
+    containers.Map(["Extra Small Sphere","Large Sphere", "Photocell"],repmat(eventAlign,1,3)));
+xl = winAroundEvent(1):params.binSize:winAroundEvent(end);
 timepoints = arrayfun(@(s) string(num2str(round(s,2))),xl);
-smoothKernel = fix((winSz-.05)/params.binSize);
+smoothKernel = fix((phaseWindowSz-.05)/params.binSize);
 
 taskAlign = containers.Map(params.condNames,repmat({{["GoSignal" "StartHold"]}},1,length(params.condNames)));
 phaseAlign = containers.Map(params.condNames,cellfun(@(c) num2cell(cell2mat(c)),...
     repmat({{phaseNames}},1,length(params.condNames)),'UniformOutput',false));
-phaseWin = repmat({{[0, winSz],[-winSz*(3/4),winSz*(1/4)],[-winSz*(5/4), -winSz*(1/4)],[-winSz*(1/4),winSz*(3/4)]}},1,length(params.condNames));
-phaseWin{strcmp(params.condNames,"Photocell")}{contains(phaseNames,"Hold")} = [-winSz/2 0];
+phaseWin = repmat({{[0, phaseWindowSz],[-phaseWindowSz*(3/4),phaseWindowSz*(1/4)],[-phaseWindowSz*(5/4), -phaseWindowSz*(1/4)],[-phaseWindowSz*(3/4),phaseWindowSz*(1/4)]}},1,length(params.condNames));
+phaseWin{strcmp(params.condNames,"Photocell")}{contains(phaseNames,"Hold")} = [-phaseWindowSz/2 0];
 %%
 [siteDateMap,siteSegs,siteTrialPSTHS,rawSpikes,siteChannels,chMaps,~,~] = ...
     getAllSessions(params,"Single","M1","");
@@ -30,7 +36,7 @@ simpRep =  cellfun(@(r,t) r(find(t==min(t),1)),siteDateMap.SiteRep,siteDateMap.T
 mappedChannels =  cell2mat(cellfun(@(ch,l) ch{end}(l(~isnan(l)))', chMaps,siteChannels, 'Uniformoutput', false)');
 unitSomatotopy = cellstr(mapSites2Units(cellfun(@length, siteChannels), simpRep));
 %%
-[taskBaseline,taskFR] = calculatePhases(params,taskAlign,repmat({{[winSz, 0]}},1,length(params.condNames)),siteSegs,siteTrialPSTHS,false,true);
+[taskBaseline,taskFR] = calculatePhases(params,taskAlign,repmat({{[phaseWindowSz, 0]}},1,length(params.condNames)),siteSegs,siteTrialPSTHS,false,true);
 [~,taskUnits] = cellfun(@(pb,pc) cellfun(@(b,p)  ttestTrials(b,p,1,true,0.01),...
     pb,pc, 'UniformOutput', false),taskBaseline(1:length(params.condNames)),taskFR(1:length(params.condNames)),'UniformOutput',false);
 taskUnits = cellfun(@cell2mat, taskUnits,'UniformOutput',false);
@@ -74,8 +80,8 @@ unitTypeT = rUnits{1}.*1 + gUnits{1}.*2 + bothUnits{1}.*3;
 fUnits = {unitTypeT==1, unitTypeT==2, unitTypeT==3,mappedChannels<=16,mappedChannels>16,goodUnits};
 clear isMaxTie unitsConds unitTypeT unitTypeV goSegs normBaseline
 %% organize training PSTHS and condition labels and subpopulation indicies
-trialUnits = cellfun(@(a) sqrt(conv2(resize(a(:,findBins(winT(1),params.bins):findBins(winT(end),params.bins)),[size(a,1),smoothKernel+...
-    range(findBins(winT,params.bins))]),gausswin(smoothKernel)'./sum(gausswin(smoothKernel)),'valid')),siteTrialPSTHS(goodUnits), 'UniformOutput',false);
+trialUnits = cellfun(@(a) sqrt(conv2(resize(a(:,findBins(winAroundEvent(1),params.bins):findBins(winAroundEvent(end),params.bins)),[size(a,1),smoothKernel+...
+    range(findBins(winAroundEvent,params.bins))]),gausswin(smoothKernel)'./sum(gausswin(smoothKernel)),'valid')),siteTrialPSTHS(goodUnits), 'UniformOutput',false);
 trialUnits = cellfun(@(n) vertcat(n{:}), num2cell(trialUnits,2), 'UniformOutput',false);
 trialConds = mapSites2Units(cellfun(@length,siteChannels),cellfun(@(s) num2cell(cell2mat(cellfun(@(c,t) repmat(c(1),...
     size(t{1},1),1),params.condAbbrev.values,s,'UniformOutput',false)')),num2cell([siteSegs{:}],2),'UniformOutput',false)');
@@ -86,46 +92,37 @@ trainingLabs =  cellfun(@(t,i) t(i,:), trialConds(goodUnits), trialInds, 'Unifor
 subpopulations =  cellfun(@(b) contains(unitSomatotopy(goodUnits),["Arm","Hand"]) & b(goodUnits), fUnits(1:end-1),'UniformOutput',false);
 subpopulations(end+1) = cellfun(@(b) b(goodUnits), fUnits(end),'UniformOutput',false);
 subpopulations(end+1:end+length(somatotopicLabs)) = cellfun(@(s) strcmp(unitSomatotopy(goodUnits),s),somatotopicLabs,'UniformOutput',false);
-subpopulations = arrayfun(@(s) cellfun(@(f) f(goodUnits) & strcmp(unitSomatotopy(goodUnits),s),fUnits,'UniformOutput',false),["Arm","Hand"],'UniformOutput',false); subpopulations = [subpopulations{:}];
-fTypes = reshape(fTypes(1:5)'+["-Arm","-Hand"],[],1)';
+%subpopulations = arrayfun(@(s) cellfun(@(f) f(goodUnits) & strcmp(unitSomatotopy(goodUnits),s),fUnits,'UniformOutput',false),["Arm","Hand"],'UniformOutput',false); subpopulations = [subpopulations{:}];
+%fTypes = reshape(fTypes(1:5)'+["-Arm","-Hand"],[],1)';
 
-goodUnitsTrials = find_sites_with_k_label_repetitions(trainingLabs,num_repeated_labels*num_cv_splits,arrayfun(@(a) a{1}(1),params.condNames,'UniformOutput',false))';
+goodUnitsTrials = find_sites_with_k_label_repetitions(trainingLabs,nRepeatedCondTests*nCVFolds,arrayfun(@(a) a{1}(1),params.condNames,'UniformOutput',false))';
 subpopulations = cellfun(@(s) ismember(goodUnitsTrials,find(s)), subpopulations,'UniformOutput',false);
-dsr = avg_DS(trainingSet(goodUnitsTrials),trainingLabs(goodUnitsTrials),num_cv_splits,nAvg);
+dsr = avg_DS(trainingSet(goodUnitsTrials),trainingLabs(goodUnitsTrials),nCVFolds,nAvg);
 clear trialUnits trialInds trialConds trainingSet trainingLabs
 %% decoder setup
-testUnits = 60;%[1,10,20,30,40,50,60,70,80,90,100];
-numRuns = 1000;
-permutations = 1000;
-pVal = .01;
-shuffleGroups = {fTypes(end-length(somatotopicLabs)+1:end)};%
-shuffleGroups = {fTypes(1:3), fTypes(4:5), fTypes(6:8), fTypes(9:10)};
-fp = {};
-cl = max_correlation_coefficient_CL;
-
 binning_parameters = struct('end_time', length(timepoints),'start_time', 1,'bin_width',1);
 dsr.the_basic_DS.binned_site_info.binning_parameters = binning_parameters;
 dsr.time_periods_to_get_data_from = num2cell(binning_parameters.start_time:binning_parameters.bin_width:binning_parameters.end_time);
-dsr.num_times_to_repeat_each_label_per_cv_split = num_repeated_labels;
+dsr.num_times_to_repeat_each_label_per_cv_split = nRepeatedCondTests;
 dsr.sample_sites_with_replacement = 0;
 dsr.sites_to_use = -1;
 dsr.num_resample_sites = -1;
 dsr.randomly_shuffle_labels_before_running = 0;
 dsr.nAvg = nAvg;
 shuffleGroups = cellfun(@(i) find(contains(fTypes,i)), shuffleGroups, 'UniformOutput',false);
-%%
-somaUnits= repmat({repmat({NaN(num_cv_splits,length(timepoints))},length(fTypes),length(testUnits))},numRuns,1);
-uUnits = repmat({cell(length(fTypes),length(testUnits))},numRuns,1);
-hbar = parforProgress(numRuns);
+%% bootstrap iterations of classifier training/testing
+somaUnits= repmat({repmat({NaN(nCVFolds,length(timepoints))},length(fTypes),length(nInputUnits))},nRuns,1);
+uUnits = repmat({cell(length(fTypes),length(nInputUnits))},nRuns,1);
+hbar = parforProgress(nRuns);
 rng('shuffle', 'threefry4x64_20');
-parfor iter = 1:numRuns
+parfor iter = 1:nRuns
     [all_XTr, all_YTr, all_XTrt, all_Ytrt] = dsr.get_data;
-    for n = 1:length(testUnits)
+    for n = 1:length(nInputUnits)
         for f = 1:length(fTypes)
             popUnits = find(subpopulations{f});
-            units =  popUnits(randperm(length(popUnits),min(length(popUnits),testUnits(n))));
-            iterAcc= NaN(num_cv_splits,length(timepoints));
-            for iCV = 1:num_cv_splits
+            units =  popUnits(randperm(length(popUnits),min(length(popUnits),nInputUnits(n))));
+            iterAcc= NaN(nCVFolds,length(timepoints));
+            for iCV = 1:nCVFolds
                 for iTrainingInterval = 1:length(timepoints)
                     XTrF = all_XTr{iTrainingInterval};
                     %for iTestingInterval = iTrainingInterval
@@ -137,7 +134,7 @@ parfor iter = 1:numRuns
                         [~,tr] =  fp.set_properties_with_training_data(XTrF{iCV}(units,:));
                         [~,XTst] =  fp.set_properties_with_training_data(XTsF{iCV}(units,:));
                     end
-                    clT= cl.train(tr, all_YTr);
+                    clT= classifier.train(tr, all_YTr);
                     [ia,~] = clT.test(XTst);
                     iterAcc(iCV,iTrainingInterval)= sum(ia-all_Ytrt==0)/length(all_Ytrt);
                     %end
@@ -152,8 +149,8 @@ end
 unitAccPhase = cellfun(@(p) cell2mat(permute(cellfun(@(m) squeeze(mean(m,1,'omitnan')),p,'Uniformoutput',false),...
     (length(size(p{1}))+ length(size(p))):-1:1)),somaUnits,'UniformOutput',false);
 unitAccPhase = vertcat(unitAccPhase{:});
-uUnits = cellfun(@(p) cellfun(@(r) resize(r,[1,max(testUnits)],'FillValue',NaN),p,'UniformOutput',false),uUnits,'UniformOutput',false);
-allAcc = squeeze(mean(unitAccPhase(:,:,testUnits==60,:),2,'omitnan'));
+uUnits = cellfun(@(p) cellfun(@(r) resize(r,[1,max(nInputUnits)],'FillValue',NaN),p,'UniformOutput',false),uUnits,'UniformOutput',false);
+allAcc = squeeze(mean(unitAccPhase(:,:,nInputUnits==60,:),2,'omitnan'));
 %% permutation testing
 F_perm = cell(permutations,length(shuffleGroups));
 rng('shuffle', 'threefry4x64_20');
@@ -192,44 +189,38 @@ for s = 1:length(shuffleGroups)
     writetable(diffRatio, savePath+strjoin(fTypes(shuffleGroups{s}),"_")+"-stats.txt", 'FileType', 'text','Delimiter','\t');
 end
 %% Figures
-if(length(testUnits)>1)
+accLine = 80;
+trCl = [0 .7 0; 1 .5 0; 0 .2 .8; .4 .4 .4; .6 0 .2;];
+if(length(nInputUnits)>1)
     trtsPhase = 100.*squeeze(mean(unitAccPhase(:,1:end,:,:),2,'omitnan'));
-    somaOrder = [find(contains(fTypes,"Arm")), find(contains(fTypes,"Hand"))];
-    testTicks = linspace(1,550,length(testUnits));
-    nAx = 2; nLs = length(fTypes)/nAx; nL = mod(length(fTypes),nAx);
-    figure(); colororder(trCl); nt = tiledlayout(1,nAx);
-    arrayfun(@(d) errorbar(nexttile(nt,d),squeeze(mean(trtsPhase(:,:,somaOrder((nLs*(d-1))+(1:(nLs+nL)))),1,'omitnan')),squeeze(std(...
-        trtsPhase(:,:,somaOrder((nLs*(d-1))+(1:(nLs+nL)))),0,1)),'LineWidth',2),1:nAx);
-    arrayfun(@(d) legend(nexttile(nt,d),fTypes(somaOrder((nLs*(d-1))+(1:(nLs+nL)))),'location','southeast'),1:nAx);
-    arrayfun(@(d) set(nexttile(nt,d),'ylim',[30 100],'xtick',1:length(testTicks),'xticklabels',testUnits),1:nAx);
-    saveFigures(gcf,savePath,"Errorbars-"+num2str(numRuns),[]);
+    testTicks = linspace(1,550,length(nInputUnits));
 
     nAx = 3; nLs = floor(length(fTypes)/nAx); nL = mod(length(fTypes),nAx);
     figure(); colororder(trCl); nt=tiledlayout(1,nAx);
+    %errorbar(nexttile(nt,d),squeeze(mean(trtsPhase(:,:,(nLs*(d-1))+(1:(nLs+nL))),1,'omitnan')),squeeze(std(trtsPhase(:,:,(nLs*(d-1))+(1:(nLs+nL))),0,1)))
     arrayfun(@(d) boxchart(nexttile(nt,d),reshape(repmat(testTicks,size(trtsPhase,1),1,nLs+(nL*(d==nAx))),1,[]),reshape(...
         trtsPhase(:,:,ismember(fTypes,fTypes((nLs*(d-1))+(1:(nLs+(nL*(d==nAx))))))),1,[]),'GroupByColor',reshape(permute(...
         repmat(1:(nLs+(nL*(d==nAx))),size(trtsPhase,1),1,length(testTicks)),[1 3 2]),1,[]),'Notch','on','MarkerStyle','none','BoxWidth',30,'BoxFaceAlpha',1),1:nAx);
     arrayfun(@(d) legend(nexttile(nt,d),fTypes((nLs*(d-1))+(1:(nLs+(nL*(d==nAx))))),'location','southeast'),1:nAx);
-    arrayfun(@(d) set(nexttile(nt,d),'ylim',[30 100],'xtick',testTicks,'xticklabels',testUnits),1:nAx);
-    saveFigures(gcf,savePath,"Boxplots-"+num2str(numRuns),[]);
+    arrayfun(@(d) set(nexttile(nt,d),'ylim',[30 100],'xtick',testTicks,'xticklabels',nInputUnits),1:nAx);
+    saveFigures(gcf,savePath,"Boxplots-"+num2str(nRuns),[]);
 
     figure(); hold on;
     [~,maxT] = max(100.*unitAccPhase(:,:,:,end-(length(somatotopicLabs)-1):end)>=accLine,[],2);
     maxT(maxT==1) = length(xl);
-    figure(); errorbar(testUnits,squeeze(mean(xl(maxT),1,'omitnan')),squeeze(std(xl(maxT),0,1)));
+    figure(); errorbar(nInputUnits,squeeze(mean(xl(maxT),1,'omitnan')),squeeze(std(xl(maxT),0,1)));
     legend(somatotopicLabs);
-    saveFigures(gcf,savePath,"Latency_Somatotopy-"+num2str(numRuns),[]);
+    saveFigures(gcf,savePath,"Latency_Somatotopy-"+num2str(nRuns),[]);
 end
 
-for t = 1:length(testUnits)
-    nUnits=testUnits(t);
-
-    accTUnit = cell2mat(cellfun(@(s) permute(vertcat(s{:,testUnits==nUnits}),[3 2 1]),somaUnits,'UniformOutput',false));
-    accTable = array2table(100.*squeeze(mean(unitAccPhase(:,:,testUnits==nUnits,:),2,'omitnan')),'VariableNames',fTypes);
+for t = 1:length(nInputUnits)
+    nUnits=nInputUnits(t);
+    accTUnit = cell2mat(cellfun(@(s) permute(vertcat(s{:,nInputUnits==nUnits}),[3 2 1]),somaUnits,'UniformOutput',false));
+    accTable = array2table(100.*squeeze(mean(unitAccPhase(:,:,nInputUnits==nUnits,:),2,'omitnan')),'VariableNames',fTypes);
     if(any(strcmp(fTypes,"Task")))
-        accTable = [accTable,array2table(100.*unitAccPhase(:,:,testUnits==nUnits,strcmp(fTypes,"Task")),'VariableNames',"Time-"+timepoints)];
+        accTable = [accTable,array2table(100.*unitAccPhase(:,:,nInputUnits==nUnits,strcmp(fTypes,"Task")),'VariableNames',"Time-"+timepoints)];
     end
-    writetable(accTable,savePath+"Decoding_"+num2str(nUnits)+"_"+num2str(numRuns),'FileType','spreadsheet','UseExcel',true);
+    writetable(accTable,savePath+"Decoding_"+num2str(nUnits)+"_"+num2str(nRuns),'FileType','spreadsheet','UseExcel',true);
 
     if(length(timepoints)>1)
         em=cell2mat(cellfun(@(a) a([2,3,6]),cellfun(@(c) mean(cell2mat(cellfun(@(a) cell2mat(cellfun(@(n) mean(n,1,'omitnan'),a,'UniformOutput',false)),c,'UniformOutput',false)),1,'omitnan'),siteSegs,'UniformOutput',false)','UniformOutput',false));
@@ -242,43 +233,39 @@ for t = 1:length(testUnits)
         arrayfun(@(d) hold(nexttile(nt,d), 'on'), 1:nAx);
         arrayfun(@(d) set(nexttile(nt,d),'ylim',[0 1],'xlim',[min(xl),max(xl)]),1:nAx);
         arrayfun(@(d) arrayfun(@(a,s) plot(nexttile(nt,d),[a a], [0,1], s),em,["k--","k--","b--","m--"]),1:nAx);
-        saveFigures(gcf,savePath,"Temporal_"+num2str(numRuns)+"_"+num2str(nUnits),[]);
+        saveFigures(gcf,savePath,"Temporal_"+num2str(nRuns)+"_"+num2str(nUnits),[]);
     end
     figure(); hold on;
     boxchart(accTable,fTypes,"Notch",'on','MarkerStyle','none');
     xticklabels(fTypes);
-    saveFigures(gcf,savePath,"Groups_"+num2str(numRuns)+"_"+num2str(nUnits),[]);
+    saveFigures(gcf,savePath,"Groups_"+num2str(nRuns)+"_"+num2str(nUnits),[]);
 
     figure(); hold on;
     bx=boxchart(accTable,"Time-"+timepoints(1:end),'Notch','on','MarkerStyle','none');
     xticks(1:5:length(timepoints));xticklabels(string(timepoints(1:5:end)));newXLim = [-.1 .1]+double(get(gca,'XLim'));
     plot(newXLim,[accLine accLine],'LineWidth',1,'Color','k');ylim([25 105]);xlim(newXLim);
-    saveFigures(gcf,savePath,"Phases_"+num2str(numRuns)+"_"+num2str(nUnits),[]);
+    saveFigures(gcf,savePath,"Phases_"+num2str(nRuns)+"_"+num2str(nUnits),[]);
 
     figure(); hold on;
     bx=boxchart(accTable,["Arm" "Hand" "Trunk" "Face"],'Notch','on','MarkerStyle','none');
     xticks(1:length(somatotopicLabs));xticklabels(["Arm" "Hand" "Trunk" "Face"]);
     plot([-1 1]+double(get(gca,'XLim')),[accLine accLine],'LineWidth',1,'Color','k');ylim([25 105]);
-    saveFigures(gcf,savePath,"Somatotopy_"+num2str(numRuns)+"_"+num2str(nUnits),[]);
+    saveFigures(gcf,savePath,"Somatotopy_"+num2str(nRuns)+"_"+num2str(nUnits),[]);
 
     figure(); hold on;
     bx=boxchart(accTable,fTypes([1 3 2]),'Notch','on','MarkerStyle','none');
     xticks(1:3);xticklabels(fTypes([1 3 2]));
     plot([-1 1]+double(get(gca,'XLim')),[accLine accLine],'LineWidth',1,'Color','k');ylim([25 105]);
-    saveFigures(gcf,savePath,"Types_"+num2str(numRuns)+"_"+num2str(nUnits),[]);
+    saveFigures(gcf,savePath,"Types_"+num2str(nRuns)+"_"+num2str(nUnits),[]);
 
     figure(); hold on;
     bx=boxchart(accTable,["Shallow","Deep"],'Notch','on','MarkerStyle','none');
     xticks(1:2);xticklabels(["Shallow","Deep"]);
     plot([-1 1]+double(get(gca,'XLim')),[accLine accLine],'LineWidth',1,'Color','k');ylim([25 105]);
-    saveFigures(gcf,savePath,"Laminar_"+num2str(numRuns)+"_"+num2str(nUnits),[]);
+    saveFigures(gcf,savePath,"Laminar_"+num2str(nRuns)+"_"+num2str(nUnits),[]);
 end
 %allBxs= bx.boxplotGroup(1:end).Children; set(allBxs(contains(string({allBxs.Tag}),"Whisker")));
 %%
-function fVal = computeF(vals,ids)
-    a = anova(vals(:),ids(:));
-    fVal = a.stats.F(1);
-end
 function [phaseSubVals, sigs] = ttestTrials(dist1,dist2,taskPhase,paired,pVal)
 if(paired)
     sigs = nansum(cell2mat(vertcat(cellfun(@(d1,d2) ttest(...

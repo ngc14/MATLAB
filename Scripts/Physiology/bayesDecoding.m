@@ -13,7 +13,6 @@ nInputUnits = 60; %[1,10,20,30,40,50,60,70,80,90,100];
 pVal = .01;
 fp = {};
 classifier = max_correlation_coefficient_CL;
-shuffleGroups = {fTypes(end-length(somatotopicLabs)+1:end)}; %{fTypes(1:3), fTypes(4:5), fTypes(6:8), fTypes(9:10)};
 savePath = "S:\Lab\ngc14\Working\Revisions\Decoding\MaxCorr\Fr_Sqrt\";
 
 params = PhysRecording(["Extra Small Sphere","Large Sphere", "Photocell"],.01,.15,-6,5,...
@@ -32,9 +31,11 @@ phaseWin{strcmp(params.condNames,"Photocell")}{contains(phaseNames,"Hold")} = [-
     getAllSessions(params,"Single","M1","");
 somatotopicLabs = unique(cell2mat([siteDateMap.SiteRep]'));
 fTypes = [fTypes,somatotopicLabs];
+shuffleGroups = {fTypes(end-length(somatotopicLabs)+1:end)}; %{fTypes(1:3), fTypes(4:5), fTypes(6:8), fTypes(9:10)};
 simpRep =  cellfun(@(r,t) r(find(t==min(t),1)),siteDateMap.SiteRep,siteDateMap.Thresh,'UniformOutput', true)';
 mappedChannels =  cell2mat(cellfun(@(ch,l) ch{end}(l(~isnan(l)))', chMaps,siteChannels, 'Uniformoutput', false)');
 unitSomatotopy = cellstr(mapSites2Units(cellfun(@length, siteChannels), simpRep));
+shuffleGroups = cellfun(@(i) find(contains(fTypes,i)), shuffleGroups, 'UniformOutput',false);
 %%
 [taskBaseline,taskFR] = calculatePhases(params,taskAlign,repmat({{[phaseWindowSz, 0]}},1,length(params.condNames)),siteSegs,siteTrialPSTHS,false,true);
 [~,taskUnits] = cellfun(@(pb,pc) cellfun(@(b,p)  ttestTrials(b,p,1,true,0.01),...
@@ -109,7 +110,6 @@ dsr.sites_to_use = -1;
 dsr.num_resample_sites = -1;
 dsr.randomly_shuffle_labels_before_running = 0;
 dsr.nAvg = nAvg;
-shuffleGroups = cellfun(@(i) find(contains(fTypes,i)), shuffleGroups, 'UniformOutput',false);
 %% bootstrap iterations of classifier training/testing
 somaUnits= repmat({repmat({NaN(nCVFolds,length(timepoints))},length(fTypes),length(nInputUnits))},nRuns,1);
 uUnits = repmat({cell(length(fTypes),length(nInputUnits))},nRuns,1);

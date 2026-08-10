@@ -86,8 +86,8 @@ trainingLabs =  cellfun(@(t,i) t(i,:), trialConds(goodUnits), trialInds, 'Unifor
 subpopulations =  cellfun(@(b) contains(unitSomatotopy(goodUnits),["Arm","Hand"]) & b(goodUnits), fUnits(1:end-1),'UniformOutput',false);
 subpopulations(end+1) = cellfun(@(b) b(goodUnits), fUnits(end),'UniformOutput',false);
 subpopulations(end+1:end+length(somatotopicLabs)) = cellfun(@(s) strcmp(unitSomatotopy(goodUnits),s),somatotopicLabs,'UniformOutput',false);
-% subpopulations = arrayfun(@(s) cellfun(@(f) f(goodUnits) & strcmp(unitSomatotopy(goodUnits),s),fUnits,'UniformOutput',false),["Arm","Hand"],'UniformOutput',false); subpopulations = [subpopulations{:}];
-% fTypes = reshape(fTypes(1:5)'+["-Arm","-Hand"],[],1)';
+subpopulations = arrayfun(@(s) cellfun(@(f) f(goodUnits) & strcmp(unitSomatotopy(goodUnits),s),fUnits,'UniformOutput',false),["Arm","Hand"],'UniformOutput',false); subpopulations = [subpopulations{:}];
+fTypes = reshape(fTypes(1:5)'+["-Arm","-Hand"],[],1)';
 
 goodUnitsTrials = find_sites_with_k_label_repetitions(trainingLabs,num_repeated_labels*num_cv_splits,arrayfun(@(a) a{1}(1),params.condNames,'UniformOutput',false))';
 subpopulations = cellfun(@(s) ismember(goodUnitsTrials,find(s)), subpopulations,'UniformOutput',false);
@@ -96,8 +96,10 @@ clear trialUnits trialInds trialConds trainingSet trainingLabs
 %% decoder setup
 testUnits = 60;%[1,10,20,30,40,50,60,70,80,90,100];
 numRuns = 1000;
-permutations = 10000;
-shuffleGroups = {fTypes(end-length(somatotopicLabs)+1:end)};%{fTypes(1:3), fTypes(4:5), fTypes(6:8), fTypes(9:10)};
+permutations = 1000;
+pVal = .01;
+shuffleGroups = {fTypes(end-length(somatotopicLabs)+1:end)};%
+shuffleGroups = {fTypes(1:3), fTypes(4:5), fTypes(6:8), fTypes(9:10)};
 fp = {};
 cl = max_correlation_coefficient_CL;
 
@@ -110,14 +112,13 @@ dsr.sites_to_use = -1;
 dsr.num_resample_sites = -1;
 dsr.randomly_shuffle_labels_before_running = 0;
 dsr.nAvg = nAvg;
+shuffleGroups = cellfun(@(i) find(contains(fTypes,i)), shuffleGroups, 'UniformOutput',false);
 %%
 somaUnits= repmat({repmat({NaN(num_cv_splits,length(timepoints))},length(fTypes),length(testUnits))},numRuns,1);
 uUnits = repmat({cell(length(fTypes),length(testUnits))},numRuns,1);
 hbar = parforProgress(numRuns);
-rng('default');
+rng('shuffle', 'threefry4x64_20');
 parfor iter = 1:numRuns
-    rs = RandStream.create('threefry4x64_20','NumStreams',numRuns,'StreamIndices',iter,'Seed','shuffle');
-    RandStream.setGlobalStream(rs);
     [all_XTr, all_YTr, all_XTrt, all_Ytrt] = dsr.get_data;
     for n = 1:length(testUnits)
         for f = 1:length(fTypes)
@@ -153,46 +154,42 @@ unitAccPhase = cellfun(@(p) cell2mat(permute(cellfun(@(m) squeeze(mean(m,1,'omit
 unitAccPhase = vertcat(unitAccPhase{:});
 uUnits = cellfun(@(p) cellfun(@(r) resize(r,[1,max(testUnits)],'FillValue',NaN),p,'UniformOutput',false),uUnits,'UniformOutput',false);
 allAcc = squeeze(mean(unitAccPhase(:,:,testUnits==60,:),2,'omitnan'));
-shuffleGroups = cellfun(@(i) find(contains(fTypes,i)), shuffleGroups, 'UniformOutput',false);
 %% permutation testing
-diffRatio = NaN(length(shuffleGroups),max(cellfun(@(s) nchoosek(length(s),2),shuffleGroups)));
 F_perm = cell(permutations,length(shuffleGroups));
-hbar = parforProgress(permutations);
+rng('shuffle', 'threefry4x64_20');
 parfor p = 1:(permutations)
-    rt = RandStream.create('threefry4x64_20','NumStreams',permutations,'StreamIndices',p,'Seed','shuffle');
-    RandStream.setGlobalStream(rt);
     shuffleUnits = cell(1,length(shuffleGroups));
     for s = 1:length(shuffleGroups)
-        shuffledAcc = allAcc(:,shuffleGroups{s}{1});
-        shuffledAcc = shuffledAcc(:);
-        shuffleUnits{s} = shuffledAcc(randperm(length(shuffledAcc)));
+        shuffledAcc = allAcc(:,shuffleGroups{s});
+        for r = 1:size(shuffledAcc,1)
+            shuffledAcc(r,:) = shuffledAcc(r,randperm(size(shuffledAcc,2)));
+        end
+        shuffleUnits{s} =  shuffledAcc;
     end
     F_perm(p,:) = shuffleUnits;
-    send(hbar,p);
 end
 for s = 1:length(shuffleGroups)
-    groupIDs = repelem(fTypes(shuffleGroups{s}),size(allAcc,1));
     fo = anova(100.*allAcc(:,shuffleGroups{s}));
-    fo =fo.stats.F(1);
-    fi = NaN(length(F_perm(:,s)),1);
-    hbar = parforProgress(length(F_perm));
-    parfor p = 1:length(F_perm)
-        an = anova(groupIDs,100.*F_perm{p,s});
-        fi(p) = an.stats.F(1);
-        send(hbar,p);
-    end
-    if((1+sum(fi>=fo))/(length(F_perm)+1)<0.001)
-        pairs = nchoosek(1:length(shuffleGroups{s}),2);
-        diffO = 100.*mean(allAcc(:,shuffleGroups{s}(pairs(:,1)))-allAcc(:,shuffleGroups{s}(pairs(:,2))),1,'omitnan');
-        for p = 1:length(diffO)
-            allDiffs = NaN(length(F_perm),1);
-            currPair = ismember(groupIDs,fTypes(shuffleGroups{s}(pairs(p,:))));
-            parfor f = 1:length(F_perm)
-                allDiffs(f)= diff(groupsummary(100.*F_perm{f,s}(currPair),groupIDs(currPair)',"mean"));
-            end
-            diffRatio(s,p) = (1+sum(abs(allDiffs)>=abs(diffO(p))))/(length(F_perm)+1);
+    omnibusP = (1+sum(fi>=fo.stats.F(1)))/(permutations+1);
+    fi = cellfun(@(n) n.stats.F(1),cellfun(@(a) anova(100.*a),F_perm(:,s),'UniformOutput',false));
+    diffRatio = table(Size=[1,nchoosek(length(shuffleGroups{s}),2)],VariableNames=join(fTypes(nchoosek(shuffleGroups{s},2)),"-",2)',...
+        VariableTypes=repmat("double",1,nchoosek(length(shuffleGroups{s}),2)));
+    pairs = nchoosek(1:length(shuffleGroups{s}),2);
+    diffO = 100.*(allAcc(:,shuffleGroups{s}(pairs(:,1)))-allAcc(:,shuffleGroups{s}(pairs(:,2))));
+    if(omnibusP<pVal)
+        for p = 1:size(pairs,1)
+            allDiffs = cellfun(@(f) f(:,pairs(p,:)), F_perm(:,s), 'UniformOutput',false);
+            allDiffs = cellfun(@(f,i) diff(100.*mean([f(sub2ind(size(f),1:size(f,1),i'+1));f(sub2ind(size(f),1:size(f,1),~i'+1))],...
+                2,'omitnan')),allDiffs,cellfun(@(r) randi(2,[permutations,1])-1, F_perm(:,s),'UniformOutput',false));
+            diffRatio{1,p}  = (1+sum(abs(allDiffs)>=abs(mean(diffO(:,p),1,'omitnan'))))/(permutations+1);
         end
     end
+    diffRatio = addvars(diffRatio,omnibusP,Before=1);
+    diffRatio{end+1,:} = [fo.stats.MeanSquares(1),mean(diffO,1,'omitnan')];
+    diffRatio{end+1,:} = [fo.stats.F(1),std(diffO,0,1,'omitnan')];
+    diffRatio = addvars(diffRatio,["pVal";"MeanSquares/Mean";"F-stat/SD"],Before=1,NewVariableNames="Value");
+    diffRatio{:, 2:end} = compose("%.5f", diffRatio{:, 2:end});
+    writetable(diffRatio, savePath+strjoin(fTypes(shuffleGroups{s}),"_")+"-stats.txt", 'FileType', 'text','Delimiter','\t');
 end
 %% Figures
 if(length(testUnits)>1)
@@ -237,7 +234,7 @@ for t = 1:length(testUnits)
     if(length(timepoints)>1)
         em=cell2mat(cellfun(@(a) a([2,3,6]),cellfun(@(c) mean(cell2mat(cellfun(@(a) cell2mat(cellfun(@(n) mean(n,1,'omitnan'),a,'UniformOutput',false)),c,'UniformOutput',false)),1,'omitnan'),siteSegs,'UniformOutput',false)','UniformOutput',false));
         em=[mean(em(:,1:2),1,'omitnan'),min(em(:,end)),max(em(:,end))];
-        figure(); nt=tiledlayout(1,nAx);
+        figure(); nAx=3; nLs = floor(length(fTypes)/nAx); nL = mod(length(fTypes),nAx); nt=tiledlayout(1,nAx);
         accAx = arrayfun(@(d) arrayfun(@(a) accTUnit(:,:,a),(nLs*(d-1))+(1:(nLs+(nL*(d==nAx)))),'UniformOutput',false),1:nAx,'UniformOutput',false);
         d = cellfun(@(a,d) cellfun(@(p,c) shadedErrorBar(xl,mean(p,1,'omitnan'),std(p,0,1),'lineProps',...
             {'Color',trCl(c,:),'LineWidth',2},'patchSaturation',.1,'ax',nexttile(nt,d)),a,num2cell(1:length(a))),accAx,num2cell(1:nAx),'UniformOutput',false);
@@ -278,6 +275,10 @@ for t = 1:length(testUnits)
 end
 %allBxs= bx.boxplotGroup(1:end).Children; set(allBxs(contains(string({allBxs.Tag}),"Whisker")));
 %%
+function fVal = computeF(vals,ids)
+    a = anova(vals(:),ids(:));
+    fVal = a.stats.F(1);
+end
 function [phaseSubVals, sigs] = ttestTrials(dist1,dist2,taskPhase,paired,pVal)
 if(paired)
     sigs = nansum(cell2mat(vertcat(cellfun(@(d1,d2) ttest(...

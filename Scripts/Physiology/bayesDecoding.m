@@ -4,7 +4,7 @@ fTypes = ["Reach","Grasp","Both","Shallow","Deep","Task"];
 phaseNames = ["GoSignal","StartReach","StartHold","StartWithdraw"];
 eventAlign = {"StartReach"};
 winAroundEvent = [-.5 .5];
-nRepeatedCondTests = 2;
+nRepeatedCondTests = 3;
 nCVFolds = 10;
 nAvg = 2;
 nRuns = 1000;
@@ -13,7 +13,7 @@ nInputUnits = 60; %[1,10,20,30,40,50,60,70,80,90,100];
 pVal = .01;
 fp = {};
 classifier = max_correlation_coefficient_CL;
-savePath = "S:\Lab\ngc14\Working\Revisions\Decoding\MaxCorr\Fr_Sqrt\";
+savePath = "S:\Lab\ngc14\Working\Revisions\Decoding\New_Figure\";
 
 params = PhysRecording(["Extra Small Sphere","Large Sphere", "Photocell"],.01,.15,-6,5,...
     containers.Map(["Extra Small Sphere","Large Sphere", "Photocell"],repmat(eventAlign,1,3)));

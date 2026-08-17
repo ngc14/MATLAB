@@ -208,8 +208,8 @@ if(length(nInputUnits)>1)
     figure(); hold on;
     [~,maxT] = max(100.*unitAccPhase(:,:,:,end-(length(somatotopicLabs)-1):end)>=accLine,[],2);
     maxT(maxT==1) = length(xl);
-    figure(); errorbar(nInputUnits,squeeze(mean(xl(maxT),1,'omitnan')),squeeze(std(xl(maxT),0,1)));
-    legend(somatotopicLabs);
+    figure(); boxchart(reshape(repmat(1:length(somatotopicLabs),permutations,1),1,[]),reshape(squeeze((xl(maxT))),1,[]),'Notch','on');
+    xticks(1:length(somatotopicLabs));xticklabels(somatotopicLabs);
     saveFigures(gcf,savePath,"Latency_Somatotopy-"+num2str(nRuns),[]);
 end
 

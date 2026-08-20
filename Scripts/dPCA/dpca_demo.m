@@ -9,15 +9,37 @@
 % firingRates -- all single-trial data together, massive array. Here
 % If it's filled up with zeros 
 %    firingRatesAverage = bsxfun(@times, mean(firingRates,5), size(firingRates,5)./trialNum)
-binWidth = 10; sTrials = 20; time=-.5:1/(1000/binWidth):1; dims = 10; 
-combinedParams = {{1,[1 2]}, {2}};
+sTrials = 20;
+binWidth = 10; 
+smoothWin = 150;
+dims = 20; 
+time= -.5:binWidth/1000:2.5;
+combinedParams = {{1,[1 2]},{2}};
 margNames = {'Condition','Condition-Invariant'};
 margColours = [23 100 171; 200 160 43; 150 150 150;]/256;
-timeEventConds = cell2mat(cellfun(@(i) mean(findBins(params.bins(i),time(1):1/(1000/binWidth):time(end)),1,'omitnan'),segInds,'UniformOutput',false));
-timeEvents = time(round([mean(timeEventConds(:,1:2),1,'omitnan'),timeEventConds(3,3),mean([timeEventConds(1,3);timeEventConds(2,3)],1,'omitnan')]));
-currD= cellfun(@(v) squeeze(num2cell(permute(cell2mat(reshape(cellfun(@(d) downsampleTrials(max(0,d-0),sTrials),...
-    v,'Uniformoutput',false),1,1,[])),[3 1 2]),[1,2])),vertcat(tablePSTHD), 'UniformOutput',false);
-currD =  cellfun(@(a)cellfun(@(u)max(0,u),a,'UniformOutput',false), currD,'UniformOutput',false);
+conditions = ["Extra Small Sphere","Large Sphere","Photocell"];
+params = PhysRecording(conditions,.001,.001,-6,3,containers.Map(conditions,repmat({"StartReach"},1,length(conditions))));
+allSegsL = params.condSegMap.values;
+[~,maxSegL]= max(cellfun(@length,allSegsL));
+maxSegL = allSegsL{maxSegL};
+tPhys = unitTable(conditions,params);
+%%
+tableInds = contains(string(tPhys.Somatotopy),["Arm","Hand"]);
+somaTable = tPhys{tableInds,"Somatotopy"};
+allLocations = tPhys{tableInds,["XT","YT"]};
+allSegs= tPhys{tableInds,contains(tPhys.Properties.VariableNames,"Segs_"+params.condAbbrev.values)};%
+tablePSTHD= tPhys{tableInds,contains(tPhys.Properties.VariableNames,"PSTH_"+params.condAbbrev.values)};
+clear tPhys
+numUnits = all(cell2mat(cellfun(@(s) size(s,2), tablePSTHD,'UniformOutput',false))>=sTrials,2);%
+somaTable = somaTable(numUnits);
+allLocations = allLocations(numUnits,:);
+allSegs = allSegs(numUnits,:);
+%%
+segInds = cellfun(@(n) n(:,arrayfun(@(c)find(strcmp(maxSegL,c)),["GoSignal","StartReach","StartHold","StartWithdraw"])),cellfun(@cell2mat,...
+    num2cell(cellfun(@(aa) findBins(mean(aa,1,'omitnan'),params.bins),allSegs,'UniformOutput',false),1),'Uniformoutput',false),'UniformOutput',false);
+currD= cellfun(@(v) permute(cell2mat(reshape(cellfun(@(d) downsampleTrials(resize(max(0,d),[size(d,1),max(sTrials*2,size(d,2))],'FillValue',NaN),sTrials)',...%downsampleTrials(max(0,d),sTrials),...
+    v,'Uniformoutput',false),1,1,[])),[3 1 2]),num2cell(tablePSTHD(numUnits,:),1), 'UniformOutput',false);
+currD = squeeze(cellfun(@squeeze,num2cell(cellfun(@squeeze,num2cell(cat(4,currD{:}),[2,3]),'UniformOutput',false),4),'UniformOutput',false));
 %% Define parameter grouping
 % firingRates array has [N S D T E] size; ignore the 1st dimension (neurons)
 % marginalizations: 1 - stimulus, 2 - decision, 3 - time
@@ -33,36 +55,42 @@ currD =  cellfun(@(a)cellfun(@(u)max(0,u),a,'UniformOutput',false), currD,'Unifo
 % For two parameters (stimulus and time), firingRates array of size [N S T E]
 % marginalizations: 1 - stimulus, 2 - time, [1 2] - stimulus/time interaction
 %    combinedParams = {{1, [1 2]}, {2}}
-mv = sum(cell2mat(cellfun(@(m)mean(cell2mat(m),2,'omitnan').*1000>1,num2cell([currD{:}],2),'UniformOutput',false)'),2)>sTrials/2 | ...
-    mean(cell2mat(cellfun(@(n)mean(cat(3,n{:}),3,'omitnan'),currD,'UniformOutput',false)),2,'omitnan').*1000>1;
-trialLength = floor(size(currD{1}{1}, 2) / binWidth);
 trialPSTH = cell(1,length(currD));
+trialLength = floor(size(currD{1}{1}, 2) / binWidth);
 for n = 1:length(currD)
-    trialPSTH{n} = repmat({NaN(length(mv),trialLength)},max(1,sTrials),1);
-    for s = 1:length(trialPSTH{n})
+    trialPSTH{n} = repmat({NaN(sTrials,trialLength)},length(params.condNames),1);
+    for c = 1:length(trialPSTH{n})
         for t = 1:trialLength
             iStart = binWidth * (t-1) + 1;
             iEnd   = binWidth *t;
-            trialPSTH{n}{s}(:,t) = sum(currD{n}{s}(:,iStart:iEnd),2);
+            trialPSTH{n}{c}(:,t) = sum(currD{n}{c}(:,iStart:iEnd),2);
         end
     end
 end
-firingRates = cellfun(@(c) cellfun(@(s) (conv2(resize(s(:,unique(round(...
-    ms_bins./binWidth))),[size(s,1),length(unique(round(ms_bins./binWidth)))+length(gausswin(ceil(smoothWin/binWidth)))-1],...
-    'Pattern','edge','side','both'),transpose(gausswin(ceil(smoothWin/binWidth)))./sum(gausswin(ceil(smoothWin/binWidth))),'valid')),c,'UniformOutput',false),trialPSTH,'UniformOutput',false);
-firingRates = cellfun(@(t) reshape(cellfun(@(r) reshape(r(mv,:),sum(mv),1,[]),t,'UniformOutput',false),1,[]),firingRates,'UniformOutput',false);
-firingRates = cell2mat(permute(cat(4,firingRates{:}),[1 4 3 2]));
+clear currD;
+mv = sum(cell2mat(cellfun(@(m)mean(cell2mat(m'),2,'omitnan').*100>1,num2cell([trialPSTH{:}],1),'UniformOutput',false)),1)>20 | ...
+    mean(cell2mat(cellfun(@(n)mean(cat(2,n{:}),2,'omitnan'),trialPSTH,'UniformOutput',false)),1,'omitnan').*100>1;
+firingRates = cellfun(@(c) cellfun(@(s) (conv2(resize(s(:,fix(findBins(time,params.bins)/binWidth)),...
+    [size(s,1),length(time)+length(gausswin(ceil(smoothWin/binWidth)))-1],'Pattern','edge','side','both'),...
+    transpose(gausswin(ceil(smoothWin/binWidth)))./sum(gausswin(ceil(smoothWin/binWidth))),'valid')),c,'UniformOutput',false),trialPSTH,'UniformOutput',false);
+firingRates = reshape(firingRates(mv),1,1,sum(mv));
+firingRates = permute(cell2mat(permute(cat(4,firingRates{:}),[3 2 1 4])),[4 3 2 1]);
 %firingRates = cell2mat(cellfun(@(r) circshift(r,randi([2*binWidth,size(r,3)-2*binWidth],1),3), num2cell(firingRates,3),'UniformOutput',false));
 trialNum = ones(size(firingRates,1:2)).*size(firingRates,length(size(firingRates)));
 for n = 1:size(firingRates,1)
-    for s = 1:size(firingRates,2)
+    for c = 1:size(firingRates,2)
         for d = 1:size(firingRates,3)
-            assert(isempty(find(isnan(firingRates(n,s,1:trialNum(n,s))), 1)), 'Something is wrong!')
+            assert(isempty(find(isnan(firingRates(n,c,1:trialNum(n,c))), 1)), 'Something is wrong!')
         end
     end
 end
 % firingRatesAverage = cell2mat(cellfun(@(r) reshape(cell2mat(r),size(r{1},1),1,[]),cellfun(@(s) cellfun(@(t) cell2mat(cellfun(@(n)circshift(n,randi([2*binWidth,length(n)-2*binWidth],1)),n,num2cell(t(mv,unique(round(ms_bins./binWidth))),2),'UniformOutput',false)),s,'UniformOutput',false)',trialPSTH, 'UniformOutput',false),'UniformOutput',false));
 firingRatesAverage = mean(firingRates(:,:,:,:), length(size(firingRates)),'omitnan');
+firingRatesAverage(isnan(firingRatesAverage)) = 0;
+firingRates(isnan(firingRates)) = 0;
+timeEventConds = cell2mat(cellfun(@(i) mean(findBins(params.bins(i),time),1,'omitnan'),...
+    cellfun(@(s) fix(s(mv,~all(isnan(s),1))),segInds,'UniformOutput',false)','UniformOutput',false));
+timeEvents = time(round([mean(timeEventConds(:,1:2),1,'omitnan'),timeEventConds(3,3:4),mean([timeEventConds(1,3:4);timeEventConds(2,3:4)],1,'omitnan')]));
 %% Step 1: PCA of the dataset
 [W,~,~] = svd(firingRatesAverage(:,:), 'econ');
 dpca_plot(firingRatesAverage, W, W, @dpca_plot_default);
@@ -80,12 +108,12 @@ dpca_plot(firingRatesAverage, W, V, @dpca_plot_default,'explainedVar', explVar, 
     'time', time,'timeEvents', timeEvents,'timeMarginalization', 2,'legendSubplot', 16);
 %% Step 4: dPCA with regularization
 %load('optimalLambda'). Note that it includes noise covariance matrix Cnoise 
-% which provides substantial regularization itself (even with lambda=0).
-somaIndex = cell2mat(arrayfun(@(a) find(somaTable(mv)==a,min(groupcounts(somaTable(mv)))),unique(somaTable(mv)),'UniformOutput',false));% channels>16; % %
+% which provides substantial regularization itself (even with lambda=0). % unique(somaTable(mv))
+somaIndex = cell2mat(arrayfun(@(a) find(somaTable(mv)==a,min(groupcounts(somaTable(mv)))),"Hand",'UniformOutput',false));
 optimalLambda = dpca_optimizeLambda(firingRatesAverage(somaIndex,:,:),firingRates(somaIndex,:,:,:),...
-    trialNum(somaIndex,:),'combinedParams', combinedParams, 'simultaneous', false,'numRep', 10);
+   trialNum(somaIndex,:),'combinedParams', combinedParams, 'simultaneous', false,'numRep', 10);
 Cnoise = dpca_getNoiseCovariance(firingRatesAverage(somaIndex,:,:), ...
-    firingRates(somaIndex,:,:,:), trialNum(somaIndex,:), 'simultaneous', false,'type','pooled');
+    firingRates(somaIndex,:,:,:), trialNum(somaIndex,:), 'simultaneous', false,'type','averaged');
 [W,V,whichMarg] = dpca(firingRatesAverage(somaIndex,:,:,:),dims*(length(combinedParams)+1),...
     'combinedParams', combinedParams,'lambda', optimalLambda,'Cnoise', Cnoise);
 explVar = dpca_explainedVariance(firingRatesAverage(somaIndex,:,:,:), W, V, 'combinedParams', combinedParams);
@@ -93,8 +121,64 @@ dpca_plot(firingRatesAverage(somaIndex,:,:,:), W, V, @dpca_plot_default, ...
     'explainedVar', explVar,'marginalizationNames', margNames, 'marginalizationColours', margColours, ...
     'whichMarg', whichMarg,'time', time,'timeEvents', timeEvents,'timeMarginalization', 2,...
     'legendSubplot', {16,params.condNames},'ylims',[]);
-Xcen = bsxfun(@minus, firingRatesAverage(somaIndex,:)', mean(firingRatesAverage(somaIndex,:),2)');
-Z = Xcen * W;
+Z =  bsxfun(@minus, firingRatesAverage(somaIndex,:)', mean(firingRatesAverage(somaIndex,:),2)')* W;
+%% 2. Transform / Project TRIAL-AVERAGED PETHs (X) into dPCA space
+targMarg =2; targNum =1;
+colors = [1 0 0; 1 .7 0; 0 0 1];
+phaseWindowSz = 0.2;
+phaseAlign = num2cell(find(contains(maxSegL,["GoSignal","StartReach","StartHold","StartWithdraw"])));
+phaseWin = {[0, phaseWindowSz],[-phaseWindowSz*(3/4),phaseWindowSz*(1/4)],[-phaseWindowSz*(5/4), -phaseWindowSz*(1/4)],[-phaseWindowSz*(3/4),phaseWindowSz*(1/4)]};
+
+sizeX = size(firingRates(somaIndex,:,:,:)); %,
+sizeX(1) = min(groupcounts(somaTable(mv)));
+xfull_Arm = reshape(firingRates(find(somaTable(mv)=="Arm",sizeX(1)),:,:,:), sizeX(1), []);
+Z_trials_Arm = reshape(WArm' * xfull_Arm, [],sizeX(2),length(time),sizeX(end)); % [Components, Stimulus, Time, Trials]
+xfull_Hand = reshape(firingRates(find(somaTable(mv)=="Hand",sizeX(1)),:,:,:), sizeX(1), []);
+Z_trials_Hand = reshape(WHand' * xfull_Hand, [],sizeX(2),length(time),sizeX(end)); % [Components, Stimulus, Time, Trials]
+
+figure; hold on;
+armTarget=find(whichMargArm==targMarg,targNum);
+handTarget=find(whichMargHand==targMarg,targNum);
+armPhaseCond = [];
+handPhaseCond = [];
+for c = 1:sizeX(2)
+    armSegs = mean(cell2mat(reshape(cellfun(@(s) downsampleTrials(s',sTrials)',allSegs(somaTable(mv)=="Arm",c),'UniformOutput',false),1,1,[])),3,'omitnan');
+    handSegs = mean(cell2mat(reshape(cellfun(@(s) downsampleTrials(s',sTrials)',allSegs(somaTable(mv)=="Hand",c),'UniformOutput',false),1,1,[])),3,'omitnan');
+    armPhaseCond(:,:,c) = cell2mat(cellfun(@(p,w) squeeze(mean(Z_trials_Arm(armTarget(end),c,findBins(armSegs(:,p),time)+(w.*(1000/binWidth)),:),3)), phaseAlign, phaseWin,'UniformOutput',false));
+    handPhaseCond(:,:,c) = cell2mat(cellfun(@(p,w) squeeze(mean(Z_trials_Hand(handTarget(end),c,findBins(handSegs(:,p),time)+(w.*(1000/binWidth)),:),3)), phaseAlign, phaseWin,'UniformOutput',false));
+    for t = 1:sTrials
+        currArm = squeeze(Z_trials_Arm(armTarget(end), c, :, t));
+        currHand = squeeze(Z_trials_Hand(handTarget(end), c, :, t));
+        plot(time, currArm, 'Color', [colors(c, :), .3], 'LineWidth', 1,'LineStyle',':');
+        plot(time, currHand, 'Color', [colors(c, :), .3], 'LineWidth', 1,'LineStyle','--');
+    end
+end
+armTable = table(reshape(armPhaseCond,[],1),reshape(repmat("Arm",sTrials,length(phaseAlign),length(params.condNames)),[],1),...
+    reshape(repmat(maxSegL(cell2mat(phaseAlign)),sTrials,length(params.condNames)),[],1),reshape(repelem(params.condAbbrev.values,sTrials,length(phaseAlign)),[],1),'VariableNames',["PCA","Somatotopy","Phase","Cond"]);
+handTable = table(reshape(handPhaseCond,[],1),reshape(repmat("Hand",sTrials,length(phaseAlign),length(params.condNames)),[],1),...
+    reshape(repmat(maxSegL(cell2mat(phaseAlign)),sTrials,length(params.condNames)),[],1),reshape(repelem(params.condAbbrev.values,sTrials,length(phaseAlign)),[],1),'VariableNames',["PCA","Somatotopy","Phase","Cond"]);
+fullTable = [addvars(armTable,reshape(repelem([1:sTrials]',1,length(phaseAlign),length(params.condNames)),[],1),'NewVariableNames',"Trial");...
+    addvars(handTable,reshape(repelem([1:sTrials]',1,length(phaseAlign),length(params.condNames)),[],1),'NewVariableNames',"Trial")];
+fullTable = unstack(removevars(addvars(fullTable,string(fullTable.Somatotopy)+"-"+string(fullTable.Trial),string(fullTable.Phase)+"-"+string(fullTable.Cond),'NewVariableNames',{'Ind','P_C'}),{'Cond','Phase'}),"PCA",'P_C');
+rmm = fitrm(fullTable,strjoin(fullTable.Properties.VariableNames(contains(fullTable.Properties.VariableNames,"_")),", ")+"~ 1+ Somatotopy",...
+    'WithinDesign',table(repelem(maxSegL(cell2mat(phaseAlign))',length(params.condNames),1),repmat(params.condNames',length(phaseAlign),1),VariableNames={'Phase','Cond'}));
+tbl = ranova(rmm, 'WithinModel', 'Phase*Cond');
+tbl_posthoc = multcompare(rmm, 'Phase', 'By', 'Cond','ComparisonType','Bonferroni')
+%sizeX(1) = max(groupcounts(somaTable(mv)));
+Z_avg_Arm = reshape(WArm' * reshape(mean(firingRates(find(somaTable(mv)=="Arm",min(groupcounts(somaTable(mv)))),:,:,:), 4, 'omitnan'), sizeX(1), []), [size(W,2), sizeX(2), length(time)]);
+Z_avg_Hand = reshape(WHand' * reshape(mean(firingRates(find(somaTable(mv)=="Hand",min(groupcounts(somaTable(mv)))),:,:,:), 4, 'omitnan'), sizeX(1), []), [size(W,2), sizeX(2), length(time)]);
+for c = 1:sizeX(2)
+    h=plot(time, squeeze(Z_avg_Arm(armTarget(end), c, :)), 'Color', max(colors(c, :)-[.3 .3 .3],0), 'LineWidth', 3);
+    h=plot(time, squeeze(Z_avg_Hand(handTarget(end), c, :)), 'Color', max(colors(c, :)-[.3 .3 .3],0), 'LineWidth', 3,'LineStyle','--');
+end
+yspan = get(gca,'YLim');
+arrayfun(@(p) plot([p,p], [yspan(1),yspan(1) + range(yspan)], 'k--', 'LineWidth', 1), timeEvents);
+xlabel('Time');
+ylabel(["Z-score"]);
+title(['Single-Trial Trajectories for ' margNames{targMarg}, ' Component ',  num2str(targNum)]);
+legendEntries = cellfun(@(c) arrayfun(@(s) plot([NaN,NaN],[NaN,NaN],'LineWidth',3,'LineStyle',s,'Color',c),["-","--"]),num2cell(colors,2),'UniformOutput',false);
+legend([legendEntries{:}], reshape(["Arm","Hand"]'+"="+params.condAbbrev.values,[],1), 'Location', 'best');
+grid on;
 %%
 figure();
 tiledlayout(3,3);
@@ -132,6 +216,7 @@ end
 %saveFigures(gcf,"S:\Lab\ngc14\Working\DataHigh\Centered\Demixed\Weights\","Hand-Laminar",[]);
 %%
 somaLabels = somaTable(mv);
+location = allLocations(mv,:);
 [~,peakTimes] = max(firingRatesAverage(somaIndex,1,:),[],3);
 [~,sI] = sort(location(somaIndex,1)*ImagingParameters.px2mm);
 somaLabels = somaLabels(somaIndex);

@@ -68,7 +68,7 @@ for n = 1:length(currD)
     end
 end
 clear currD;
-mv = sum(cell2mat(cellfun(@(m)mean(cell2mat(m'),2,'omitnan').*100>1,num2cell([trialPSTH{:}],1),'UniformOutput',false)),1)>20 | ...
+mv = sum(cell2mat(cellfun(@(m)mean(cell2mat(m'),2,'omitnan').*100>1,num2cell([trialPSTH{:}],1),'UniformOutput',false)),1)>sTrials/2 | ...
     mean(cell2mat(cellfun(@(n)mean(cat(2,n{:}),2,'omitnan'),trialPSTH,'UniformOutput',false)),1,'omitnan').*100>1;
 firingRates = cellfun(@(c) cellfun(@(s) (conv2(resize(s(:,fix(findBins(time,params.bins)/binWidth)),...
     [size(s,1),length(time)+length(gausswin(ceil(smoothWin/binWidth)))-1],'Pattern','edge','side','both'),...
@@ -108,8 +108,8 @@ dpca_plot(firingRatesAverage, W, V, @dpca_plot_default,'explainedVar', explVar, 
     'time', time,'timeEvents', timeEvents,'timeMarginalization', 2,'legendSubplot', 16);
 %% Step 4: dPCA with regularization
 %load('optimalLambda'). Note that it includes noise covariance matrix Cnoise 
-% which provides substantial regularization itself (even with lambda=0). % unique(somaTable(mv))
-somaIndex = cell2mat(arrayfun(@(a) find(somaTable(mv)==a,min(groupcounts(somaTable(mv)))),"Hand",'UniformOutput',false));
+% which provides substantial regularization itself (even with lambda=0). % 
+somaIndex = cell2mat(arrayfun(@(a) find(somaTable(mv)==a,min(groupcounts(somaTable(mv)))),unique(somaTable(mv)),'UniformOutput',false));
 optimalLambda = dpca_optimizeLambda(firingRatesAverage(somaIndex,:,:),firingRates(somaIndex,:,:,:),...
    trialNum(somaIndex,:),'combinedParams', combinedParams, 'simultaneous', false,'numRep', 10);
 Cnoise = dpca_getNoiseCovariance(firingRatesAverage(somaIndex,:,:), ...
@@ -144,11 +144,11 @@ handPhaseCond = [];
 for c = 1:sizeX(2)
     armSegs = mean(cell2mat(reshape(cellfun(@(s) downsampleTrials(s',sTrials)',allSegs(somaTable(mv)=="Arm",c),'UniformOutput',false),1,1,[])),3,'omitnan');
     handSegs = mean(cell2mat(reshape(cellfun(@(s) downsampleTrials(s',sTrials)',allSegs(somaTable(mv)=="Hand",c),'UniformOutput',false),1,1,[])),3,'omitnan');
-    armPhaseCond(:,:,c) = cell2mat(cellfun(@(p,w) squeeze(mean(Z_trials_Arm(armTarget(end),c,findBins(armSegs(:,p),time)+(w.*(1000/binWidth)),:),3)), phaseAlign, phaseWin,'UniformOutput',false));
-    handPhaseCond(:,:,c) = cell2mat(cellfun(@(p,w) squeeze(mean(Z_trials_Hand(handTarget(end),c,findBins(handSegs(:,p),time)+(w.*(1000/binWidth)),:),3)), phaseAlign, phaseWin,'UniformOutput',false));
+    armPhaseCond(:,:,c) = cell2mat(cellfun(@(p,w) abs(squeeze(mean(Z_trials_Arm(armTarget(end),c,findBins(armSegs(:,p),time)+(w.*(1000/binWidth)),:),3))), phaseAlign, phaseWin,'UniformOutput',false));
+    handPhaseCond(:,:,c) = cell2mat(cellfun(@(p,w) abs(squeeze(mean(Z_trials_Hand(handTarget(end),c,findBins(handSegs(:,p),time)+(w.*(1000/binWidth)),:),3))), phaseAlign, phaseWin,'UniformOutput',false));
     for t = 1:sTrials
-        currArm = squeeze(Z_trials_Arm(armTarget(end), c, :, t));
-        currHand = squeeze(Z_trials_Hand(handTarget(end), c, :, t));
+        currArm = abs(squeeze(Z_trials_Arm(armTarget(end), c, :, t)));
+        currHand = abs(squeeze(Z_trials_Hand(handTarget(end), c, :, t)));
         plot(time, currArm, 'Color', [colors(c, :), .3], 'LineWidth', 1,'LineStyle',':');
         plot(time, currHand, 'Color', [colors(c, :), .3], 'LineWidth', 1,'LineStyle','--');
     end
@@ -163,13 +163,13 @@ fullTable = unstack(removevars(addvars(fullTable,string(fullTable.Somatotopy)+"-
 rmm = fitrm(fullTable,strjoin(fullTable.Properties.VariableNames(contains(fullTable.Properties.VariableNames,"_")),", ")+"~ 1+ Somatotopy",...
     'WithinDesign',table(repelem(maxSegL(cell2mat(phaseAlign))',length(params.condNames),1),repmat(params.condNames',length(phaseAlign),1),VariableNames={'Phase','Cond'}));
 tbl = ranova(rmm, 'WithinModel', 'Phase*Cond');
-tbl_posthoc = multcompare(rmm, 'Phase', 'By', 'Cond','ComparisonType','Bonferroni')
+tbl_posthoc = multcompare(rmm, 'Somatotopy', 'By', 'Phase','ComparisonType','Bonferroni')
 %sizeX(1) = max(groupcounts(somaTable(mv)));
 Z_avg_Arm = reshape(WArm' * reshape(mean(firingRates(find(somaTable(mv)=="Arm",min(groupcounts(somaTable(mv)))),:,:,:), 4, 'omitnan'), sizeX(1), []), [size(W,2), sizeX(2), length(time)]);
 Z_avg_Hand = reshape(WHand' * reshape(mean(firingRates(find(somaTable(mv)=="Hand",min(groupcounts(somaTable(mv)))),:,:,:), 4, 'omitnan'), sizeX(1), []), [size(W,2), sizeX(2), length(time)]);
 for c = 1:sizeX(2)
-    h=plot(time, squeeze(Z_avg_Arm(armTarget(end), c, :)), 'Color', max(colors(c, :)-[.3 .3 .3],0), 'LineWidth', 3);
-    h=plot(time, squeeze(Z_avg_Hand(handTarget(end), c, :)), 'Color', max(colors(c, :)-[.3 .3 .3],0), 'LineWidth', 3,'LineStyle','--');
+    h=plot(time, abs(squeeze(Z_avg_Arm(armTarget(end), c, :))), 'Color', max(colors(c, :)-[.3 .3 .3],0), 'LineWidth', 3);
+    h=plot(time, abs(squeeze(Z_avg_Hand(handTarget(end), c, :))), 'Color', max(colors(c, :)-[.3 .3 .3],0), 'LineWidth', 3,'LineStyle','--');
 end
 yspan = get(gca,'YLim');
 arrayfun(@(p) plot([p,p], [yspan(1),yspan(1) + range(yspan)], 'k--', 'LineWidth', 1), timeEvents);

@@ -123,7 +123,7 @@ dpca_plot(firingRatesAverage(somaIndex,:,:,:), W, V, @dpca_plot_default, ...
     'legendSubplot', {16,params.condNames},'ylims',[]);
 Z =  bsxfun(@minus, firingRatesAverage(somaIndex,:)', mean(firingRatesAverage(somaIndex,:),2)')* W;
 %% 2. Transform / Project TRIAL-AVERAGED PETHs (X) into dPCA space
-targMarg =2; targNum =1;
+targMarg =2; targNum =2;
 colors = [1 0 0; 1 .7 0; 0 0 1];
 phaseWindowSz = 0.2;
 phaseAlign = num2cell(find(contains(maxSegL,["GoSignal","StartReach","StartHold","StartWithdraw"])));
@@ -135,6 +135,10 @@ xfull_Arm = reshape(firingRates(find(somaTable(mv)=="Arm",sizeX(1)),:,:,:), size
 Z_trials_Arm = reshape(WArm' * xfull_Arm, [],sizeX(2),length(time),sizeX(end)); % [Components, Stimulus, Time, Trials]
 xfull_Hand = reshape(firingRates(find(somaTable(mv)=="Hand",sizeX(1)),:,:,:), sizeX(1), []);
 Z_trials_Hand = reshape(WHand' * xfull_Hand, [],sizeX(2),length(time),sizeX(end)); % [Components, Stimulus, Time, Trials]
+
+var_own = trace(cov([WArm(:,1:15)' * (xfull_Arm-mean(xfull_Arm,2,'omitnan'))]'));
+var_cross= trace(cov([WHand(:,1:15)' * (xfull_Hand-mean(xfull_Hand,2,'omitnan'))]'));
+alignmentIndex = var_cross / var_own;
 
 figure; hold on;
 armTarget=find(whichMargArm==targMarg,targNum);
@@ -149,7 +153,7 @@ for c = 1:sizeX(2)
     for t = 1:sTrials
         currArm = abs(squeeze(Z_trials_Arm(armTarget(end), c, :, t)));
         currHand = abs(squeeze(Z_trials_Hand(handTarget(end), c, :, t)));
-        plot(time, currArm, 'Color', [colors(c, :), .3], 'LineWidth', 1,'LineStyle',':');
+        plot(time, currArm, 'Color', [colors(c, :), .5], 'LineWidth', 1,'LineStyle',':');
         plot(time, currHand, 'Color', [colors(c, :), .3], 'LineWidth', 1,'LineStyle','--');
     end
 end
@@ -168,8 +172,8 @@ tbl_posthoc = multcompare(rmm, 'Somatotopy', 'By', 'Phase','ComparisonType','Bon
 Z_avg_Arm = reshape(WArm' * reshape(mean(firingRates(find(somaTable(mv)=="Arm",min(groupcounts(somaTable(mv)))),:,:,:), 4, 'omitnan'), sizeX(1), []), [size(W,2), sizeX(2), length(time)]);
 Z_avg_Hand = reshape(WHand' * reshape(mean(firingRates(find(somaTable(mv)=="Hand",min(groupcounts(somaTable(mv)))),:,:,:), 4, 'omitnan'), sizeX(1), []), [size(W,2), sizeX(2), length(time)]);
 for c = 1:sizeX(2)
-    h=plot(time, abs(squeeze(Z_avg_Arm(armTarget(end), c, :))), 'Color', max(colors(c, :)-[.3 .3 .3],0), 'LineWidth', 3);
-    h=plot(time, abs(squeeze(Z_avg_Hand(handTarget(end), c, :))), 'Color', max(colors(c, :)-[.3 .3 .3],0), 'LineWidth', 3,'LineStyle','--');
+    h=plot(time, abs(squeeze(Z_avg_Arm(armTarget(end), c, :))), 'Color', max(colors(c, :)-[.01 .01 .01],0), 'LineWidth', 3);
+    h=plot(time, abs(squeeze(Z_avg_Hand(handTarget(end), c, :))), 'Color', max(colors(c, :)-[.2 .2 .2],0), 'LineWidth', 3,'LineStyle','--');
 end
 yspan = get(gca,'YLim');
 arrayfun(@(p) plot([p,p], [yspan(1),yspan(1) + range(yspan)], 'k--', 'LineWidth', 1), timeEvents);
@@ -178,7 +182,6 @@ ylabel(["Z-score"]);
 title(['Single-Trial Trajectories for ' margNames{targMarg}, ' Component ',  num2str(targNum)]);
 legendEntries = cellfun(@(c) arrayfun(@(s) plot([NaN,NaN],[NaN,NaN],'LineWidth',3,'LineStyle',s,'Color',c),["-","--"]),num2cell(colors,2),'UniformOutput',false);
 legend([legendEntries{:}], reshape(["Arm","Hand"]'+"="+params.condAbbrev.values,[],1), 'Location', 'best');
-grid on;
 %%
 figure();
 tiledlayout(3,3);

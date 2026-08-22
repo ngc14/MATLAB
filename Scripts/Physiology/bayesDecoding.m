@@ -54,7 +54,8 @@ normBaseline = cellfun(@(p,t)cellfun(@(a,n) [max(1,median(cell2mat(reshape(cellf
     permute(mean(a(:,max(1,s):max(1,s)+(3/params.binSize),:),[2],'omitnan'),[1 3 2]),...
     num2cell(n),'UniformOutput',false),[1,1,length(n)])),3,'omitnan'))],p,t,'UniformOutput',false),siteTrialPSTHS,goSegs,"UniformOutput",false);
 normBaseline = cellfun(@(cc) vertcat(cc{:}),cellfun(@(c) cellfun(@(n) num2cell(n,2), c,'UniformOutput',false),normBaseline,'UniformOutput',false),'UniformOutput',false);
-clear goSegs phaseFR rawSpikes taskFR taskBaseline
+normBaseline = cellfun(@(d) horzcat(d{:}), num2cell(horzcat(normBaseline{:}),2),'UniformOutput',false);
+clear goSegs phaseFR rawSpikes taskFR taskBaseline normBaseline
 %% combined conditions of PSTHS to get trial PSTHS organized by units
 siteTrialPSTHS = cellfun(@(cp) cellfun(@(s)cellfun(@(r) squeeze(num2cell(r,[1,2]))',s,'UniformOutput',false)',cellfun(@(p)...
     num2cell(permute(permute(p,[1 3 2]),[1 3 2]),[2,3]),vertcat(cp(:)),'UniformOutput',false),'UniformOutput',false),siteTrialPSTHS,'Uniformoutput', false);
@@ -62,24 +63,21 @@ siteTrialPSTHS = cellfun(@(n) [n{:}]' ,siteTrialPSTHS, 'UniformOutput',false);
 siteTrialPSTHS = cellfun(@(c) cellfun(@(a) vertcat(a{:}),c,'UniformOutput',false),siteTrialPSTHS,'UniformOutput',false);
 %avgUnits = cellfun(@(cs,cb) cellfun(@(s,b) mean(s,1,'omitnan')./mean(max(1,b),2,'omitnan'),cs,cb,'UniformOutput',false),siteTrialPSTHS,normBaseline,'UniformOutput',false)
 siteTrialPSTHS = cellfun(@(s) vertcat(s{:}), num2cell([siteTrialPSTHS{:}],2),'UniformOutput',false);
-normBaseline = cellfun(@(d) horzcat(d{:}), num2cell(horzcat(normBaseline{:}),2),'UniformOutput',false);
 %% only use units that are task modulated according to the task phase window
 rUnits = cellfun(@(rg,r,t) rg==1 & r < 1 & t==1, rgInds, rgVals,taskUnits, 'UniformOutput',false);
 gUnits = cellfun(@(rg,r,t) rg==1 & r >= 1 & t==1, rgInds, rgVals,taskUnits, 'UniformOutput',false);
 bothUnits = cellfun(@(rg,t) ~rg & t==1, rgInds, taskUnits, 'UniformOutput',false);
 goodUnits = any(cell2mat(taskUnits),2)';
-unitsConds = [sum(cell2mat(rUnits(contains(params.condNames,"Sphere"))),2),...
-    sum(cell2mat(gUnits(contains(params.condNames,"Sphere"))),2),...
-    sum(cell2mat(bothUnits(contains(params.condNames,"Sphere"))),2)];
-[unitTypeV,unitTypeT] = max(unitsConds,[],2);
-unitTypeT(unitTypeV==0) = 0;
-isMaxTie = unitsConds==unitTypeV;
-unitCondAssign = find(sum(isMaxTie,2)>1 & unitTypeV~=0);
-unitTypeT(unitCondAssign(sum(isMaxTie(unitCondAssign,:),2)==3)) = 3;
-unitTypeT(unitCondAssign(sum(isMaxTie(unitCondAssign,:),2)==2 & ~isMaxTie(unitCondAssign,end))) = 3;
-unitTypeT = rUnits{1}.*1 + gUnits{1}.*2 + bothUnits{1}.*3;
-fUnits = {unitTypeT==1, unitTypeT==2, unitTypeT==3,mappedChannels<=16,mappedChannels>16,goodUnits};
-clear isMaxTie unitsConds unitTypeT unitTypeV goSegs normBaseline
+% unitsConds = [sum(cell2mat(rUnits(contains(params.condNames,"Sphere"))),2),...
+%     sum(cell2mat(gUnits(contains(params.condNames,"Sphere"))),2),...
+%     sum(cell2mat(bothUnits(contains(params.condNames,"Sphere"))),2)];
+% [unitTypeV,unitTypeT] = max(unitsConds,[],2);
+% unitTypeT(unitTypeV==0) = 0;
+% isMaxTie = unitsConds==unitTypeV;
+% unitCondAssign = find(sum(isMaxTie,2)>1 & unitTypeV~=0);
+% unitTypeT(unitCondAssign(sum(isMaxTie(unitCondAssign,:),2)==3)) = 3;
+% unitTypeT(unitCondAssign(sum(isMaxTie(unitCondAssign,:),2)==2 & ~isMaxTie(unitCondAssign,end))) = 3;
+fUnits = { rUnits{1}, gUnits{1}, bothUnits{1},mappedChannels<=16,mappedChannels>16,goodUnits};
 %% organize training PSTHS and condition labels and subpopulation indicies
 trialUnits = cellfun(@(a) sqrt(conv2(resize(a(:,findBins(winAroundEvent(1),params.bins):findBins(winAroundEvent(end),params.bins)),[size(a,1),smoothKernel+...
     range(findBins(winAroundEvent,params.bins))]),gausswin(smoothKernel)'./sum(gausswin(smoothKernel)),'valid')),siteTrialPSTHS(goodUnits), 'UniformOutput',false);

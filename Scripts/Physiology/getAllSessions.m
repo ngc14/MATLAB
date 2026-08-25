@@ -33,7 +33,7 @@ parRun = size(gcp('nocreate'),1);
 if(~parRun)
     hbar = waitbar(0, 'Processing...', 'Name',['Iterating ',num2str(numSites),' instances....']);
 else
-    hbar = parforProgress(numSites);
+    %hbar = parforProgress(numSites);
 end
 %%
 parfor  i = 1:numSites
@@ -52,8 +52,8 @@ parfor  i = 1:numSites
     if(isempty(dir(physDir+"*.mat")))
         if(~ismember(currSession.Date,{'05_02_2019','11_11_2019','2021_09_20','2022_06_22','2022_06_28','2022_07_11','2022_07_12'}))
             disp(['Parsing and labeling session: ',currSession.Date,'...']);
-            Spike_SortRawData(currSession.Date,char(currSession.Monkey));
-            labelSingleUnits(currSession.Date,char(currSession.Monkey));
+            %Spike_SortRawData(currSession.Date,char(currSession.Monkey));
+            %labelSingleUnits(currSession.Date,char(currSession.Monkey));
         else
             disp(['Bad session: ', currSession.Date]);
         end
@@ -64,7 +64,7 @@ parfor  i = 1:numSites
         if(~isfield(firstChannel,'label') && ~contains(fieldnames(firstChannel,'-full'),'label') ...
                 && ~ismember(currSession.Date,{'04_05_2019','04_09_2019'}))
             disp(['Labeling session: ',currSession.Date,'...']);
-            labelSingleUnits(currSession.Date,char(currSession.Monkey));
+            %labelSingleUnits(currSession.Date,char(currSession.Monkey));
         end
     end
     [spikes,times,weights,currTrials,sessionConds,channels,eventNames,~,chMap] =...

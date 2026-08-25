@@ -1,18 +1,20 @@
 function tPhys = unitTable(conditions,params)
 if(~exist("conditions",'var'))
-    conditions = ["Extra Small Sphere","Large Sphere","Photocell"];
+    conditions = params.condNames;
 end
 allSegs = params.condSegMap.values;
 [~,maxSegL]= max(cellfun(@length,allSegs));
 maxSegL = allSegs{maxSegL};
-%%
+%% load all single units from M1 recordings that were not from the face zone
 [siteDateMap, siteSegs, siteTrialPSTHS,~, siteChannels,chMaps,~,~]=...
     getAllSessions(params,"Single","M1","Face");
 %%
+% unit somatotopy and channel number
 siteRep =cell2mat(cellfun(@(r,t) r(find((t.*~contains(r,"Face"))==min(t),1)),siteDateMap.SiteRep,siteDateMap.Thresh,'UniformOutput', false));
 mappedChannels = cellfun(@(ch,l) ch{2}(l(~isnan(l))), chMaps,siteChannels, 'Uniformoutput', false)';
+% normalize PSTHs to baseline activity (averaged 1s before Cue)
 sumSegs = cellfun(@(c) cellfun(@(n) [n{:}], c, 'UniformOutput',false), siteSegs,'UniformOutput',false);
-goSegs = cellfun(@(c) cellfun(@(a) cell2mat(cellfun(@(t) findBins(t(:,strcmp(maxSegL,"GoSignal"))-.5,...
+goSegs = cellfun(@(c) cellfun(@(a) cell2mat(cellfun(@(t) findBins(t(:,strcmp(maxSegL,"GoSignal"))-1,...
     params.bins),a,'UniformOutput',false)),c,'UniformOutput',false),siteSegs,'UniformOutput',false);
 normBaseline = cellfun(@(p,t)cellfun(@(a,n) [max(1,median(cell2mat(reshape(cellfun(@(s) ...
     permute(mean(a(:,max(1,s):max(1,s)+(1/params.binSize),:),[2],'omitnan'),[1 3 2]),...
@@ -20,7 +22,7 @@ normBaseline = cellfun(@(p,t)cellfun(@(a,n) [max(1,median(cell2mat(reshape(cellf
 normPSTH = cellfun(@(cp,nb) num2cell(cellfun(@(p,b)permute(permute(p,[1 3 2])./repmat(b,1,1,size(p,2)),[1 3 2]),...
     vertcat(cp(:)),repmat(nb,1,size(vertcat(cp(:)),2)),'UniformOutput',false),2),siteTrialPSTHS,normBaseline,'Uniformoutput', false);
 clear normBaseline;
-%%
+%% get unit information by condition
 tPhys = [];
 g = @(x,y,c)GetPointLineDistance(x,y,c(1),c(2),c(3),c(4));
 for c = 1:length(conditions)
@@ -34,6 +36,8 @@ for c = 1:length(conditions)
     condTable.Channel =  [mappedChannels{:}]';
     condTable.X = mapSites2Units(condUnitMapping,siteDateMap.x);
     condTable.Y = mapSites2Units(condUnitMapping,siteDateMap.y);
+    % transform monkey's recording coordinate plane to standardized axes
+    % along the central sulcus and orthogonal to the central sulcus axis
     mInds = mLabs=="Skipper";
     unitLocation = mapSites2Units(condUnitMapping,num2cell(cell2mat(....
         arrayfun(@(x,y,m) [g(x,y,OrthogonalLines(m).RCLine), g(x,y,OrthogonalLines(m).MLLine)],...
@@ -44,6 +48,7 @@ for c = 1:length(conditions)
     condTable.YT(~mInds) = cellfun(@(x) x(end), unitLocation(~mInds)) - min(cellfun(@(x) x(end), unitLocation(~mInds)));
     condTable.Condition = categorical(repmat({params.condAbbrev(conditions{c})},length(mLabs),1));
     PSTH = cellfun(@(m) num2cell(m{1},[2 3]), normPSTH{c},'UniformOutput',false);
+    % handle unreliable behavioral markers for segment time calculations
     nanSegs = find(sum(isnan(cell2mat(sumSegs{c}(~cellfun(@(a) all(isnan(a),'all'),sumSegs{c})))),1)>=...
         sum(cellfun(@(z) size(z,1),sumSegs{c}(~cellfun(@(a) all(isnan(a),'all'),sumSegs{c}))))/2);
     nanSegs= nanSegs(nanSegs~=length(maxSegL));
@@ -55,19 +60,20 @@ for c = 1:length(conditions)
     end
     currSegMap = cell2mat(params.condSegMap.values(cellstr(conditions(c))));
     forwardTimes = cellfun(@(t) t(:,strcmp(currSegMap,"StartReplaceHold"))-t(:,strcmp(currSegMap,"GoSignal")),mapSites2Units(condUnitMapping,sumSegs{c}),'UniformOutput',false);
-    goodTrialInds = cellfun(@(t,b) squeeze(sum(t,2))> b & squeeze(sum(t,2))< 200*b | isnan(b), vertcat(PSTH{:}), forwardTimes, 'UniformOutput',false);
+    goodTrialInds = cellfun(@(t,b) squeeze(sum(t,2))> b & squeeze(sum(t,2).*params.binSize)< 200*b | isnan(b), vertcat(PSTH{:}), forwardTimes, 'UniformOutput',false);
     condTable.PSTH = cellfun(@(t,i) permute(t(:,:,i),[2 3 1]),vertcat(PSTH{:}),goodTrialInds,'UniformOutput',false);
     condTable.Segs = cellfun(@(s,i) s(i,:), mapSites2Units(condUnitMapping,sumSegs{c}),goodTrialInds, 'UniformOutput',false);
     tPhys = [tPhys;condTable];
 end
 tPhys = unstack(tPhys,condTable.Properties.VariableNames(find(strcmp(condTable.Properties.VariableNames,"Condition"))+1:end),"Condition");
-%%
-if(0)
-    plotJointPSTHS(params,...
-        {cell2mat(cellfun(@(m) mean(m,2,'omitnan').*10,reshape(tPhys{:,contains(tPhys.Properties.VariableNames,"PSTH")},[],1),'UniformOutput',false)')'},...
-        {cell2mat(cellfun(@(c) cell2mat(cellfun(@(m) mean(m,1,'omitnan'),c,'UniformOutput',false)),sumSegs,'UniformOutput',false)')},...
-        repmat(cellfun(@(s,t) s(find(t==min(t),1)),siteDateMap.SiteRep,siteDateMap.Thresh),length(conditions),1),...
-        true(length(conditions)*height(siteDateMap),1),[],{[min(params.bins),max(params.bins)]},[0 1],...
-        cell2struct(num2cell(distinguishable_colors(length(unique(cell2mat(siteDateMap.SiteRep')))),2),unique(cell2mat(siteDateMap.SiteRep'))));
 end
+function distance = GetPointLineDistance(x3,y3,x1,y1,x2,y2)
+% Find the numerator for our point-to-line distance formula.
+numerator = abs((x2 - x1) * (y1 - y3) - (x1 - x3) * (y2 - y1));
+
+% Find the denominator for our point-to-line distance formula.
+denominator = sqrt((x2 - x1) ^ 2 + (y2 - y1) ^ 2);
+
+% Compute the distance.
+distance = numerator ./ denominator;
 end

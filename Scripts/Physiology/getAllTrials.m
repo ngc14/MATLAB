@@ -66,7 +66,7 @@ else
         end
         ns_CloseFile(hFile);
     end
-    [~,sortInd] = natsort({sessionDir.name});
+    [~,sortInd]= sort(str2double(regexp(string({sessionDir.name}), '\d+(?=\.\w+$)', 'match', 'once'))); %[~,sortInd] = natsort({sessionDir.name});
     sessionDir = sessionDir(sortInd);
     firstChannel = load([sessionDir(1).folder, '\', sessionDir(1).name]);
     MIN_BLOCKS_FOR_UNIT = 15;

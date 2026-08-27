@@ -115,10 +115,10 @@ if ~isempty(options.whichMarg) && ...
                 moreComponents = [moreComponents setdiff(find(options.whichMarg == margRowSeq(i), 3), moreComponents)];
             end
         else
-            moreComponents = find(options.whichMarg == margRowSeq(i), 6);
+            moreComponents = find(options.whichMarg == margRowSeq(i), 3);
         end
         componentsToPlot = [componentsToPlot moreComponents];
-        subplots = [subplots repmat(2:4,1,round(length(moreComponents)/4))+ (4*round(linspace(2*(i-1),2*(i-1)+1,length(moreComponents))))];%(i-1)*4+2:(i-1)*4+2 + length(moreComponents) - 1];%
+        subplots = [subplots (i-1)*4+2:(i-1)*4+2 + length(moreComponents) - 1];%repmat(2:4,1,round(length(moreComponents)/4))+ (4*round(linspace(2*(i-1),2*(i-1)+1,length(moreComponents))))];%
     end
 else
     % if there are more than 4 marginalizatons
@@ -177,6 +177,7 @@ end
 for c = 1:length(componentsToPlot)
     cc = componentsToPlot(c);
     subplot(4, 4, subplots(c))
+    
     hold on;
     if ~isempty(options.componentsSignif)
         signifTrace = options.componentsSignif(cc,:);
@@ -266,9 +267,10 @@ if ~isempty(options.whichMarg) && ...
    
     offsetX = 0.31;
     yposs = [0.9 0.65 0.45 0.25];
+
     for m = intersect(1:4, unique(options.whichMarg(componentsToPlot)))        
-        row =  (find(margRowSeq == m, 1));
-        row = row+(row>1);
+        row = find(margRowSeq == m, 1);
+        %row = row+(row>1);
         subplot(4,4,(row-1)*4+2)
         pos = get(gca, 'Position');
         
@@ -286,7 +288,7 @@ end
 if ~isempty(options.explainedVar)
     axBar = subplot(4,4,9);
     hold on
-    axis([0 numCompToShow+1 0 35.5])
+    axis([0 numCompToShow+1 0 15.5])
     ylabel('Component variance (%)')
     b = bar(options.explainedVar.margVar(:,1:numCompToShow)' , 'stacked', 'BarWidth', 0.75);
     
@@ -414,12 +416,12 @@ for pl = intersect(4:4:16, subplots)
     set(gca, 'Position', [pos(1)-0.02 pos(2) pos(3) pos(4)])
 end
 
-ax = findobj(gcf, 'Type', 'axes');
 % legend
 if ~isempty(options.legendSubplot)
     %s = ax(find(contains(string(cellfun(@(s) s.String,get(ax,'Title'),'UniformOutput',false)),"Component"),1));
-    s = subplot(4,4,options.legendSubplot{1});
+    s=subplot(4,4,options.legendSubplot{1});
     hold(s,'on');
+
     if ~isempty(options.X_extra)
         plotFunction('legend', size(options.X_extra))
     else

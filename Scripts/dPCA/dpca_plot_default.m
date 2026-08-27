@@ -12,7 +12,7 @@ function dpca_plot_default(data, time, yspan, explVar, compNum, events, signif, 
 %   signif    - marks time-point where component is significant
 %   marg      - marginalization number
 
-
+lines = [.8 0 0; .9 .67 0; 0 0 .8; 1 0 1; 0 1 0; 0.5 0.5 0.5];
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % displaying legend
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -25,7 +25,7 @@ if strcmp(data, 'legend')
     % if there is one parameter
     elseif length(time) == 3
         numOfStimuli = time(2); % time is used to pass size(data) for legend
-        colors = lines(numOfStimuli);
+        colors = lines(1:numOfStimuli,:);
         hold on
         
         for f = 1:numOfStimuli
@@ -43,7 +43,7 @@ if strcmp(data, 'legend')
     % values)
     elseif length(time) == 4 && time(3) == 2
         numOfStimuli = time(2); % time is used to pass size(data) for legend
-        colors = lines(numOfStimuli);
+        colors = lines(1:numOfStimuli,:);
         hold on
         
         for f = 1:numOfStimuli
@@ -51,11 +51,10 @@ if strcmp(data, 'legend')
             %text(1.2, f, ['Stimulus ' num2str(f)])
         end
         p(end+1) = plot([NaN NaN],[NaN NaN], 'k', 'LineWidth', 2);
-        p(end+1) = plot([NaN NaN],[NaN NaN], 'k--', 'LineWidth', 2);
-        legend(p,[condNames,"Reach","Manipulate"],'Location','northeast');
+        p(end+1) = plot([NaN NaN],[NaN NaN], 'k:', 'LineWidth', 2);
         %text(1.2, -2, 'Decision 1')
         %text(1.2, -3, 'Decision 2')
-        
+        legend([condNames,"Arm","Hand"])
         axis([0 3 -4.5 1.5+numOfStimuli])
         set(gca, 'XTick', [])
         set(gca, 'YTick', [])
@@ -102,18 +101,18 @@ if ndims(data) == 2
 elseif ndims(data) == 3
     % different stimuli in different colours
     numOfStimuli = size(data, 2);
-    colororder(lines(numOfStimuli));
-    plot(time, squeeze(data(1,:,:)), 'LineWidth', 2);    
+    colororder(lines(1:numOfStimuli,:));
+    plot(time, squeeze(data(1,:,:)), 'LineWidth', 2)    
 
 elseif ndims(data) == 4 && size(data,3)==2
     % different stimuli in different colours and binary condition as
     % solid/dashed
     numOfStimuli = size(data, 2);
-    colors = lines(numOfStimuli);
+    colors = lines(1:numOfStimuli,:);
 
     for f=1:numOfStimuli 
-        histogram(squeeze(data(1, f, 1, :)), 5,'Normalization','probability', 'FaceColor', colors(f,:), 'LineStyle','none');
-        histogram(squeeze(data(1, f, 2, :)), 5,'Normalization','probability', 'FaceColor', colors(f,:), 'LineWidth', .25,'LineStyle','--');
+        plot(time, squeeze(data(1, f, 1, :)), 'color', colors(f,:), 'LineWidth', 2)
+        plot(time, squeeze(data(1, f, 2, :)), ':', 'color', colors(f,:), 'LineWidth', 2)
     end
 
 else

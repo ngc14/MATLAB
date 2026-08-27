@@ -46,3 +46,7 @@
 *.mat
 
 /Scripts/models/
+
+/Scripts/dPCA/dpca_plot_OG.m
+
+/Scripts/dPCA/dpca_plot_default_OG.m

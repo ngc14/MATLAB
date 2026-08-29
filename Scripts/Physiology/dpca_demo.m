@@ -5,14 +5,14 @@
 % S is the number of stimuli conditions (F1 frequencies in Romo's task)
 % D is the number of decisions (D=2)
 % T is the number of timepoints (note:trials should have same length in time)
-% trialNum -- number of trials for each neuron in each S,D condition 
+% trialNum -- number of trials for each neuron in each S,D condition
 % firingRates -- all single-trial data together, massive array. Here
-% If it's filled up with zeros 
+% If it's filled up with zeros
 %    firingRatesAverage = bsxfun(@times, mean(firingRates,5), size(firingRates,5)./trialNum)
 sTrials = 20;
-binWidth = 10; 
+binWidth = 10;
 smoothWin = 150;
-dims = 20; 
+dims = 20;
 time= -.5:binWidth/1000:2.5;
 combinedParams = {{1,[1 3]},{2,[2,3]},{3},{[1,2],[1,2,3]}};
 margNames = {'Condition','Somatotopy','Movement-Invariant','Cond/Soma Interaction'};
@@ -113,11 +113,12 @@ dpca_plot(firingRatesAverage, W, V, @dpca_plot_default,'explainedVar', explVar, 
     'marginalizationNames', margNames,'marginalizationColours', margColours, 'whichMarg', whichMarg,...
     'time', time,'timeEvents', timeEvents,'timeMarginalization', 2,'legendSubplot', 16);
 %% Step 4: dPCA with regularization
-%load('optimalLambda'). Note that it includes noise covariance matrix Cnoise 
-% which provides substantial regularization itself (even with lambda=0). % 
+%load('optimalLambda'). Note that it includes noise covariance matrix Cnoise
+% which provides substantial regularization itself (even with lambda=0). %
 somaIndex = cell2mat(arrayfun(@(a) find(somaTable(mv)==a,min(groupcounts(somaTable(mv)))),unique(somaTable(mv)),'UniformOutput',false));
+somaIndex = contains(string(somaTable(mv)),["Arm","Hand"]);
 optimalLambda = dpca_optimizeLambda(firingRatesAverage(somaIndex,:,:,:),firingRates(somaIndex,:,:,:,:),...
-   trialNum(somaIndex,:,:),'combinedParams', combinedParams, 'simultaneous', false,'numRep', 10);
+    trialNum(somaIndex,:,:),'combinedParams', combinedParams, 'simultaneous', false,'numRep', 10);
 Cnoise = dpca_getNoiseCovariance(firingRatesAverage(somaIndex,:,:,:), ...
     firingRates(somaIndex,:,:,:,:), trialNum(somaIndex,:,:), 'simultaneous', false,'type','averaged');
 [W,V,whichMarg] = dpca(firingRatesAverage(somaIndex,:,:,:),dims*(length(combinedParams)+1),...
@@ -247,42 +248,82 @@ saveFig = false;
 somaColors = containers.Map(["Arm","Hand"],{[0 1 .2],[.8 0 1]});
 savePath = "S:\Lab\ngc14\Working\DataHigh\Centered\Demixed\";
 plotSoma = "Arm"; plotLaminar = "";pDims = [1:10];
-if(strcmp(plotSoma,"Hand"))
-    ls = ':';Z =ZHand; whichMarg = whichMargHand;
-    if(strcmp(plotLaminar,"Deep"))
-        Z = ZHandD; whichMarg=whichMargHandD;
-    elseif(strcmp(plotLaminar,"Superficial"))
-        Z = ZHandS; whichMarg=whichMargHandS;
-    end
-else
-    ls='-'; Z =ZArm; whichMarg = whichMargArm;
-    if(strcmp(plotLaminar,"Deep"))
-        Z = ZArmD; whichMarg=whichMargArmD;
-    elseif(strcmp(plotLaminar,"Superficial"))
-        Z = ZArmS; whichMarg=whichMargArmS;
+somaLabels = somaTable(mv);
+somaLabels = somaLabels(somaIndex);
+
+if(0)
+    if(strcmp(plotSoma,"Hand"))
+        ls = ':';Z =ZHand; whichMarg = whichMargHand;
+        if(strcmp(plotLaminar,"Deep"))
+            Z = ZHandD; whichMarg=whichMargHandD;
+        elseif(strcmp(plotLaminar,"Superficial"))
+            Z = ZHandS; whichMarg=whichMargHandS;
+        end
+    else
+        ls='-'; Z =ZArm; whichMarg = whichMargArm;
+        if(strcmp(plotLaminar,"Deep"))
+            Z = ZArmD; whichMarg=whichMargArmD;
+        elseif(strcmp(plotLaminar,"Superficial"))
+            Z = ZArmS; whichMarg=whichMargArmS;
+        end
     end
 end
-projT = Z(:,cell2mat(arrayfun(@(f) find(whichMarg==f,dims),1:length(combinedParams),'UniformOutput',false)));
+
+Z =  bsxfun(@minus, reshape(firingRatesAverage(:,:),length(somaLabels),[])', ...
+    mean(firingRatesAverage(:,:)',1,'omitnan'))* W;
+
+projT = Z(:,cell2mat(arrayfun(@(f) find(whichMarg==f,dims),unique(whichMarg),'UniformOutput',false)));
 %somaDist = reshape(transpose((projTArm - projTHand).^2),length(time),length(conditions),dims,[]);sqrt(sum(somaDist(:,c,:,nc),'all'))
-projT = reshape(projT',dims*length(combinedParams),length(conditions),[]);
-for nc = 1:length(combinedParams)
-    figure(6+nc); st=(nc-1)*dims;
-    for c = 1:length(conditions)
-        lineColor = hsv2rgb(rgb2hsv(cell2mat(colors.values(cellstr("ArmHand_"+params.condAbbrev.values(cellstr(conditions(c)))))))-...
-            [0 0 .4*strcmp(plotLaminar,"Deep")]);
-        subplot(1,3,c); hold on; view(10,-15); xlim([-2 2.5]); ylim([-2 1.5]);
-        [~,z,tr] = procrustes(squeeze(projTArm(st+[1:dims],c,:))',squeeze(projTHand(st+[1:dims],c,:))',"scaling",false,"reflection",'best');
-        %zt = tr.b*squeeze(projTHand(st+[1:dims],c,:))'*tr.T + tr.c; zt=NaN(size(zt));z=zt;z(:,[pDims,find(~ismember(1:3,pDims))])=zt(:,1:3);
-        title(params.condAbbrev(conditions(c))); %+ ", dist: "+ num2str(procrustes(squeeze(projTArm(st+pDims,c,:))',squeeze(projTHand(st+pDims,c,:))',"scaling",false,"reflection",'best'),'%.2f');
-        %plot3(z(:,1),z(:,2),z(:,3),'Color',lineColor,'LineStyle',ls,'LineWidth',1.5); scatter3(z(1,1),z(1,2),z(1,3),'black','x','sizeData',150);
-        plot3(squeeze(projT(st+1,c,:)),squeeze(projT(st+2,c,:)),squeeze(projT(st+3,c,:)),'Color',lineColor,'LineStyle',ls,'LineWidth',1.5);
-        scatter3(projT(st+1,1),projT(st+2,1),projT(st+3,1),'black','*','sizeData',250);
-        arrayfun(@(e) scatter3(projT(st+1,c,e),projT(st+2,c,e),projT(st+3,c,e),'filled','MarkerFaceColor',lineColor),round(mean(segVals{c}(:,1:3),1,'omitnan')))
-    end
-    % XY:view(0,90); XZ:view(0,0); YZ:view(90,0);
-    if(saveFig)
-        saveFigures(figure(nc),savePath,"Traj-"+margNames(nc),[]);
-        %arrayfun(@(a)view(a,0,90),gcf().Children); saveFigures(figure(nc),savePath,"2DTraj-"+margNames(nc),[]);
+projT = reshape(projT',dims,length(unique(whichMarg)),length(conditions),[],length(time));
+plotSeg = findBins(mean(cell2mat(reshape(cellfun(@(m) mean(m(:,contains(maxSegL,...
+    ["GoSignal","StartReach","StartHold"])),1,'omitnan'), allSegs, 'UniformOutput',false),[],1)),1,'omitnan'),time);
+for t = 2:length(plotSeg)
+    figure();
+    tiledlayout(3,length(combinedParams),'TileIndexing','columnmajor');
+    for nc = 1:length(combinedParams)
+        if(0)
+            figure(6+nc); st=(nc-1)*dims;
+            for c = 1:length(conditions)
+                lineColor = hsv2rgb(rgb2hsv(colors(c,:)));
+                subplot(1,3,c); hold on; view(10,-15); xlim([-2 2.5]); ylim([-2 1.5]);
+                [~,z,tr] = procrustes(squeeze(projTArm(st+[1:dims],c,:))',squeeze(projTHand(st+[1:dims],c,:))',"scaling",false,"reflection",'best');
+                %zt = tr.b*squeeze(projTHand(st+[1:dims],c,:))'*tr.T + tr.c; zt=NaN(size(zt));z=zt;z(:,[pDims,find(~ismember(1:3,pDims))])=zt(:,1:3);
+                title(params.condAbbrev(conditions(c))); %+ ", dist: "+ num2str(procrustes(squeeze(projTArm(st+pDims,c,:))',squeeze(projTHand(st+pDims,c,:))',"scaling",false,"reflection",'best'),'%.2f');
+                %plot3(z(:,1),z(:,2),z(:,3),'Color',lineColor,'LineStyle',ls,'LineWidth',1.5); scatter3(z(1,1),z(1,2),z(1,3),'black','x','sizeData',150);
+                plot3(squeeze(projT(st+1,c,:)),squeeze(projT(st+2,c,:)),squeeze(projT(st+3,c,:)),'Color',lineColor,'LineStyle',ls,'LineWidth',1.5);
+                scatter3(projT(st+1,1),projT(st+2,1),projT(st+3,1),'black','*','sizeData',250);
+                arrayfun(@(e) scatter3(projT(st+1,c,e),projT(st+2,c,e),projT(st+3,c,e),'filled','MarkerFaceColor',lineColor),round(mean(segVals{c}(:,1:3),1,'omitnan')))
+            end
+            % XY:view(0,90); XZ:view(0,0); YZ:view(90,0);
+            if(saveFig)
+                saveFigures(figure(nc),savePath,"Traj-"+margNames(nc),[]);
+                %arrayfun(@(a)view(a,0,90),gcf().Children); saveFigures(figure(nc),savePath,"2DTraj-"+margNames(nc),[]);
+            end
+        end
+        for i = 1:3
+            nexttile();
+            hold on;
+            if(i==1)
+                view(0,90);
+                title(margNames{nc});
+            elseif(i==2)
+                view(0,0);
+            elseif(i==3)
+                view(90,0);
+            end
+            xlabel('X');
+            ylabel('Y');
+            zlabel('Z');
+            splitProj = squeeze(cellfun(@(s) squeeze(s),num2cell(squeeze(projT(1:3,nc,:,:,:)),[1 3 4]),'UniformOutput',false));
+            for c = 1:length(splitProj)
+                plot3(squeeze(splitProj{c}(1,1,1:plotSeg(t))),squeeze(splitProj{c}(2,1,1:plotSeg(t))),squeeze(splitProj{c}(3,1,1:plotSeg(t))),'Color',colors(c,:),'LineStyle','-','LineWidth',1.5);
+                plot3(squeeze(splitProj{c}(1,2,1:plotSeg(t))),squeeze(splitProj{c}(2,2,1:plotSeg(t))),squeeze(splitProj{c}(3,2,1:plotSeg(t))),'Color',colors(c,:),'LineStyle','--','LineWidth',1.5);
+            end
+            for c = 1:length(splitProj)
+                scatter3(squeeze(splitProj{c}(1,1,1)),squeeze(splitProj{c}(2,1,1)),squeeze(splitProj{c}(3,1,1)),'black','o','sizeData',150,'MarkerFaceColor','k');
+                scatter3(squeeze(splitProj{c}(1,2,1)),squeeze(splitProj{c}(2,2,1)),squeeze(splitProj{c}(3,2,1)),'black','sq','sizeData',150,'MarkerFaceColor','k');
+            end
+        end
     end
 end
 %%

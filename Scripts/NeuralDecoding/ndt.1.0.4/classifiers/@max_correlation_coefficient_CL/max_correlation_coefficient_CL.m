@@ -89,7 +89,7 @@ classdef max_correlation_coefficient_CL
             unique_labels = unique(YTr);
 
             for i = 1:length(unique_labels)
-                template{i} = reshape(mean(XTr(:, (YTr == unique_labels(i)),:), 2,'omitnan'),size(XTr,1),1,[]);
+                template{i} = mean(XTr(:, (YTr == unique_labels(i)),:), 2,'omitnan');
             end
 
             cl.templates = cell2mat(template);

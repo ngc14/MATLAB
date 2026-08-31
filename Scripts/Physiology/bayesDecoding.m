@@ -148,7 +148,6 @@ unitAccPhase = cellfun(@(p) cell2mat(permute(cellfun(@(m) squeeze(mean(m,1,'omit
 unitAccPhase = vertcat(unitAccPhase{:});
 allAcc = squeeze(mean(unitAccPhase(:,:,nInputUnits==60,:),2,'omitnan'));
 %% permutation testing
-hbar = parforProgress(permutations);
 rng('shuffle', 'threefry4x64_20');
 shuffleGroups = cellfun(@(i) find(contains(subGroups,i),length(i)),...
     {somatotopicLabs,subGroups(1:3)+"-Arm",subGroups(1:3)+"-Hand", subGroups(4:5)+"-Arm", subGroups(4:5)+"-Hand"},'UniformOutput',false);
@@ -156,21 +155,22 @@ fullSubPop = cellfun(@(i) find(any([subpopulations{i}],2)), shuffleGroups,'Unifo
 subGroupInd = cellfun(@(s) [1,cumsum(sum([subpopulations{s}],1))+1;cumsum(sum([subpopulations{s}],1)),NaN], shuffleGroups, 'UniformOutput',false);
 subGroupInd = num2cell(cell2mat(cellfun(@(s) s(:,1:end-1), subGroupInd, 'UniformOutput',false)),1);
 allGroups = cell2mat(cellfun(@(n,i) repmat(i,1,length(n)), shuffleGroups,num2cell(1:length(shuffleGroups)), 'UniformOutput',false));
-F_perm = NaN(permutations,length(allGroups));
+[F_perm, lat_perm] = deal(NaN(permutations,length(allGroups)));
+hbar = parforProgress(permutations);
 parfor p = 1:permutations
-    somaPerm= repmat({NaN(1,length(allGroups))},nRuns,1); %length(shuffleGroups),max(cellfun(@length,shuffleGroups))
+    [latencyPerm,somaPerm]= deal(repmat({NaN(1,length(allGroups))},nRuns,1)); %length(shuffleGroups),max(cellfun(@length,shuffleGroups))
+    permPopulation = cellfun(@(s) s(randperm(length(s))), fullSubPop, 'UniformOutput',false);
+    permPopulation = cellfun(@(f,n) permPopulation{allGroups(n)}(f(1):f(end)),subGroupInd, num2cell(allGroups),'UniformOutput',false);
     for iter = 1:nRuns
         [all_XTr, all_YTr, all_XTrt, all_Ytrt] = dsr.get_data;
-        permIndex = cellfun(@(s) s(randperm(length(s))), fullSubPop, 'UniformOutput',false);
-        permIndex = cellfun(@(f,n) permIndex{allGroups(n)}(f(1):f(end)),subGroupInd, num2cell(allGroups),'UniformOutput',false);
         for f = 1:length(allGroups)
-            popUnits = permIndex{f};
+            popUnits = permPopulation{f};
             units =  popUnits(randperm(length(popUnits),min(length(popUnits),nInputUnits)));
             iterAcc= NaN(nCVFolds,length(timepoints));
-            for iCV = 1:nCVFolds
-                for iTrainingInterval = 1:length(timepoints)
-                    XTrF = all_XTr{iTrainingInterval};
-                    XTsF = all_XTrt{iTrainingInterval};
+            for iTrainingInterval = 1:length(timepoints)
+                XTrF = all_XTr{iTrainingInterval};
+                XTsF = all_XTrt{iTrainingInterval};
+                for iCV = 1:nCVFolds
                     if(isempty(fp))
                         tr = XTrF{iCV}(units,:);
                         XTst = XTsF{iCV}(units,:);
@@ -184,32 +184,36 @@ parfor p = 1:permutations
                 end
             end
             somaPerm{iter}(f) = mean(mean(iterAcc,1,'omitnan'));
+            [~,latencyPerm{iter}(f)] = max(mean(iterAcc,1,'omitnan'),[],2);
         end
     end
+    profile off; profile viewer;
     F_perm(p,:) = mean(cell2mat(somaPerm),1,'omitnan'); %max(0,var( - singleDrawVar)
+    lat_perm(p,:) = mean(xl(cell2mat(latencyPerm)),1,'omitnan');
     send(hbar, p);
 end
-save(savePath+"PermTable.mat",'F_perm', 'allAcc');
+save(savePath+"Soma_Latency.mat",'F_perm', 'allAcc');
 %%
-
 fo = anova(100.*allAcc);
 for s = 1:length(shuffleGroups)
     diffRatio = table(Size=[1,nchoosek(length(shuffleGroups{s}),2)],VariableNames=join(subGroups(nchoosek(shuffleGroups{s},2)),"-",2)',...
         VariableTypes=repmat("double",1,nchoosek(length(shuffleGroups{s}),2)));
     pairs = nchoosek(1:length(shuffleGroups{s}),2);
     observedF = var(mean(100.*allAcc(:,shuffleGroups{s}),1,'omitnan'));%fo.stats.F;
-    omnibusP = (1+sum(var(100.*F_perm(:,shuffleGroups{s}),0,2,'omitnan') >= observedF))/(permutations+1);
+    omnibusP = (1+sum(var(100.*F_perm(:,allGroups==s),0,2,'omitnan') >= observedF))/(permutations+1);
+    diffO = 100.*(allAcc(:,shuffleGroups{s}(pairs(:,1)))-allAcc(:,shuffleGroups{s}(pairs(:,2))));
     if(omnibusP<pVal)
-        diffO = 100.*(allAcc(:,shuffleGroups{s}(pairs(:,1)))-allAcc(:,shuffleGroups{s}(pairs(:,2))));
+        Find = find(allGroups==s);
         for p = 1:size(pairs,1)
-            allDiffs = diff(100.*F_perm(:,shuffleGroups{s}(pairs(p,:))),1,2);
+            allDiffs = diff(100.*F_perm(:,Find(pairs(p,:))),1,2);
             diffRatio{1,p}  = (1+sum(abs(allDiffs)>=abs(mean(diffO(:,p),1,'omitnan'))))/(permutations+1);
         end
     end
     diffRatio = addvars(diffRatio,omnibusP,Before=1);
     diffRatio{end+1,:} = [fo.stats.MeanSquares(1),mean(diffO,1,'omitnan')];
     diffRatio{end+1,:} = [fo.stats.F(1),std(diffO,0,1,'omitnan')];
-    diffRatio = addvars(diffRatio,["pVal";"MeanSquares/Mean";"F-stat/SD"],Before=1,NewVariableNames="Value");
+    diffRatio{end+1,:} = [omnibusP<pVal,diffRatio{1,2:end}<(pVal/size(pairs,1))];
+    diffRatio = addvars(diffRatio,["pVal";"MeanSquares/Mean";"F-stat/SD";"p<"+num2str(pVal)],Before=1,NewVariableNames="Value");
     diffRatio{:, 2:end} = compose("%.5f", diffRatio{:, 2:end});
     writetable(diffRatio, savePath+strjoin(subGroups(shuffleGroups{s}),"_")+"-stats.txt", 'FileType', 'text','Delimiter','\t');
 end
@@ -267,9 +271,9 @@ if(length(nInputUnits)>1)
     saveFigures(gcf,savePath,"Boxplots-"+num2str(nRuns),[]);
 
     figure(); hold on;
-    [~,maxT] = max(100.*unitAccPhase(:,:,:,end-(length(somatotopicLabs)-1):end)>=accLine,[],2);
+    [~,maxT] = max(100.*unitAccPhase(:,:,:,arrayfun(@(s) find(strcmp(subGroups,s)), somatotopicLabs))>=accLine,[],2);
     maxT(maxT==1) = length(xl);
-    figure(); boxchart(reshape(repmat(1:length(somatotopicLabs),permutations,1),1,[]),reshape(squeeze((xl(maxT))),1,[]),'Notch','on');
+    figure(); boxchart(reshape(repmat(1:length(somatotopicLabs),nRuns,1),1,[]),reshape(squeeze((xl(maxT))),1,[]),'Notch','on');
     xticks(1:length(somatotopicLabs));xticklabels(somatotopicLabs);
     saveFigures(gcf,savePath,"Latency_Somatotopy-"+num2str(nRuns),[]);
 end
@@ -286,7 +290,7 @@ for t = 1:length(nInputUnits)
     if(length(timepoints)>1)
         em=cell2mat(cellfun(@(a) a([2,3,6]),cellfun(@(c) mean(cell2mat(cellfun(@(a) cell2mat(cellfun(@(n) mean(n,1,'omitnan'),a,'UniformOutput',false)),c,'UniformOutput',false)),1,'omitnan'),siteSegs,'UniformOutput',false)','UniformOutput',false));
         em=[mean(em(:,1:2),1,'omitnan'),min(em(:,end)),max(em(:,end))];
-        figure(); nAx=3; nLs = floor(length(subGroups)/nAx); nL = mod(length(subGroups),nAx); nt=tiledlayout(1,nAx);
+        figure(); nAx=4; nLs = floor(length(subGroups)/nAx); nL = mod(length(subGroups),nAx); nt=tiledlayout(1,nAx);
         accAx = arrayfun(@(d) arrayfun(@(a) accTUnit(:,:,a),(nLs*(d-1))+(1:(nLs+(nL*(d==nAx)))),'UniformOutput',false),1:nAx,'UniformOutput',false);
         d = cellfun(@(a,d) cellfun(@(p,c) shadedErrorBar(xl,mean(p,1,'omitnan'),std(p,0,1),'lineProps',...
             {'Color',trCl(c,:),'LineWidth',2},'patchSaturation',.1,'ax',nexttile(nt,d)),a,num2cell(1:length(a))),accAx,num2cell(1:nAx),'UniformOutput',false);
@@ -298,7 +302,7 @@ for t = 1:length(nInputUnits)
     end
     figure(); hold on;
     boxchart(accTable,subGroups,"Notch",'on','MarkerStyle','none');
-    xticklabels(subGroups);
+    xticks(1:length(subGroups));xticklabels(subGroups);
     saveFigures(gcf,savePath,"Groups_"+num2str(nRuns)+"_"+num2str(nUnits),[]);
 
     figure(); hold on;
@@ -313,17 +317,25 @@ for t = 1:length(nInputUnits)
     plot([-1 1]+double(get(gca,'XLim')),[accLine accLine],'LineWidth',1,'Color','k');ylim([25 105]);
     saveFigures(gcf,savePath,"Somatotopy_"+num2str(nRuns)+"_"+num2str(nUnits),[]);
 
-    figure(); hold on;
-    bx=boxchart(accTable,subGroups([1 3 2]),'Notch','on','MarkerStyle','none');
-    xticks(1:3);xticklabels(subGroups([1 3 2]));
-    plot([-1 1]+double(get(gca,'XLim')),[accLine accLine],'LineWidth',1,'Color','k');ylim([25 105]);
-    saveFigures(gcf,savePath,"Types_"+num2str(nRuns)+"_"+num2str(nUnits),[]);
+    for i = 1:3
+        somaSet = "";
+        if(i==2)
+            somaSet="-Arm";
+        elseif(i==3)
+            somaSet="-Hand";
+        end
+        figure(); hold on;
+        bx=boxchart(accTable,subGroups([1 3 2])+somaSet,'Notch','on','MarkerStyle','none');
+        xticks(1:3);xticklabels(subGroups([1 3 2]));
+        plot([-1 1]+double(get(gca,'XLim')),[accLine accLine],'LineWidth',1,'Color','k');ylim([25 105]);
+        saveFigures(gcf,savePath,"Types_"+somaSet+num2str(nRuns)+"_"+num2str(nUnits),[]);
 
-    figure(); hold on;
-    bx=boxchart(accTable,["Shallow","Deep"],'Notch','on','MarkerStyle','none');
-    xticks(1:2);xticklabels(["Shallow","Deep"]);
-    plot([-1 1]+double(get(gca,'XLim')),[accLine accLine],'LineWidth',1,'Color','k');ylim([25 105]);
-    saveFigures(gcf,savePath,"Laminar_"+num2str(nRuns)+"_"+num2str(nUnits),[]);
+        figure(); hold on;
+        bx=boxchart(accTable,["Shallow","Deep"]+somaSet,'Notch','on','MarkerStyle','none');
+        xticks(1:2);xticklabels(["Shallow","Deep"]);
+        plot([-1 1]+double(get(gca,'XLim')),[accLine accLine],'LineWidth',1,'Color','k');ylim([25 105]);
+        saveFigures(gcf,savePath,"Laminar_"+somaSet+num2str(nRuns)+"_"+num2str(nUnits),[]);
+    end
 end
 %allBxs= bx.boxplotGroup(1:end).Children; set(allBxs(contains(string({allBxs.Tag}),"Whisker")));
 %%

@@ -269,7 +269,18 @@ methods
             
             XTr_temp = cell(size(XTr_all_time_cv));
             XTe_temp = cell(size(XTe_all_time_cv));
-           
+            YTr_temp = NaN(1,ceil(length(YTr_all)/(length(ds.the_basic_DS.label_names_to_use)*ds.nAvg))*length(ds.the_basic_DS.label_names_to_use));
+            YTe_temp = NaN(1,ceil(length(YTe_all)/(length(ds.the_basic_DS.label_names_to_use)*ds.nAvg))*length(ds.the_basic_DS.label_names_to_use));
+
+            for iLabel=1:length(ds.the_basic_DS.label_names_to_use)
+                curr_train_ind = (iLabel - 1)*ceil(length(YTe_all)/(length(ds.the_basic_DS.label_names_to_use)*ds.nAvg))+...
+                    1:ceil(sum(YTr_all==ds.the_basic_DS.label_names_to_use(iLabel))/ds.nAvg);
+                curr_test_ind = (iLabel - 1)*ceil(length(YTe_all)/(length(ds.the_basic_DS.label_names_to_use)*ds.nAvg))+...
+                    1:ceil(sum(YTe_all==ds.the_basic_DS.label_names_to_use(iLabel))/ds.nAvg);
+                YTr_temp(curr_train_ind) = ds.the_basic_DS.label_names_to_use(iLabel);
+                YTe_temp(curr_test_ind) = ds.the_basic_DS.label_names_to_use(iLabel);
+            end
+
             % average data    
             for iTimePeriod = 1:length(XTr_all_time_cv)
             for iCV = 1:length(XTr_all_time_cv{1})
@@ -285,22 +296,19 @@ methods
                     indTe=find(YTe_all==ds.the_basic_DS.label_names_to_use(iLabel));
                     perm_tr = randperm(length(indTr));
                     perm_te = randperm(length(indTe));
-                    
                     for iAvg = 1:ceil(length(indTr)/ds.nAvg)
                       
-                        avg_inds = (iAvg-1)*ds.nAvg+1:(iAvg*ds.nAvg);
+                        avg_inds = min((iAvg-1)*ds.nAvg+1:(iAvg*ds.nAvg),length(indTr));
                         
                         %average training data
                         curr_train_ind = (iLabel - 1)*ceil(length(indTr)/ds.nAvg)+iAvg;
 
-                        XTr_temp{iTimePeriod}{iCV}(:,curr_train_ind) = mean(XTr_all_time_cv{iTimePeriod}{iCV}(:,indTr(perm_tr(avg_inds(ismember(avg_inds,1:length(indTr)))))),2,'omitnan');
-                        YTr_temp(curr_train_ind) = ds.the_basic_DS.label_names_to_use(iLabel);
-                     
+                        XTr_temp{iTimePeriod}{iCV}(:,curr_train_ind) = mean(XTr_all_time_cv{iTimePeriod}{iCV}(indTr(perm_tr(avg_inds)),:),1);
+
                         %average test data
                         if iAvg <= ceil(length(indTe)/ds.nAvg)
                             curr_test_ind = (iLabel - 1)*ceil(length(indTe)/ds.nAvg)+iAvg;
-                            XTe_temp{iTimePeriod}{iCV}(:,curr_test_ind) = mean(XTe_all_time_cv{iTimePeriod}{iCV}(:,indTe(perm_te(avg_inds(ismember(avg_inds,1:length(indTe)))))),2);
-                            YTe_temp(curr_test_ind) = ds.the_basic_DS.label_names_to_use(iLabel);
+                            XTe_temp{iTimePeriod}{iCV}(:,curr_test_ind) = mean(XTe_all_time_cv{iTimePeriod}{iCV}(indTe(perm_te(min(avg_inds,length(perm_te)))),:),1);
                         end
                     end
 

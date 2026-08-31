@@ -692,8 +692,8 @@ methods
 
                    
                     % can actually just return these instead...
-                    XTr_all_time_cv{iTimePeriod}{iCV} = the_resample_data_time(setdiff(all_resample_data_inds, curr_cv_inds), :)';  
-                    XTe_all_time_cv{iTimePeriod}{iCV} = the_resample_data_time(curr_cv_inds,:)';
+                    XTr_all_time_cv{iTimePeriod}{iCV} = the_resample_data_time(setdiff(all_resample_data_inds, curr_cv_inds), :);  
+                    XTe_all_time_cv{iTimePeriod}{iCV} = the_resample_data_time(curr_cv_inds,:);
                     
                     YTr_all = all_data_point_labels(setdiff(all_resample_data_inds, curr_cv_inds));
                     YTe_all = all_data_point_labels(curr_cv_inds);

@@ -272,15 +272,6 @@ methods
             YTr_temp = NaN(1,ceil(length(YTr_all)/(length(ds.the_basic_DS.label_names_to_use)*ds.nAvg))*length(ds.the_basic_DS.label_names_to_use));
             YTe_temp = NaN(1,ceil(length(YTe_all)/(length(ds.the_basic_DS.label_names_to_use)*ds.nAvg))*length(ds.the_basic_DS.label_names_to_use));
 
-            for iLabel=1:length(ds.the_basic_DS.label_names_to_use)
-                curr_train_ind = (iLabel - 1)*ceil(length(YTe_all)/(length(ds.the_basic_DS.label_names_to_use)*ds.nAvg))+...
-                    1:ceil(sum(YTr_all==ds.the_basic_DS.label_names_to_use(iLabel))/ds.nAvg);
-                curr_test_ind = (iLabel - 1)*ceil(length(YTe_all)/(length(ds.the_basic_DS.label_names_to_use)*ds.nAvg))+...
-                    1:ceil(sum(YTe_all==ds.the_basic_DS.label_names_to_use(iLabel))/ds.nAvg);
-                YTr_temp(curr_train_ind) = ds.the_basic_DS.label_names_to_use(iLabel);
-                YTe_temp(curr_test_ind) = ds.the_basic_DS.label_names_to_use(iLabel);
-            end
-
             % average data    
             for iTimePeriod = 1:length(XTr_all_time_cv)
             for iCV = 1:length(XTr_all_time_cv{1})
@@ -304,10 +295,12 @@ methods
                         curr_train_ind = (iLabel - 1)*ceil(length(indTr)/ds.nAvg)+iAvg;
 
                         XTr_temp{iTimePeriod}{iCV}(:,curr_train_ind) = mean(XTr_all_time_cv{iTimePeriod}{iCV}(indTr(perm_tr(avg_inds)),:),1);
+                        YTr_temp(curr_train_ind) = ds.the_basic_DS.label_names_to_use(iLabel);
 
                         %average test data
                         if iAvg <= ceil(length(indTe)/ds.nAvg)
                             curr_test_ind = (iLabel - 1)*ceil(length(indTe)/ds.nAvg)+iAvg;
+                            YTe_temp(curr_test_ind) = ds.the_basic_DS.label_names_to_use(iLabel);
                             XTe_temp{iTimePeriod}{iCV}(:,curr_test_ind) = mean(XTe_all_time_cv{iTimePeriod}{iCV}(indTe(perm_te(min(avg_inds,length(perm_te)))),:),1);
                         end
                     end

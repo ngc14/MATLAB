@@ -27,7 +27,7 @@ phaseAlign = containers.Map(params.condNames,cellfun(@(c) num2cell(cell2mat(c)),
 phaseWin = repmat({{[0, phaseWindowSz],[-phaseWindowSz*(3/4),phaseWindowSz*(1/4)],[-phaseWindowSz*(5/4), -phaseWindowSz*(1/4)],[-phaseWindowSz*(3/4),phaseWindowSz*(1/4)]}},1,length(params.condNames));
 phaseWin{strcmp(params.condNames,"Photocell")}{contains(phaseNames,"Hold")} = [-phaseWindowSz/2 0];
 %%
-[siteDateMap,siteSegs,siteTrialPSTHS,rawSpikes,siteChannels,chMaps,~,~] = ...
+[siteDateMap,siteSegs,siteTrialPSTHS,~,siteChannels,chMaps,~,~] = ...
     getAllSessions(params,"Single","M1","");
 somatotopicLabs = unique(cell2mat([siteDateMap.SiteRep]'));
 simpRep =  cellfun(@(r,t) r(find(t==min(t),1)),siteDateMap.SiteRep,siteDateMap.Thresh,'UniformOutput', true)';
@@ -52,7 +52,7 @@ normBaseline = cellfun(@(p,t)cellfun(@(a,n) [max(1,median(cell2mat(reshape(cellf
     num2cell(n),'UniformOutput',false),[1,1,length(n)])),3,'omitnan'))],p,t,'UniformOutput',false),siteTrialPSTHS,goSegs,"UniformOutput",false);
 normBaseline = cellfun(@(cc) vertcat(cc{:}),cellfun(@(c) cellfun(@(n) num2cell(n,2), c,'UniformOutput',false),normBaseline,'UniformOutput',false),'UniformOutput',false);
 %normBaseline = cellfun(@(d) horzcat(d{:}), num2cell(horzcat(normBaseline{:}),2),'UniformOutput',false);
-clear goSegs phaseFR rawSpikes taskFR taskBaseline normBaseline chMaps siteDateMap simpRep
+clear goSegs phaseFR taskFR taskBaseline normBaseline chMaps siteDateMap simpRep
 %% combined conditions of PSTHS to get trial PSTHS organized by units
 siteTrialPSTHS = cellfun(@(cp) cellfun(@(s)cellfun(@(r) squeeze(num2cell(r,[1,2]))',s,'UniformOutput',false)',cellfun(@(p)...
     num2cell(permute(permute(p,[1 3 2]),[1 3 2]),[2,3]),vertcat(cp(:)),'UniformOutput',false),'UniformOutput',false),siteTrialPSTHS,'Uniformoutput', false);
@@ -75,7 +75,7 @@ goodUnits = any(cell2mat(taskUnits),2)';
 % unitTypeT(unitCondAssign(sum(isMaxTie(unitCondAssign,:),2)==3)) = 3;
 % unitTypeT(unitCondAssign(sum(isMaxTie(unitCondAssign,:),2)==2 & ~isMaxTie(unitCondAssign,end))) = 3;
 fUnits = { rUnits{1}, gUnits{1}, bothUnits{1},mappedChannels<=16,mappedChannels>16,goodUnits};
-clear rUnits gUnits bothUnits taskUnits rgInds rgVals siteChannels mappedChannels 
+clear rUnits gUnits bothUnits taskUnits rgInds rgVals mappedChannels 
 %% organize training PSTHS and condition labels and subpopulation indicies
 trialUnits = cellfun(@(a) sqrt(conv2(resize(a(:,findBins(winAroundEvent(1),params.bins):findBins(winAroundEvent(end),params.bins)),[size(a,1),smoothKernel+...
     range(findBins(winAroundEvent,params.bins))]),gausswin(smoothKernel)'./sum(gausswin(smoothKernel)),'valid')),siteTrialPSTHS(goodUnits), 'UniformOutput',false);
@@ -100,7 +100,7 @@ subGroups = [fTypes,somatotopicLabs,reshape(fTypes(1:end-1)'+["-Arm","-Hand"],1,
 goodUnitsTrials = find_sites_with_k_label_repetitions(trainingLabs,nRepeatedCondTests*nCVFolds,arrayfun(@(a) a{1}(1),params.condNames,'UniformOutput',false))';
 subpopulations = cellfun(@(s) ismember(goodUnitsTrials,find(s)), subpopulations,'UniformOutput',false);
 dsr = avg_DS(trainingSet(goodUnitsTrials),trainingLabs(goodUnitsTrials),nCVFolds,nAvg);
-clear trialUnits trialInds trialConds trainingSet trainingLabs siteSegs  goodUnitsTrials goodUnits siteTrialPSTHS unitSomatotopy
+clear trialUnits trialInds trialConds trainingSet trainingLabs siteSegs  goodUnitsTrials goodUnits siteTrialPSTHS unitSomatotopy siteChannels
 %% decoder setup
 binning_parameters = struct('end_time', length(timepoints),'start_time', 1,'bin_width',1);
 dsr.the_basic_DS.binned_site_info.binning_parameters = binning_parameters;
@@ -114,6 +114,8 @@ dsr.nAvg = nAvg;
 %% bootstrap iterations of classifier training/testing
 somaUnits= repmat({repmat({NaN(nCVFolds,length(timepoints))},length(subGroups),length(nInputUnits))},nRuns,1);
 uUnits = repmat({cell(length(subGroups),length(nInputUnits))},nRuns,1);
+delete(gcp('nocreate'));
+parpool('Threads',min(maxNumCompThreads,6));
 hbar = parforProgress(nRuns);
 rng('shuffle', 'threefry4x64_20');
 [~, all_YTr, ~, all_Ytrt] = dsr.get_data;
@@ -121,8 +123,8 @@ cacheTrain = cell(nRuns,1);
 cacheTest = cell(nRuns,1);
 parfor iter = 1:nRuns
     [all_XTr, ~, all_XTrt, ~] = dsr.get_data;
-    cacheTrain{iter} = all_XTr;
-    cacheTest{iter} = all_XTrt;
+%    cacheTrain{iter} = all_XTr;
+%    cacheTest{iter} = all_XTrt;
     for n = 1:length(nInputUnits)
         for f = 1:length(subGroups)
             popUnits = find(subpopulations{f});
@@ -167,9 +169,10 @@ allGroups = cell2mat(cellfun(@(n,i) repmat(i,1,length(n)), shuffleGroups,num2cel
 subGroupInd = cellfun(@(s) [1,cumsum(sum([subpopulations{s}],1))+1], shuffleGroups, 'UniformOutput',false);
 groupInds = [shuffleGroups{:}];
 [Lat_perm,F_perm]= deal(NaN(permutations,length(shuffleGroups)));
+[Lat_mean,F_mean]= deal(NaN(permutations,length(allGroups)));
 hbar = parforProgress(permutations);
-for p = 1:permutations
-    [latPerm,somaPerm] = deal(NaN(nRuns,length(allGroups),1)); %length(shuffleGroups),max(cellfun(@length,shuffleGroups))
+parfor p = 1:permutations
+    [latPerm,somaPerm] = deal(NaN(nRuns,length(allGroups),1)); 
     permPopulation = cellfun(@(s) s(randperm(length(s))), fullSubPop, 'UniformOutput',false);
     groupPerms = cellfun(@(p,s) arrayfun(@(i) p(s(i):s(i+1)-1),1:length(s)-1,'UniformOutput',false), permPopulation, subGroupInd, 'UniformOutput',false);
     groupPerms = [groupPerms{:}];
@@ -196,28 +199,29 @@ for p = 1:permutations
             [~,latPerm(iter,f)] = max(iterAcc);
         end
     end
+    F_mean(p,:) = mean(somaPerm,1);
     SS_between = arrayfun(@(g) nRuns*sum(100.*(mean(somaPerm(:,allGroups==g),1)-mean(somaPerm(:,allGroups==g),'all')).^2),unique(allGroups));
     SS_within = arrayfun(@(g) sum(100.*(somaPerm(:,allGroups==g)-mean(somaPerm(:,allGroups==g),1)).^2,'all'),unique(allGroups));
     F_perm(p,:) = arrayfun(@(g) (SS_between(g)/sum(allGroups==g)-1) /(SS_within(g)/(nRuns*sum(allGroups==g))-sum(allGroups==g)),unique(allGroups)); %max(0,var( - singleDrawVar)
+    Lat_mean(p,:) = mean(latPerm,1);
     SS_between = arrayfun(@(g) nRuns*sum((mean(latPerm(:,allGroups==g),1)-mean(latPerm(:,allGroups==g),'all')).^2),unique(allGroups));
     SS_within = arrayfun(@(g) sum((latPerm(:,allGroups==g)-mean(latPerm(:,allGroups==g),1)).^2,'all'),unique(allGroups));
     Lat_perm(p,:) = arrayfun(@(g) (SS_between(g)/sum(allGroups==g)-1) /(SS_within(g)/(nRuns*sum(allGroups==g))-sum(allGroups==g)),unique(allGroups));
     send(hbar, p);
 end
-save(savePath+"Soma_Latency.mat",'F_perm', 'allAcc');
+save(savePath+"Permutation_Results.mat",'F_mean','F_perm','Lat_mean','Lat_perm', 'allAcc');
 %%
-fo = anova(100.*allAcc);
 for s = 1:length(shuffleGroups)
     diffRatio = table(Size=[1,nchoosek(length(shuffleGroups{s}),2)],VariableNames=join(subGroups(nchoosek(shuffleGroups{s},2)),"-",2)',...
-        VariableTypes=repmat("double",1,nchoosek(length(shuffleGroups{s}),2)));
+        VariableTypes=repmat("doublenan",1,nchoosek(length(shuffleGroups{s}),2)));
     pairs = nchoosek(1:length(shuffleGroups{s}),2);
-    observedF = var(mean(100.*allAcc(:,shuffleGroups{s}),1,'omitnan'));%fo.stats.F;
-    omnibusP = (1+sum(var(100.*F_perm(:,allGroups==s),0,2,'omitnan') >= observedF))/(permutations+1);
+    fo = anova(100.*allAcc(:,shuffleGroups{s}));
+    omnibusP = (1+sum(F_perm(:,s) >= fo.stats.F(1)))/(permutations+1);
     diffO = 100.*(allAcc(:,shuffleGroups{s}(pairs(:,1)))-allAcc(:,shuffleGroups{s}(pairs(:,2))));
     if(omnibusP<pVal)
         Find = find(allGroups==s);
         for p = 1:size(pairs,1)
-            allDiffs = diff(100.*F_perm(:,Find(pairs(p,:))),1,2);
+            allDiffs = diff(F_mean(:,Find(pairs(p,:))),1,2);
             diffRatio{1,p}  = (1+sum(abs(allDiffs)>=abs(mean(diffO(:,p),1,'omitnan'))))/(permutations+1);
         end
     end

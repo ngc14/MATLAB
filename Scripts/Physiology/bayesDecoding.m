@@ -13,6 +13,7 @@ nInputUnits = 60; %[1,10,20,30,40,50,60,70,80,90,100];
 pVal = .01;
 fp = {};
 classifier = max_correlation_coefficient_CL;
+PERMUTATIONTEST=true;
 savePath = "S:\Lab\ngc14\Working\Revisions\Decoding\New_Figure\";
 
 params = PhysRecording(["Extra Small Sphere","Large Sphere", "Photocell"],.01,.15,-6,5,...
@@ -112,71 +113,80 @@ dsr.num_resample_sites = -1;
 dsr.randomly_shuffle_labels_before_running = 0;
 dsr.nAvg = nAvg;
 %% bootstrap iterations of classifier training/testing
-somaUnits= repmat({repmat({NaN(nCVFolds,length(timepoints))},length(subGroups),length(nInputUnits))},nRuns,1);
-uUnits = repmat({cell(length(subGroups),length(nInputUnits))},nRuns,1);
+somaUnits= NaN(nRuns,length(timepoints),length(subGroups),length(nInputUnits));
 delete(gcp('nocreate'));
 parpool('Threads',min(maxNumCompThreads,6));
 hbar = parforProgress(nRuns);
 rng('shuffle', 'threefry4x64_20');
-[~, all_YTr, ~, all_Ytrt] = dsr.get_data;
-cacheTrain = cell(nRuns,1);
-cacheTest = cell(nRuns,1);
-parfor iter = 1:nRuns
+[~, all_YTr, ~, all_YTrt] = dsr.get_data;
+if(PERMUTATIONTEST)
+    shuffleGroups = cellfun(@(i) find(ismember(subGroups,i)),...
+        {somatotopicLabs,subGroups(1:3)+"-Arm",subGroups(1:3)+"-Hand", subGroups(4:5)+"-Arm", subGroups(4:5)+"-Hand"},'UniformOutput',false);
+    fullSubPop = cellfun(@(i) find(any([subpopulations{i}],2)), shuffleGroups,'UniformOutput',false);
+    allGroups = cell2mat(cellfun(@(n,i) repmat(i,1,length(n)), shuffleGroups,num2cell(1:length(shuffleGroups)), 'UniformOutput',false));
+    subGroupInd = cellfun(@(s) [1,cumsum(sum([subpopulations{s}],1))+1], shuffleGroups, 'UniformOutput',false);
+    groupPerms = cell(permutations,1);
+    for p = 1:permutations
+        permPopulation = cellfun(@(s) s(randperm(length(s))), fullSubPop, 'UniformOutput',false);
+        gp = cellfun(@(p,s) arrayfun(@(i) p(s(i):s(i+1)-1),1:length(s)-1,'UniformOutput',false), permPopulation, subGroupInd, 'UniformOutput',false);
+        groupPerms{p} = [gp{:}];
+    end
+    [latPerm,somaPerm] = deal(NaN(nRuns,permutations,length(allGroups),length(nInputUnits))); 
+end
+for iter = 1:nRuns
     [all_XTr, ~, all_XTrt, ~] = dsr.get_data;
-    cacheTrain{iter} = all_XTr;
-    cacheTest{iter} = all_XTrt;
     for n = 1:length(nInputUnits)
-        for f = 1:length(subGroups)
+        for f = 1:max(length(allGroups),length(subGroups))
             popUnits = find(subpopulations{f});
-            unitInds = randperm(length(popUnits),min(length(popUnits),nInputUnits(n)));
-            units =  popUnits(unitInds);
-            iterAcc= NaN(nCVFolds,length(timepoints));
-            for iCV = 1:nCVFolds
-                for iTrainingInterval = 1:length(timepoints)
-                    XTrF = all_XTr{iTrainingInterval};
-                    %for iTestingInterval = iTrainingInterval
-                    XTsF = all_XTrt{iTrainingInterval};
-                    if(isempty(fp))
-                        tr = XTrF{iCV}(units,:);
-                        XTst = XTsF{iCV}(units,:);
-                    else
-                        [~,tr] =  fp.set_properties_with_training_data(XTrF{iCV}(units,:));
-                        [~,XTst] =  fp.set_properties_with_training_data(XTsF{iCV}(units,:));
+            unitInds = randperm(length(popUnits),length(popUnits));
+            if(PERMUTATIONTEST)
+                permAcc = NaN(permutations,length(timepoints));
+            end
+            parfor iTrainingInterval=1:length(timepoints)
+                somaUnits(iter,iTrainingInterval,f,n) = classifierCV(all_XTr{iTrainingInterval},...
+                    all_XTrt{iTrainingInterval},all_YTr,all_YTrt,popUnits(unitInds(1:min(length(popUnits),nInputUnits(n)))),nCVFolds,fp,classifier);
+                if(PERMUTATIONTEST)
+                    if(f<=length(allGroups))
+                        for p = 1:permutations
+                            permAcc(p,iTrainingInterval) = classifierCV(all_XTr{iTrainingInterval},...
+                                all_XTrt{iTrainingInterval},all_YTr,all_YTrt,groupPerms{p}{f}(1:min(length(groupPerms{p}{f}),nInputUnits(n))),nCVFolds,fp,classifier);
+                        end
                     end
-                    clT= classifier.train(tr, all_YTr);
-                    [ia,~] = clT.test(XTst);
-                    iterAcc(iCV,iTrainingInterval)= sum(ia-all_Ytrt==0)/length(all_Ytrt);
-                    %end
                 end
             end
-            somaUnits{iter}{f,n} = mean(iterAcc,1,'omitnan');
-            uUnits{iter}{f,n} = unitInds;
+            tic
+            if(PERMUTATIONTEST)
+                for p = 1:permutations
+                    somaPerm(iter,p,f,n) = mean(permAcc(p,:),2,'omitnan'); 
+                    latPerm(iter,p,f,n) = max(permAcc(p,:),[],2);
+                end
+            end
+            toc;
         end
     end
     send(hbar, iter);
 end
-unitAccPhase = cellfun(@(p) cell2mat(permute(cellfun(@(m) squeeze(mean(m,1,'omitnan')),p,'Uniformoutput',false),...
-    (length(size(p{1}))+ length(size(p))):-1:1)),somaUnits,'UniformOutput',false);
-unitAccPhase = vertcat(unitAccPhase{:});
-allAcc = squeeze(mean(unitAccPhase(:,:,nInputUnits==60,:),2,'omitnan'));
-clear unitAccPhase somaUnits;
+if(PERMUTATIONTEST)
+    F_mean = squeeze(mean(somaPerm,1));
+    SS_between = arrayfun(@(g) nRuns*sum(100.*(mean(somaPerm(:,allGroups==g),1)-mean(somaPerm(:,allGroups==g),'all')).^2),unique(allGroups));
+    SS_within = arrayfun(@(g) sum(100.*(somaPerm(:,allGroups==g)-mean(somaPerm(:,allGroups==g),1)).^2,'all'),unique(allGroups));
+    F_perm = arrayfun(@(g) (SS_between(g)/sum(allGroups==g)-1) /(SS_within(g)/(nRuns*sum(allGroups==g))-sum(allGroups==g)),unique(allGroups)); %max(0,var( - singleDrawVar)
+    Lat_mean = squeeze(mean(latPerm,1));
+    SS_between = arrayfun(@(g) nRuns*sum((mean(latPerm(:,allGroups==g),1)-mean(latPerm(:,allGroups==g),'all')).^2),unique(allGroups));
+    SS_within = arrayfun(@(g) sum((latPerm(:,allGroups==g)-mean(latPerm(:,allGroups==g),1)).^2,'all'),unique(allGroups));
+    Lat_perm = arrayfun(@(g) (SS_between(g)/sum(allGroups==g)-1) /(SS_within(g)/(nRuns*sum(allGroups==g))-sum(allGroups==g)),unique(allGroups));
+end
+allAcc = squeeze(mean(somaUnits(:,:,:,nInputUnits==60),2,'omitnan'));
 %% permutation testing
 rng('shuffle', 'threefry4x64_20');
-shuffleGroups = cellfun(@(i) find(ismember(subGroups,i)),...
-    {somatotopicLabs,subGroups(1:3)+"-Arm",subGroups(1:3)+"-Hand", subGroups(4:5)+"-Arm", subGroups(4:5)+"-Hand"},'UniformOutput',false);
-fullSubPop = cellfun(@(i) find(any([subpopulations{i}],2)), shuffleGroups,'UniformOutput',false);
-allGroups = cell2mat(cellfun(@(n,i) repmat(i,1,length(n)), shuffleGroups,num2cell(1:length(shuffleGroups)), 'UniformOutput',false));
-subGroupInd = cellfun(@(s) [1,cumsum(sum([subpopulations{s}],1))+1], shuffleGroups, 'UniformOutput',false);
-groupInds = [shuffleGroups{:}];
-[Lat_perm,F_perm]= deal(NaN(permutations,length(shuffleGroups)));
-[Lat_mean,F_mean]= deal(NaN(permutations,length(allGroups)));
 hbar = parforProgress(permutations);
-parfor p = 1:permutations
+for p = 1:permutations
     [latPerm,somaPerm] = deal(NaN(nRuns,length(allGroups),1)); 
     permPopulation = cellfun(@(s) s(randperm(length(s))), fullSubPop, 'UniformOutput',false);
     groupPerms = cellfun(@(p,s) arrayfun(@(i) p(s(i):s(i+1)-1),1:length(s)-1,'UniformOutput',false), permPopulation, subGroupInd, 'UniformOutput',false);
     groupPerms = [groupPerms{:}];
-    for iter = 1:nRuns
+    parfor iter = 1:nRuns
+        [sp,lp] = deal(NaN(1,length(allGroups)));
         for f = 1:length(allGroups)
             units = groupPerms{f}(uUnits{iter}{groupInds(f)});
             iterAcc= zeros(1,length(timepoints));
@@ -184,20 +194,22 @@ parfor p = 1:permutations
                 for iCV = 1:nCVFolds
                     if(isempty(fp))
                         tr = cacheTrain{iter}{iTrainingInterval}{iCV}(units,:);
-                        XTst = cacheTest{iter}{iTrainingInterval}{iCV}(units,:);
+                        XTst = CTs.cacheTest{iter}{iTrainingInterval}{iCV}(units,:);
                     else
                         [~,tr] =  fp.set_properties_with_training_data(cacheTrain{iter}{iTrainingInterval}{iCV}(units,:));
                         [~,XTst] =  fp.set_properties_with_training_data(cacheTest{iter}{iTrainingInterval}{iCV}(units,:));
                     end
                     clT= classifier.train(tr, all_YTr);
                     [ia,~] = clT.test(XTst);
-                    iterAcc(iTrainingInterval)=  iterAcc(iTrainingInterval) +sum(ia-all_Ytrt==0)/length(all_Ytrt);
+                    iterAcc(iTrainingInterval)=  iterAcc(iTrainingInterval) +sum(ia-all_YTrt==0)/length(all_YTrt);
                 end
             end
             iterAcc = iterAcc / nCVFolds;
-            somaPerm(iter,f) = mean(iterAcc);
-            [~,latPerm(iter,f)] = max(iterAcc);
+            sp(f) = mean(iterAcc);
+            [~,lp(f)] = max(iterAcc);
         end
+        somaPerm(iter,:) = sp;
+        latPerm(iter,:) = lp;
     end
     F_mean(p,:) = mean(somaPerm,1);
     SS_between = arrayfun(@(g) nRuns*sum(100.*(mean(somaPerm(:,allGroups==g),1)-mean(somaPerm(:,allGroups==g),'all')).^2),unique(allGroups));
@@ -371,4 +383,21 @@ else
 end
 phaseSubVals = cellfun(@(m) median(cat(3,m{:}),3), phaseSubVals, 'UniformOutput', false);
 sigs = double(sigs);
+end
+
+function iterAcc = classifierCV(XTrF,XTsF,yTr,yTs,units,nCVs,f,cl)
+iterAcc = 0;
+for iCV = 1:nCVs
+    if(isempty(f))
+        tr = XTrF{iCV}(units,:);
+        XTst = XTsF{iCV}(units,:);
+    else
+        [~,tr] =  f.set_properties_with_training_data(XTrF{iCV}(units,:));
+        [~,XTst] =  f.set_properties_with_training_data(XTsF{iCV}(units,:));
+    end
+    clT= cl.train(tr, yTr);
+    [ia,~] = clT.test(XTst);
+    iterAcc= iterAcc + (sum(ia-yTs==0)/length(yTs));
+end
+iterAcc = iterAcc/nCVs;
 end

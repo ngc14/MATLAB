@@ -115,7 +115,7 @@ dsr.nAvg = nAvg;
 %% bootstrap iterations of classifier training/testing
 somaUnits= NaN(nRuns,length(timepoints),length(subGroups),length(nInputUnits));
 delete(gcp('nocreate'));
-parpool('Threads',min(maxNumCompThreads,6));
+parpool('Threads',maxNumCompThreads);
 hbar = parforProgress(nRuns);
 rng('shuffle', 'threefry4x64_20');
 [~, all_YTr, ~, all_YTrt] = dsr.get_data;
@@ -131,7 +131,7 @@ if(PERMUTATIONTEST)
         gp = cellfun(@(p,s) arrayfun(@(i) p(s(i):s(i+1)-1),1:length(s)-1,'UniformOutput',false), permPopulation, subGroupInd, 'UniformOutput',false);
         groupPerms{p} = [gp{:}];
     end
-    [latPerm,somaPerm] = deal(NaN(nRuns,permutations,length(allGroups),length(nInputUnits))); 
+    [latPerm,somaPerm] = deal(NaN(nRuns,permutations,length(allGroups),length(nInputUnits)));
 end
 for iter = 1:nRuns
     [all_XTr, ~, all_XTrt, ~] = dsr.get_data;
@@ -139,106 +139,85 @@ for iter = 1:nRuns
         for f = 1:max(length(allGroups),length(subGroups))
             popUnits = find(subpopulations{f});
             unitInds = randperm(length(popUnits),length(popUnits));
-            if(PERMUTATIONTEST)
+            popUnits = popUnits(unitInds(1:min(length(popUnits),nInputUnits(n))));
+            if(PERMUTATIONTEST & f<=length(allGroups))
                 permAcc = NaN(permutations,length(timepoints));
+                permUnits = cellfun(@(g) g{f}(1:min(length(g{f}),nInputUnits(n))), groupPerms, 'UniformOutput',false);
             end
             parfor iTrainingInterval=1:length(timepoints)
                 somaUnits(iter,iTrainingInterval,f,n) = classifierCV(all_XTr{iTrainingInterval},...
-                    all_XTrt{iTrainingInterval},all_YTr,all_YTrt,popUnits(unitInds(1:min(length(popUnits),nInputUnits(n)))),nCVFolds,fp,classifier);
-                if(PERMUTATIONTEST)
-                    if(f<=length(allGroups))
-                        for p = 1:permutations
-                            permAcc(p,iTrainingInterval) = classifierCV(all_XTr{iTrainingInterval},...
-                                all_XTrt{iTrainingInterval},all_YTr,all_YTrt,groupPerms{p}{f}(1:min(length(groupPerms{p}{f}),nInputUnits(n))),nCVFolds,fp,classifier);
-                        end
+                    all_XTrt{iTrainingInterval},all_YTr,all_YTrt,popUnits,nCVFolds,fp,classifier);
+                if(PERMUTATIONTEST & f<=length(allGroups))
+                    for p = 1:permutations
+                        permAcc(p,iTrainingInterval) = classifierCV(all_XTr{iTrainingInterval},...
+                            all_XTrt{iTrainingInterval},all_YTr,all_YTrt,permUnits{p},nCVFolds,fp,classifier);
                     end
                 end
             end
-            tic
-            if(PERMUTATIONTEST)
+            if(PERMUTATIONTEST & f<=length(allGroups))
                 for p = 1:permutations
                     somaPerm(iter,p,f,n) = mean(permAcc(p,:),2,'omitnan'); 
-                    latPerm(iter,p,f,n) = max(permAcc(p,:),[],2);
+                    [~,latPerm(iter,p,f,n)] = max(permAcc(p,:),[],2);
                 end
             end
-            toc;
         end
     end
     send(hbar, iter);
 end
-if(PERMUTATIONTEST)
-    F_mean = squeeze(mean(somaPerm,1));
-    SS_between = arrayfun(@(g) nRuns*sum(100.*(mean(somaPerm(:,allGroups==g),1)-mean(somaPerm(:,allGroups==g),'all')).^2),unique(allGroups));
-    SS_within = arrayfun(@(g) sum(100.*(somaPerm(:,allGroups==g)-mean(somaPerm(:,allGroups==g),1)).^2,'all'),unique(allGroups));
-    F_perm = arrayfun(@(g) (SS_between(g)/sum(allGroups==g)-1) /(SS_within(g)/(nRuns*sum(allGroups==g))-sum(allGroups==g)),unique(allGroups)); %max(0,var( - singleDrawVar)
-    Lat_mean = squeeze(mean(latPerm,1));
-    SS_between = arrayfun(@(g) nRuns*sum((mean(latPerm(:,allGroups==g),1)-mean(latPerm(:,allGroups==g),'all')).^2),unique(allGroups));
-    SS_within = arrayfun(@(g) sum((latPerm(:,allGroups==g)-mean(latPerm(:,allGroups==g),1)).^2,'all'),unique(allGroups));
-    Lat_perm = arrayfun(@(g) (SS_between(g)/sum(allGroups==g)-1) /(SS_within(g)/(nRuns*sum(allGroups==g))-sum(allGroups==g)),unique(allGroups));
-end
 allAcc = squeeze(mean(somaUnits(:,:,:,nInputUnits==60),2,'omitnan'));
-%% permutation testing
-rng('shuffle', 'threefry4x64_20');
-hbar = parforProgress(permutations);
-for p = 1:permutations
-    [latPerm,somaPerm] = deal(NaN(nRuns,length(allGroups),1)); 
-    permPopulation = cellfun(@(s) s(randperm(length(s))), fullSubPop, 'UniformOutput',false);
-    groupPerms = cellfun(@(p,s) arrayfun(@(i) p(s(i):s(i+1)-1),1:length(s)-1,'UniformOutput',false), permPopulation, subGroupInd, 'UniformOutput',false);
-    groupPerms = [groupPerms{:}];
-    parfor iter = 1:nRuns
-        [sp,lp] = deal(NaN(1,length(allGroups)));
-        for f = 1:length(allGroups)
-            units = groupPerms{f}(uUnits{iter}{groupInds(f)});
-            iterAcc= zeros(1,length(timepoints));
-            for iTrainingInterval = 1:length(timepoints)
-                for iCV = 1:nCVFolds
-                    if(isempty(fp))
-                        tr = cacheTrain{iter}{iTrainingInterval}{iCV}(units,:);
-                        XTst = CTs.cacheTest{iter}{iTrainingInterval}{iCV}(units,:);
-                    else
-                        [~,tr] =  fp.set_properties_with_training_data(cacheTrain{iter}{iTrainingInterval}{iCV}(units,:));
-                        [~,XTst] =  fp.set_properties_with_training_data(cacheTest{iter}{iTrainingInterval}{iCV}(units,:));
-                    end
-                    clT= classifier.train(tr, all_YTr);
-                    [ia,~] = clT.test(XTst);
-                    iterAcc(iTrainingInterval)=  iterAcc(iTrainingInterval) +sum(ia-all_YTrt==0)/length(all_YTrt);
-                end
-            end
-            iterAcc = iterAcc / nCVFolds;
-            sp(f) = mean(iterAcc);
-            [~,lp(f)] = max(iterAcc);
-        end
-        somaPerm(iter,:) = sp;
-        latPerm(iter,:) = lp;
-    end
-    F_mean(p,:) = mean(somaPerm,1);
-    SS_between = arrayfun(@(g) nRuns*sum(100.*(mean(somaPerm(:,allGroups==g),1)-mean(somaPerm(:,allGroups==g),'all')).^2),unique(allGroups));
-    SS_within = arrayfun(@(g) sum(100.*(somaPerm(:,allGroups==g)-mean(somaPerm(:,allGroups==g),1)).^2,'all'),unique(allGroups));
-    F_perm(p,:) = arrayfun(@(g) (SS_between(g)/sum(allGroups==g)-1) /(SS_within(g)/(nRuns*sum(allGroups==g))-sum(allGroups==g)),unique(allGroups)); %max(0,var( - singleDrawVar)
-    Lat_mean(p,:) = mean(latPerm,1);
-    SS_between = arrayfun(@(g) nRuns*sum((mean(latPerm(:,allGroups==g),1)-mean(latPerm(:,allGroups==g),'all')).^2),unique(allGroups));
-    SS_within = arrayfun(@(g) sum((latPerm(:,allGroups==g)-mean(latPerm(:,allGroups==g),1)).^2,'all'),unique(allGroups));
-    Lat_perm(p,:) = arrayfun(@(g) (SS_between(g)/sum(allGroups==g)-1) /(SS_within(g)/(nRuns*sum(allGroups==g))-sum(allGroups==g)),unique(allGroups));
-    send(hbar, p);
-end
-save(savePath+"Permutation_Results.mat",'F_mean','F_perm','Lat_mean','Lat_perm', 'allAcc');
 %%
-for s = 1:length(shuffleGroups)
+if(PERMUTATIONTEST)
+    testAcc = 100.*somaPerm(:,:,:,nInputUnits==60);
+    testLat = xl(latPerm(:,:,:,nInputUnits==60));
+    F_mean = squeeze(mean(testAcc,1));
+
+    for s = 1:length(shuffleGroups)
+        Find = find(allGroups == s);
+        groupMeans = NaN(permutations,length(Find));
+        for g = 1:length(Find)
+            groupMeans(:,g) = squeeze(mean(testAcc(:,:,Find(g)),1,'omitnan'));
+        end
+        grandMean = mean(groupMeans,2,'omitnan');
+        SS_between = nRuns .*sum((groupMeans - grandMean).^2,2);
+        SS_within = zeros(permutations,1);
+        for g = 1:length(Find)
+            X = testAcc(:,:,Find(g));
+            mu = groupMeans(:,g);
+            X_centered = X - reshape(mu,1,[],1);
+            SS_within = SS_within + squeeze(sum(X_centered.^2,[1,3],'omitnan'))';
+        end
+        F_perm(:,s) = (SS_between ./ (k-1)) ./ (SS_within ./ (k*(nRuns-1)));
+    end
+
+    % groupMeans = arrayfun(@(g) squeeze(mean(testAcc(:,:,allGroups==g),1,'omitnan')),unique(allGroups),'UniformOutput',false);
+    % SS_between = cell2mat(cellfun(@(g) nRuns*sum((g-mean(g,2)).^2,2), groupMeans, 'UniformOutput',false))';
+    % SS_within = cell2mat(arrayfun(@(g) sum((testAcc(:,:,allGroups==g)-mean(testAcc(:,:,allGroups==g),1)).^2,[1,3]),unique(allGroups),'UniformOutput',false)');
+    % F_perm = cell2mat(arrayfun(@(g) (SS_between(g,:)/sum(allGroups==g)-1) ./(SS_within(g,:)/(nRuns*sum(allGroups==g))-sum(allGroups==g)),unique(allGroups),'UniformOutput',false)')'; %max(0,var( - singleDrawVar)
+    % Lat_mean = squeeze(mean(testLat,1));
+    % groupMeans = arrayfun(@(g) squeeze(mean(testLat(:,:,allGroups==g),1,'omitnan')),unique(allGroups),'UniformOutput',false);
+    % SS_between = cell2mat(cellfun(@(g) nRuns*sum((g-mean(g,2)).^2,2), groupMeans, 'UniformOutput',false))';
+    % SS_within = cell2mat(arrayfun(@(g) sum(testLat(:,:,allGroups==g)-mean(testLat(:,:,allGroups==g),1).^2,[1,3]),unique(allGroups),'UniformOutput',false)');
+  %  Lat_perm = cell2mat(arrayfun(@(g) (SS_between(g,:)/sum(allGroups==g)-1) ./(SS_within(g,:)/(nRuns*sum(allGroups==g))-sum(allGroups==g)),unique(allGroups),'UniformOutput',false)')';
+    save(savePath+"Permutation_Results.mat",'F_mean','F_perm','Lat_mean','Lat_perm', 'allAcc');
+end
+save(savePath+"Accuracy_Results.mat", 'allAcc');
+%%
+for s = 5:length(shuffleGroups)
     diffRatio = table(Size=[1,nchoosek(length(shuffleGroups{s}),2)],VariableNames=join(subGroups(nchoosek(shuffleGroups{s},2)),"-",2)',...
         VariableTypes=repmat("doublenan",1,nchoosek(length(shuffleGroups{s}),2)));
     pairs = nchoosek(1:length(shuffleGroups{s}),2);
     fo = anova(100.*allAcc(:,shuffleGroups{s}));
-    omnibusP = (1+sum(F_perm(:,s) >= fo.stats.F(1)))/(permutations+1);
-    diffO = 100.*(allAcc(:,shuffleGroups{s}(pairs(:,1)))-allAcc(:,shuffleGroups{s}(pairs(:,2))));
+    omnibusP  = (1+sum(F_perm(:,s)>=fo.stats.F(1)))/(permutations+1);
     if(omnibusP<pVal)
-        Find = find(allGroups==s);
+        fi=find(allGroups==s);
         for p = 1:size(pairs,1)
-            allDiffs = diff(F_mean(:,Find(pairs(p,:))),1,2);
-            diffRatio{1,p}  = (1+sum(abs(allDiffs)>=abs(mean(diffO(:,p),1,'omitnan'))))/(permutations+1);
+            [~,diffO(p)]= ttest(100.*allAcc(:,shuffleGroups{s}(pairs(p,1))),100.*allAcc(:,shuffleGroups{s}(pairs(p,2))));
+            [~,permP] = ttest(F_mean(:,fi(pairs(p,1))),F_mean(:,fi(pairs(p,2))));
+            diffRatio{p}=(1+sum(permP)>=diffO(p))/(permutations+1);
         end
     end
     diffRatio = addvars(diffRatio,omnibusP,Before=1);
-    diffRatio{end+1,:} = [fo.stats.MeanSquares(1),mean(diffO,1,'omitnan')];
+    diffRatio{end+1,:} = [fo.stats.MeanSquares(1),diffO];
     diffRatio{end+1,:} = [fo.stats.F(1),std(diffO,0,1,'omitnan')];
     diffRatio{end+1,:} = [omnibusP<pVal,diffRatio{1,2:end}<(pVal/size(pairs,1))];
     diffRatio = addvars(diffRatio,["pVal";"MeanSquares/Mean";"F-stat/SD";"p<"+num2str(pVal)],Before=1,NewVariableNames="Value");

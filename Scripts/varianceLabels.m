@@ -30,7 +30,7 @@ normBaseline = cellfun(@(p,t)cellfun(@(a,n) [max(1,median(cell2mat(reshape(cellf
     permute(mean(a(:,max(1,s):max(1,s)+(3.5/params.binSize),:),[2],'omitnan'),[1 3 2]),...
     num2cell(n),'UniformOutput',false),[1,1,length(n)])),3,'omitnan'))],p,t,'UniformOutput',false),siteTrialPSTHS,goSegs,"UniformOutput",false);
 %%
-normPSTH = cellfun(@(s,b)cellfun(@(t,n) permute(permute(sqrt(t),[1 3 2])./sqrt(n),[1 3 2]), s, b, 'Uniformoutput', false), siteTrialPSTHS, normBaseline, 'UniformOutput',false);
+normPSTH = cellfun(@(s,b)cellfun(@(t,n) permute(permute(sqrt(t),[1 3 2])-sqrt(n),[1 3 2]), s, b, 'Uniformoutput', false), siteTrialPSTHS, normBaseline, 'UniformOutput',false);
 %normPSTH = cellfun(@(s) cellfun(@(t) zscore(t,0,2), s, 'UniformOutput',false), siteTrialPSTHS, 'UniformOutput',false);
 GT = cellfun(@(g) mean(cat(3,g{:}),3,'omitnan'),num2cell([normPSTH{:}],2),'UniformOutput',false);
 GT = num2cell(vertcat(GT{:}),2);
@@ -41,8 +41,8 @@ NO = cellfun(@(c,l) cellfun(@(t,g,n) t-(g+n), c,l,GT, 'UniformOutput',false), no
 %%
 figure
 nt = tiledlayout(2,3);
-plotSegs = mean(cell2mat([siteSegs{1}{:}]'),1,'omitnan');
-plotSegs = plotSegs(contains(params.condSegMap(params.condNames(1)),phaseNames));
+plotSegs = cellfun(@(s) mean(cell2mat([s{:}]'),1,'omitnan'), siteSegs, 'UniformOutput',false);
+plotSegs = cellfun(@(c,s) c(contains(cell2mat(params.condSegMap.values({s})),phaseNames)), plotSegs, num2cell(params.condNames),'UniformOutput',false);
 for m = 1:length(margNames)
     nexttile(); hold on; title(margNames{m});
     if(m==1)
@@ -60,8 +60,8 @@ for m = 1:length(margNames)
     plotMeanHand = sum(handM,find(~ismember(1:ndims(handM),2)),'omitnan')./sum(~all(isnan(handM),2),'all');
     plotVarHand = std(handM,0,find(~ismember(1:ndims(handM),2)),'omitnan')./sqrt(sum(~all(isnan(handM),2),'all'));
     sh=shadedErrorBar(params.bins,plotMeanHand,plotVarHand,'lineProps',{'Color',[1 0 1],'LineWidth',2},'patchSaturation',0.2);
-    xlim([-.5 2]);% ylim([0 2]);
-    arrayfun(@(x) plot([x,x],get(gca,'YLim'),'k--','LineWidth',1),plotSegs);
+    xlim([-.5 1]); ylim([0 4]);
+    arrayfun(@(x) plot([x,x],get(gca,'YLim'),'k--','LineWidth',1),mean(cell2mat(plotSegs'),1,'omitnan'));
     legend([ss.mainLine,sh.mainLine],["Arm","Hand"])
 end
 for c = 1:length(params.condNames)
@@ -74,8 +74,8 @@ for c = 1:length(params.condNames)
     plotMeanHand = sum(handM,find(~ismember(1:ndims(handM),2)),'omitnan')./sum(~all(isnan(handM),2),'all');
     plotVarHand = std(handM,0,find(~ismember(1:ndims(handM),2)),'omitnan')./sqrt(sum(~all(isnan(handM),2),'all'));
     sh=shadedErrorBar(params.bins,plotMeanHand,plotVarHand,'lineProps',{'Color',[1 0 1],'LineWidth',2},'patchSaturation',0.2);
-    xlim([-.5 2]); %ylim([0 1]);
-    arrayfun(@(x) plot([x,x],get(gca,'YLim'),'k--','LineWidth',1),plotSegs);
+    xlim([-.5 1]); ylim([0 1.5]);
+    arrayfun(@(x) plot([x,x],get(gca,'YLim'),'k--','LineWidth',1),plotSegs{c});
     legend([ss.mainLine,sh.mainLine],["Arm","Hand"])
 
 end

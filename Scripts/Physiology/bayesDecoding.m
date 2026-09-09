@@ -235,12 +235,13 @@ for t = 1:length(nInputUnits)
 
     if(length(timepoints)>1)
         em=[mean(em(:,1:2),1,'omitnan'),min(em(:,end)),max(em(:,end))];
-        figure(); nAx=4; nLs = floor(length(subGroups)/nAx); nL = mod(length(subGroups),nAx); nt=tiledlayout(1,nAx);
+        figure(); nAx=4; nLs = floor(length(subGroups)/nAx); nL = mod(length(subGroups),nAx); nt=tiledlayout(1,nAx); arrayfun(@(nn) hold(nexttile(nt,nn),'on'), 1:nAx);
         accAx = arrayfun(@(d) arrayfun(@(a) accTUnit(:,:,a),(nLs*(d-1))+(1:(nLs+(nL*(d==nAx)))),'UniformOutput',false),1:nAx,'UniformOutput',false);
-        d = cellfun(@(a,d) cellfun(@(p,c) shadedErrorBar(xl,mean(p,1,'omitnan'),std(p,0,1),'lineProps',...
-            {'Color',trCl(c,:),'LineWidth',2},'patchSaturation',.1,'ax',nexttile(nt,d)),a,num2cell(1:length(a))),accAx,num2cell(1:nAx),'UniformOutput',false);
-        cellfun(@(x,n) legend(nexttile(nt,n),[x.mainLine],subGroups((nLs*(n-1))+(1:(nLs+(nL*(n==nAx))))),'location','southeast','AutoUpdate','off'),d,num2cell(1:nAx));
-        arrayfun(@(d) hold(nexttile(nt,d), 'on'), 1:nAx);
+        l = cellfun(@(a,d) cellfun(@(p,c) plot(nexttile(nt,d),xl,mean(p,1,'omitnan'),'Color',trCl(c,:),'LineWidth',2),a,num2cell(1:length(a))),...
+            accAx,num2cell(1:nAx),'UniformOutput',false);
+        cellfun(@(a,d) cellfun(@(p,c) patch(nexttile(nt,d),'XData',[xl,fliplr(xl)],'YData',[mean(p,1,'omitnan')-std(p,0,1),...
+            fliplr(mean(p,1,'omitnan')+std(p,0,1))],'FaceAlpha',.1,'FaceColor',trCl(c,:),'LineStyle','none'),a,num2cell(1:length(a))),accAx,num2cell(1:nAx),'UniformOutput',false);
+        cellfun(@(x,n) legend(nexttile(nt,n),x,subGroups((nLs*(n-1))+(1:(nLs+(nL*(n==nAx))))),'location','southeast','AutoUpdate','off'),l,num2cell(1:nAx));
         arrayfun(@(d) set(nexttile(nt,d),'ylim',[0 1],'xlim',[min(xl),max(xl)]),1:nAx);
         arrayfun(@(d) arrayfun(@(a,s) plot(nexttile(nt,d),[a a], [0,1], s),em,["k--","k--","b--","m--"]),1:nAx);
         saveFigures(gcf,savePath,"Temporal_"+num2str(nRuns)+"_"+num2str(nUnits),[]);

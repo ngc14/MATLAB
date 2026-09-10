@@ -53,14 +53,14 @@ for m = 1:length(margNames)
         currM = NO;
     end
     armM = cell2mat(reshape(cellfun(@(m) vertcat(m{unitSomatotopy=="Arm" & tUnits}),currM,'UniformOutput',false),[ones(1,ndims(currM{1})),length(currM)])).^2;
-    plotMeanArm = sum(armM,find(~ismember(1:ndims(armM),2)),'omitnan')./sum(~all(isnan(armM),2),'all');
-    plotVarArm = std(armM,0,find(~ismember(1:ndims(armM),2)),'omitnan')./sqrt(sum(~all(isnan(armM),2),'all'));
+    plotMeanArm = mean(armM,find(~ismember(1:ndims(armM),2)),'omitnan');
+    plotVarArm = std(armM,0,find(~ismember(1:ndims(armM),2)),'omitnan')./sqrt(size(armM,1));%sqrt(sum(~all(isnan(armM),2),'all'));
     ss=shadedErrorBar(params.bins,plotMeanArm,plotVarArm,'lineProps',{'Color',[0 .8 0],'LineWidth',2},'patchSaturation',0.2);
     handM = cell2mat(reshape(cellfun(@(m) vertcat(m{unitSomatotopy=="Hand" & tUnits}),currM,'UniformOutput',false),[ones(1,ndims(currM{1})),length(currM)])).^2;
-    plotMeanHand = sum(handM,find(~ismember(1:ndims(handM),2)),'omitnan')./sum(~all(isnan(handM),2),'all');
-    plotVarHand = std(handM,0,find(~ismember(1:ndims(handM),2)),'omitnan')./sqrt(sum(~all(isnan(handM),2),'all'));
+    plotMeanHand = mean(handM,find(~ismember(1:ndims(handM),2)),'omitnan');
+    plotVarHand = std(handM,0,find(~ismember(1:ndims(handM),2)),'omitnan')./sqrt(size(handM,1));%sqrt(sum(~all(isnan(handM),2),'all'));
     sh=shadedErrorBar(params.bins,plotMeanHand,plotVarHand,'lineProps',{'Color',[1 0 1],'LineWidth',2},'patchSaturation',0.2);
-    xlim([-.5 1]); ylim([0 4]);
+    xlim([-.5 1]); ylim([0 5]);
     arrayfun(@(x) plot([x,x],get(gca,'YLim'),'k--','LineWidth',1),mean(cell2mat(plotSegs'),1,'omitnan'));
     legend([ss.mainLine,sh.mainLine],["Arm","Hand"])
 end
@@ -77,5 +77,4 @@ for c = 1:length(params.condNames)
     xlim([-.5 1]); ylim([0 1.5]);
     arrayfun(@(x) plot([x,x],get(gca,'YLim'),'k--','LineWidth',1),plotSegs{c});
     legend([ss.mainLine,sh.mainLine],["Arm","Hand"])
-
 end

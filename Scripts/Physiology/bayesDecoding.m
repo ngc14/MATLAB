@@ -56,12 +56,12 @@ normBaseline = cellfun(@(cc) vertcat(cc{:}),cellfun(@(c) cellfun(@(n) num2cell(n
 %normBaseline = cellfun(@(d) horzcat(d{:}), num2cell(horzcat(normBaseline{:}),2),'UniformOutput',false);
 clear goSegs phaseFR taskFR taskBaseline normBaseline chMaps siteDateMap simpRep
 %% combined conditions of PSTHS to get trial PSTHS organized by units
-siteTrialPSTHS = cellfun(@(cp) cellfun(@(s)cellfun(@(r) squeeze(num2cell(r,[1,2]))',s,'UniformOutput',false)',cellfun(@(p)...
+unitTrialPSTHS = cellfun(@(cp) cellfun(@(s)cellfun(@(r) squeeze(num2cell(r,[1,2]))',s,'UniformOutput',false)',cellfun(@(p)...
     num2cell(permute(permute(p,[1 3 2]),[1 3 2]),[2,3]),vertcat(cp(:)),'UniformOutput',false),'UniformOutput',false),siteTrialPSTHS,'Uniformoutput', false);
-siteTrialPSTHS = cellfun(@(n) [n{:}]' ,siteTrialPSTHS, 'UniformOutput',false);
-siteTrialPSTHS = cellfun(@(c) cellfun(@(a) vertcat(a{:}),c,'UniformOutput',false),siteTrialPSTHS,'UniformOutput',false);
+unitTrialPSTHS = cellfun(@(n) [n{:}]' ,unitTrialPSTHS, 'UniformOutput',false);
+unitTrialPSTHS = cellfun(@(c) cellfun(@(a) vertcat(a{:}),c,'UniformOutput',false),unitTrialPSTHS,'UniformOutput',false);
 %avgUnits = cellfun(@(cs,cb) cellfun(@(s,b) mean(s,1,'omitnan')./mean(max(1,b),2,'omitnan'),cs,cb,'UniformOutput',false),siteTrialPSTHS,normBaseline,'UniformOutput',false)
-siteTrialPSTHS = cellfun(@(s) vertcat(s{:}), num2cell([siteTrialPSTHS{:}],2),'UniformOutput',false);
+unitTrialPSTHS = cellfun(@(s) vertcat(s{:}), num2cell([unitTrialPSTHS{:}],2),'UniformOutput',false);
 %% only use units that are task modulated according to the task phase window
 rUnits = cellfun(@(rg,r,t) rg==1 & r < 1 & t==1, rgInds, rgVals,taskUnits, 'UniformOutput',false);
 gUnits = cellfun(@(rg,r,t) rg==1 & r >= 1 & t==1, rgInds, rgVals,taskUnits, 'UniformOutput',false);
@@ -80,7 +80,7 @@ fUnits = { rUnits{1}, gUnits{1}, bothUnits{1},mappedChannels<=16,mappedChannels>
 clear rUnits gUnits bothUnits taskUnits rgInds rgVals mappedChannels 
 %% organize training PSTHS and condition labels and subpopulation indicies
 trialUnits = cellfun(@(a) sqrt(conv2(resize(a(:,findBins(winAroundEvent(1),params.bins):findBins(winAroundEvent(end),params.bins)),[size(a,1),smoothKernel+...
-    range(findBins(winAroundEvent,params.bins))]),gausswin(smoothKernel)'./sum(gausswin(smoothKernel)),'valid')),siteTrialPSTHS(goodUnits), 'UniformOutput',false);
+    range(findBins(winAroundEvent,params.bins))]),gausswin(smoothKernel)'./sum(gausswin(smoothKernel)),'valid')),unitTrialPSTHS(goodUnits), 'UniformOutput',false);
 trialUnits = cellfun(@(n) vertcat(n{:}), num2cell(trialUnits,2), 'UniformOutput',false);
 trialConds = mapSites2Units(cellfun(@length,siteChannels),cellfun(@(s) num2cell(cell2mat(cellfun(@(c,t) repmat(c(1),...
     size(t{1},1),1),params.condAbbrev.values,s,'UniformOutput',false)')),num2cell([siteSegs{:}],2),'UniformOutput',false)');
@@ -102,7 +102,7 @@ subGroups = [fTypes,somatotopicLabs,reshape(fTypes(1:end-1)'+["-Arm","-Hand"],1,
 goodUnitsTrials = find_sites_with_k_label_repetitions(trainingLabs,nRepeatedCondTests*nCVFolds,arrayfun(@(a) a{1}(1),params.condNames,'UniformOutput',false))';
 subpopulations = cellfun(@(s) ismember(goodUnitsTrials,find(s)), subpopulations,'UniformOutput',false);
 dsr = avg_DS(trainingSet(goodUnitsTrials),trainingLabs(goodUnitsTrials),nCVFolds,nAvg);
-clear trialUnits trialInds trialConds trainingSet trainingLabs siteSegs  goodUnitsTrials goodUnits siteTrialPSTHS unitSomatotopy siteChannels
+clear trialUnits trialInds trialConds trainingSet trainingLabs siteSegs  goodUnitsTrials goodUnits unitTrialPSTHS siteTrialPSTHS unitSomatotopy siteChannels
 %% decoder setup
 binning_parameters = struct('end_time', length(timepoints),'start_time', 1,'bin_width',1);
 dsr.the_basic_DS.binned_site_info.binning_parameters = binning_parameters;

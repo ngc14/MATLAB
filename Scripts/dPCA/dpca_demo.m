@@ -13,18 +13,18 @@ sTrials = 20;
 binWidth = 10; 
 smoothWin = 150;
 dims = 20; 
-time= -.5:binWidth/1000:2.5;
+time= -.5:binWidth/1000:1;
 combinedParams = {{1,[1 2]},{2}};
 margNames = {'Condition','Condition-Invariant'};
 margColours = [23 100 171; 200 160 43; 150 150 150;]/256;
 conditions = ["Extra Small Sphere","Large Sphere","Photocell"];
-params = PhysRecording(conditions,.001,.001,-6,3,containers.Map(conditions,repmat({"StartReach"},1,length(conditions))));
+params = PhysRecording(conditions,.001,.001,-5,3,containers.Map(conditions,repmat({"StartReach"},1,length(conditions))));
 allSegsL = params.condSegMap.values;
 [~,maxSegL]= max(cellfun(@length,allSegsL));
 maxSegL = allSegsL{maxSegL};
 tPhys = unitTable(conditions,params);
 %%
-tableInds = contains(string(tPhys.Somatotopy),["Arm","Hand"]);
+tableInds = contains(string(tPhys.Somatotopy),["Arm","Hand","Trunk","Face"]);
 somaTable = tPhys{tableInds,"Somatotopy"};
 allLocations = tPhys{tableInds,["XT","YT"]};
 allSegs= tPhys{tableInds,contains(tPhys.Properties.VariableNames,"Segs_"+params.condAbbrev.values)};%
@@ -109,11 +109,11 @@ dpca_plot(firingRatesAverage, W, V, @dpca_plot_default,'explainedVar', explVar, 
 %% Step 4: dPCA with regularization
 %load('optimalLambda'). Note that it includes noise covariance matrix Cnoise 
 % which provides substantial regularization itself (even with lambda=0). % 
-somaIndex = cell2mat(arrayfun(@(a) find(somaTable(mv)==a,min(groupcounts(somaTable(mv)))),unique(somaTable(mv)),'UniformOutput',false));
+somaIndex = cell2mat(arrayfun(@(a) find(somaTable(mv)==a), "Trunk",'UniformOutput',false));%,min(groupcounts(somaTable(mv)))),unique(somaTable(mv)),'UniformOutput',false));
 optimalLambda = dpca_optimizeLambda(firingRatesAverage(somaIndex,:,:),firingRates(somaIndex,:,:,:),...
    trialNum(somaIndex,:),'combinedParams', combinedParams, 'simultaneous', false,'numRep', 10);
 Cnoise = dpca_getNoiseCovariance(firingRatesAverage(somaIndex,:,:), ...
-    firingRates(somaIndex,:,:,:), trialNum(somaIndex,:), 'simultaneous', false,'type','averaged');
+    firingRates(somaIndex,:,:,:), trialNum(somaIndex,:), 'simultaneous', false,'type','pooled');
 [W,V,whichMarg] = dpca(firingRatesAverage(somaIndex,:,:,:),dims*(length(combinedParams)+1),...
     'combinedParams', combinedParams,'lambda', optimalLambda,'Cnoise', Cnoise);
 explVar = dpca_explainedVariance(firingRatesAverage(somaIndex,:,:,:), W, V, 'combinedParams', combinedParams);

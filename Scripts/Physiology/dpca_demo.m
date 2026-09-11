@@ -13,18 +13,18 @@ sTrials = 20;
 binWidth = 10;
 smoothWin = 150;
 dims = 20;
-time= -.5:binWidth/1000:2.5;
-combinedParams = {{1,[1 3]},{2,[2,3]},{3},{[1,2],[1,2,3]}};
-margNames = {'Condition','Somatotopy','Movement-Invariant','Cond/Soma Interaction'};
+time= -.5:binWidth/1000:1;
+combinedParams = {{1,[1 2]},{2}};%{{1,[1 3]},{2,[2,3]},{3},{[1,2],[1,2,3]}};
+margNames = {'Condition','Condition-Invariant'};%{'Condition','Somatotopy','Movement-Invariant','Cond/Soma Interaction'};
 margColours = [23 100 171; 200 160 43; 150 150 150; 180 25 180]/256;
 conditions = ["Extra Small Sphere","Large Sphere","Photocell"];
-params = PhysRecording(conditions,.001,.001,-6,3,containers.Map(conditions,repmat({"StartReach"},1,length(conditions))));
+params = PhysRecording(conditions,.001,.001,-5,3,containers.Map(conditions,repmat({"StartReach"},1,length(conditions))));
 allSegsL = params.condSegMap.values;
 [~,maxSegL]= max(cellfun(@length,allSegsL));
 maxSegL = allSegsL{maxSegL};
 tPhys = unitTable(conditions,params);
 %%
-tableInds = contains(string(tPhys.Somatotopy),["Arm","Hand"]);
+tableInds = contains(string(tPhys.Somatotopy),["Arm","Hand","Face","Trunk"]);
 somaTable = tPhys{tableInds,"Somatotopy"};
 allLocations = tPhys{tableInds,["XT","YT"]};
 allSegs= tPhys{tableInds,contains(tPhys.Properties.VariableNames,"Segs_"+params.condAbbrev.values)};%
@@ -75,18 +75,18 @@ firingRates = cellfun(@(c) cellfun(@(s) (conv2(resize(s(:,fix(findBins(time,para
     [size(s,1),length(time)+length(gausswin(ceil(smoothWin/binWidth)))-1],'Pattern','edge','side','both'),...
     transpose(gausswin(ceil(smoothWin/binWidth)))./sum(gausswin(ceil(smoothWin/binWidth))),'valid')),c,'UniformOutput',false),trialPSTH,'UniformOutput',false);
 %+(rand(size(c)).*(std(c,0,2)*std(c,0,1)))
-firingRates = cellfun(@(f) [f,cellfun(@(c) reshape(c(randperm(numel(c))),size(c)),f,'UniformOutput',false)],firingRates, 'UniformOutput',false);
-firingRates(somaTable=="Hand") = cellfun(@(f) fliplr(f), firingRates(somaTable=="Hand"),'UniformOutput',false);
+%firingRates = cellfun(@(f) [f,cellfun(@(c) reshape(c(randperm(numel(c))),size(c)),f,'UniformOutput',false)],firingRates, 'UniformOutput',false);
+%firingRates(somaTable=="Hand") = cellfun(@(f) fliplr(f), firingRates(somaTable=="Hand"),'UniformOutput',false);
 
 firingRates = reshape(firingRates(mv),[ones(1,sum(size(firingRates{1})~=1)),sum(mv)]);
 firingRates = cat(length(size(firingRates))+sum(size(firingRates{1})~=1),firingRates{:});
-firingRates = permute(cell2mat(permute(firingRates,[3 4 1 2 5])),[5 3 4 2 1]);
+firingRates = permute(cell2mat(permute(firingRates,[4 2 3 1])),[3 4 2 1]);
 %firingRates = cell2mat(cellfun(@(r) circshift(r,randi([2*binWidth,size(r,3)-2*binWidth],1),3), num2cell(firingRates,3),'UniformOutput',false));
 trialNum = ones(size(firingRates,[1:3])).*size(firingRates,length(size(firingRates)));
 for n = 1:size(firingRates,1)
     for c = 1:size(firingRates,2)
         for d = 1:size(firingRates,3)
-            assert(isempty(find(isnan(firingRates(n,c,d,:,1:trialNum(n,c))), 1)), 'Something is wrong!')
+            assert(isempty(find(isnan(firingRates(n,c,d,1:trialNum(n,c))), 1)), 'Something is wrong!')
         end
     end
 end
@@ -116,7 +116,7 @@ dpca_plot(firingRatesAverage, W, V, @dpca_plot_default,'explainedVar', explVar, 
 %load('optimalLambda'). Note that it includes noise covariance matrix Cnoise
 % which provides substantial regularization itself (even with lambda=0). %
 somaIndex = cell2mat(arrayfun(@(a) find(somaTable(mv)==a,min(groupcounts(somaTable(mv)))),unique(somaTable(mv)),'UniformOutput',false));
-somaIndex = contains(string(somaTable(mv)),["Arm","Hand"]);
+somaIndex = contains(string(somaTable(mv)),["Trunk"]);
 optimalLambda = dpca_optimizeLambda(firingRatesAverage(somaIndex,:,:,:),firingRates(somaIndex,:,:,:,:),...
     trialNum(somaIndex,:,:),'combinedParams', combinedParams, 'simultaneous', false,'numRep', 10);
 Cnoise = dpca_getNoiseCovariance(firingRatesAverage(somaIndex,:,:,:), ...

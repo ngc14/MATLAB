@@ -82,12 +82,12 @@ firingRates = reshape(firingRates(mv),[ones(1,sum(size(firingRates{1})~=1)),sum(
 firingRates = cat(length(size(firingRates))+sum(size(firingRates{1})~=1),firingRates{:});
 firingRates = permute(cell2mat(permute(firingRates,[4 2 3 1])),[3 4 2 1]);
 %firingRates = cell2mat(cellfun(@(r) circshift(r,randi([2*binWidth,size(r,3)-2*binWidth],1),3), num2cell(firingRates,3),'UniformOutput',false));
-trialNum = ones(size(firingRates,[1:3])).*size(firingRates,length(size(firingRates)));
+trialNum = ones(size(firingRates,1:length(size(firingRates))-2)).*size(firingRates,length(size(firingRates)));
 for n = 1:size(firingRates,1)
     for c = 1:size(firingRates,2)
-        for d = 1:size(firingRates,3)
-            assert(isempty(find(isnan(firingRates(n,c,d,1:trialNum(n,c))), 1)), 'Something is wrong!')
-        end
+        %for d = 1:size(firingRates,3)
+            assert(isempty(find(isnan(firingRates(n,c,1:trialNum(n,c))), 1)), 'Something is wrong!')
+        %end
     end
 end
 % firingRatesAverage = cell2mat(cellfun(@(r) reshape(cell2mat(r),size(r{1},1),1,[]),cellfun(@(s) cellfun(@(t) cell2mat(cellfun(@(n)circshift(n,randi([2*binWidth,length(n)-2*binWidth],1)),n,num2cell(t(mv,unique(round(ms_bins./binWidth))),2),'UniformOutput',false)),s,'UniformOutput',false)',trialPSTH, 'UniformOutput',false),'UniformOutput',false));
@@ -116,7 +116,7 @@ dpca_plot(firingRatesAverage, W, V, @dpca_plot_default,'explainedVar', explVar, 
 %load('optimalLambda'). Note that it includes noise covariance matrix Cnoise
 % which provides substantial regularization itself (even with lambda=0). %
 somaIndex = cell2mat(arrayfun(@(a) find(somaTable(mv)==a,min(groupcounts(somaTable(mv)))),unique(somaTable(mv)),'UniformOutput',false));
-somaIndex = contains(string(somaTable(mv)),["Trunk"]);
+somaIndex = contains(string(somaTable(mv)),["Face"]);
 optimalLambda = dpca_optimizeLambda(firingRatesAverage(somaIndex,:,:,:),firingRates(somaIndex,:,:,:,:),...
     trialNum(somaIndex,:,:),'combinedParams', combinedParams, 'simultaneous', false,'numRep', 10);
 Cnoise = dpca_getNoiseCovariance(firingRatesAverage(somaIndex,:,:,:), ...
@@ -126,7 +126,7 @@ Cnoise = dpca_getNoiseCovariance(firingRatesAverage(somaIndex,:,:,:), ...
 explVar = dpca_explainedVariance(firingRatesAverage(somaIndex,:,:,:), W, V, 'combinedParams', combinedParams);
 dpca_plot(firingRatesAverage(somaIndex,:,:,:), W, V, @dpca_plot_default, ...
     'explainedVar', explVar,'marginalizationNames', margNames, 'marginalizationColours', margColours, ...
-    'whichMarg', whichMarg,'time', time,'timeEvents', timeEvents,'timeMarginalization', 3,...
+    'whichMarg', whichMarg,'time', time,'timeEvents', timeEvents,'timeMarginalization', 2,...
     'legendSubplot', {16,params.condNames},'ylims',[]);
 Z =  bsxfun(@minus, firingRatesAverage(somaIndex,:)', mean(firingRatesAverage(somaIndex,:),[2,3])')* W;
 %% 2. Transform / Project TRIAL-AVERAGED PETHs (X) into dPCA space

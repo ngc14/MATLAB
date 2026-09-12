@@ -28,7 +28,7 @@ if(~exist('plotColors','var'))
     end
 end
 plotNames = fieldnames(plotColors);
-jointName = natsort(plotNames(matches(unique(allReps(allReps~="")),plotNames)));
+jointName = sort(plotNames(matches(unique(allReps(allReps~="")),plotNames)));
 
 zeroBinInd = find(params.bins==0);
 binSize = params.binSize;
@@ -65,12 +65,12 @@ for j = 1:length(jointName)
         if(reuseAxes & ~emptyPlot)
             oldName = get(gca,'Title');
             oldName = oldName.String;
-            titleName = strcat(titleName," (n= ",num2str(min(cellfun(@(s) str2num(s{1}),...
-                regexp(oldName,'[=]\s(\d*)','tokens')),sum(~all(isnan(jointPSTH{1}),2)))),")");
+            titleName = [titleName,strcat("(n= ",num2str(min(cellfun(@(s) str2num(s{1}),...
+                regexp(oldName,'[=]\s(\d*)','tokens')),sum(~all(isnan(jointPSTH{1}),2)))),")")];
         else
-            titleName = strcat(titleName, " (n= ", num2str(sum(~all(isnan(jointPSTH{1}),2))),")");
+            titleName = [titleName, strcat("(n= ", num2str(sum(~all(isnan(jointPSTH{1}),2))),")")];
         end
-        if(trialSamples)
+        if(~trialSamples)
             titleName = strcat(titleName{:}(1:end-1), " of ", num2str(sum(jointInds)),")");
         end
         title(titleName);
@@ -82,7 +82,7 @@ for j = 1:length(jointName)
             %p = plot(xAlignTicks{a},currJointAlign, 'LineWidth',.05,'Color',[plotColors.(jointName{j}),.07]);%; for pp = 1:length(p); p(pp).Color = [
             meanTrace = mean(currJointAlign,1,'omitnan');
             plot(xAlignTicks{a},meanTrace, 'LineWidth',2,'Color',plotColors.(jointName{j}));
-            SEM = nanstd(currJointAlign,0,1);
+            SEM = std(currJointAlign,0,1,'omitnan');
             if(trialSamples)
                 SEM = SEM/sqrt(sum(~all(isnan(currJointAlign),2)));
             end
@@ -97,7 +97,7 @@ for j = 1:length(jointName)
             if(~isempty(yP))
                 groupMax = max(FRLim(end),FRLim(end)*ceil(quantile(yP,.8)/FRLim(end)));
             end
-            avgSegs = nanmean(currSegs,1);
+            avgSegs = mean(currSegs,1,'omitnan');
             if(sum(~isnan(avgSegs))==6)
                 plotted = true(1,size(currSegs,2));
                 pa = {};
@@ -106,7 +106,7 @@ for j = 1:length(jointName)
             if(a==1)
                 plotted = false(1,size(currSegs,2));
                 maxSegNames=maxSegL;
-                patches = cellfun(@(i,w) findBins(avgSegs(find(contains(maxSegNames,i),1))+w,...
+                patches = cellfun(@(i,w) discretize(avgSegs(find(contains(maxSegNames,i),1))+w,...
                      PSTHDisplayLimits(1):binSize:PSTHDisplayLimits(end)), pa,pw,'UniformOutput',false);
             end
             for s = 1:length(avgSegs)
@@ -119,8 +119,7 @@ for j = 1:length(jointName)
                         plotColor = segColors{end};
                     end
                     %plotted(s) = true;
-                    pSeg = find(isalmost(PSTHDisplayLimits(1):binSize:...
-                        PSTHDisplayLimits(end),avgSegs(s),binSize/1.99),1);
+                    pSeg = discretize(avgSegs(s),PSTHDisplayLimits(1):binSize:PSTHDisplayLimits(end));
                     plot([xAlignTicks{a}(pSeg) xAlignTicks{a}(pSeg)],[FRLim(1) groupMax],...
                         'Color',plotColor,'LineStyle','--');
                 end

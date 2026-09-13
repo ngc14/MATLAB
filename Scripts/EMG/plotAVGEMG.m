@@ -2,8 +2,6 @@ monkeys = ["Gilligan","Skipper"];
 drive = "S:\Lab\";
 alignments = [{'GoSignal'},{'StartReach'},{'StartHold'},{'StartWithdraw'}];
 alignWindows = {[-.2 .2],[-.5 .15],[-.20 .20],[-.15 .5]};
-alignments = [{'StartReach'}];
-alignWindows = {[-.5 2.5]};
 phaseWindows = {[0 0.2],[-.15 .05],[-.2 0.0],[-.15 .05]};
 gap = .1;
 smoothKernel = .15; 
@@ -118,8 +116,6 @@ for n = 1:numel(rawActivity)
     figure('Units','normalized','Position',[0 0 1 1]);
     hold on;
     title([strjoin([groupings{r}{:}],",")+"- "+alignments{c}]);
-    outliers = horzcat(combinedConds{:});
-    outliers = outliers(isoutlier(horzcat(combinedConds{:}),'quartiles'));
     b=boxplot(horzcat(combinedConds{:}),cell2mat(cellfun(@(n) ones(1,size(combinedConds{1},2)).*n,...
         num2cell(1:length(Conditions)),'UniformOutput',false)),'Notch','on');
     xticklabels(Conditions);
@@ -131,6 +127,24 @@ for n = 1:numel(rawActivity)
         exportgraphics(gcf,savePath+"Phase_Boxplot\"+strjoin([groupings{r}{:}],'_')+"_"+alignments{c}+'.eps','Resolution',300,'ContentType','vector')
     end
 end
+%%
+somaColors = num2cell([0 .5 0; .5 0 .5;],2);
+armPhases = num2cell(cellfun(@(m) mean(m,2,'omitnan'), [rawActivity{1,:}], 'UniformOutput',false),2);
+handPhases = num2cell(cellfun(@(m) mean(m,2,'omitnan'), [rawActivity{2,:}], 'UniformOutput',false),2);
+combinedConds = cellfun(@(t) vertcat(t{:}),num2cell([vertcat(armPhases),vertcat(handPhases)],2)','UniformOutput',false);
+xGroups = cellfun(@(c,n) cellfun(@(x,y) repmat(x,length(y),1), num2cell(repmat(n+linspace(-.3,.3,length(alignments)),size(rawActivity,1),1)+...
+    [0;0.05]),c, 'UniformOutput',false),combinedConds,num2cell(0:length(combinedConds)-1), 'UniformOutput',false);
+
+f=figure(); hold on;
+s=cellfun(@(x,y) swarmchart(cell2mat(reshape(x,[],1)),cell2mat(reshape(y,[],1)),[],cell2mat(reshape(cellfun(@(ci,xi) ...
+    repmat(ci,length(xi),1), repmat(somaColors,1,size(x,2)),x,'Uniformoutput',false),[],1)),'filled'), xGroups, combinedConds);
+arrayfun(@(sd) scatter(arrayfun(@(sx) str2num(string(sx)),categories(categorical(sd.XData))),...
+    groupsummary(sd.YData',categorical(sd.XData)','mean'),200,'black','_','LineWidth',3),s);
+arrayfun(@(sx) set(sx,'XJitter','density','XJitterWidth',.02), s);
+ylim([0 0.6]);
+xticks(0:1:length(conditions)-1);
+xticklabels(conditions);
+saveas(f,'','png');
 %% TIMECOURSES %%
 pColors =num2cell([.7 0 0; .8 .4 0; 0 0 .7],2);
 pColors = repmat({{[.8 0 .8],[0 .8 0]}},1,3);

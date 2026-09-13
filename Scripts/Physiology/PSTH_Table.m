@@ -107,15 +107,13 @@ somaColors = [0 .5 0; .5 0 .5;0 0 0];
 varNames = tPhys.Properties.VariableNames(any(cell2mat(arrayfun(@(p) contains(tPhys.Properties.VariableNames,string(p)) & ~contains(tPhys.Properties.VariableNames,"_R"), phaseNames, 'UniformOutput', false)'),1));
 phaseVals = tPhys{:,varNames};
 condLabels = sum(cell2mat(cellfun(@(c,n) n.*contains(varNames,"_"+c),params.condAbbrev.values,num2cell(1:length(conditions)),'UniformOutput',false)'),1);
-phaseLabels = sum(cell2mat(cellfun(@(c,n) n.*contains(varNames,string(c)),cellstr(phaseNames),num2cell(1:length(phaseNames)),'UniformOutput',false)'),1);
-condIndex = any(tPhys{:,contains(tPhys.Properties.VariableNames,"Task") & ~contains(tPhys.Properties.VariableNames,"_R")},2); ...
-    %& tPhys.Channel<=16;
+condIndex = any(tPhys{:,contains(tPhys.Properties.VariableNames,"Task") & ~contains(tPhys.Properties.VariableNames,"_R")},2); 
 condPhases = phaseVals(condIndex,:);
 armPhases = condPhases(tPhys{condIndex,'Somatotopy'}=="Arm",:);
 handPhases = condPhases(tPhys{condIndex,'Somatotopy'}=="Hand",:);
 figure(); hold on;
-s=swarmchart(reshape([repmat(condLabels+[-.3 -.3 -.3 -.1 -.1 -.1 .1 .1 .1 .3 .3 .3],size(armPhases,1),1);repmat(condLabels...
-    +[-.3 -.3 -.3 -.1 -.1 -.1 .1 .1 .1 .3 .3 .3]+.05,size(handPhases,1),1)],[],1),reshape([armPhases;handPhases],[],1),...
+s=swarmchart(reshape([repmat(condLabels+repelem(linspace(-.3,.3,length(phaseNames)),length(conditions)),size(armPhases,1),1);repmat(condLabels...
+    +repelem(linspace(-.3,.3,length(phaseNames)),length(conditions))+.05,size(handPhases,1),1)],[],1),reshape([armPhases;handPhases],[],1),...
     [],somaColors(reshape([ones(size(armPhases));2*ones(size(handPhases))],1,[]),:),'filled');
 s.XJitter = 'rand'; s.XJitterWidth = .02;
 [meanVals,gNames] = cellfun(@(c) groupsummary(cell2mat(arrayfun(@(v) tPhys{condIndex,string(v)},(varNames(contains(varNames,"_"+c))),'UniformOutput',false)),...
@@ -131,8 +129,8 @@ scatter(unique([get(xa,"Children").XData],'sorted'),plotVals,200,'black',"_",'Li
 saveFigures(gcf,savePath,"Normalized_Violins",[]);
 %%
 allSegs = cellfun(@(c,n) cellfun(@(s,t) repmat(mean([s{:}],1,'omitnan'),size(t,1),1), c,n, 'UniformOutput',false), sumSegs,normPSTH,'UniformOutput',false);
-allPSTHS = cellfun(@(p) num2cell(p,[2,3]),vertcat(normPSTH{:}),'UniformOutput',false); %
-psthLabs = arrayfun(@(c,s) repmat(c,size(cell2mat([s{:}]),1),1)+"_"+string(tPhys.Somatotopy)+"_"+tPhys.("unitType_"+c),string(params.condAbbrev.values),allSegs,'UniformOutput',false);%+"_"+string(tPhys.Channel>16)
+allPSTHS = cellfun(@(psite) num2cell(p,[2,3]),vertcat(normPSTH{:}),'UniformOutput',false); %
+psthLabs = arrayfun(@(c,s) repmat(c,height(tPhys),1)+"_"+string(tPhys.Somatotopy)+"_"+tPhys.("unitType_"+c),string(params.condAbbrev.values),allSegs,'UniformOutput',false);%+"_"+string(tPhys.Channel>16)
 allLabs = unique([psthLabs{:}]); 
 emptyConds = allLabs(contains(allLabs,"_0"));
 for p = 1:length(psthLabs)

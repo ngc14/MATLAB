@@ -7,10 +7,10 @@ allSegs = params.condSegMap.values;
 maxSegL = allSegs{maxSegL};
 %% load all single units from M1 recordings that were not from the face zone
 [siteDateMap, siteSegs, siteTrialPSTHS,~, siteChannels,chMaps,~,~]=...
-    getAllSessions(params,"Single","M1","");
+    getAllSessions(params,"Single","M1","Face");
 %%
 % unit somatotopy and channel number
-siteRep =cell2mat(cellfun(@(r,t) r(find(t==min(t),1)),siteDateMap.SiteRep,siteDateMap.Thresh,'UniformOutput', false));
+siteRep =cell2mat(cellfun(@(r,t) r(find((t.*~contains(r,"Face"))==min(t),1)),siteDateMap.SiteRep,siteDateMap.Thresh,'UniformOutput', false));
 mappedChannels = cellfun(@(ch,l) ch{2}(l(~isnan(l))), chMaps,siteChannels, 'Uniformoutput', false)';
 % normalize PSTHs to baseline activity (averaged 1s before Cue)
 sumSegs = cellfun(@(c) cellfun(@(n) [n{:}], c, 'UniformOutput',false), siteSegs,'UniformOutput',false);

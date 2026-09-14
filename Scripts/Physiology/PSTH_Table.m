@@ -76,7 +76,7 @@ for c = 1:length(conditions)
     tUnits = cell2mat(tUnit{c});
     tUnits(isnan(tUnits)) = 0;
     condTable.Unit = transpose(1:length(allReps));
-    condTable.SiteNum = cell2mat(arrayfun(@(s,c) repmat(s,c,1), 1:length(condUnitMapping),condUnitMapping','UniformOutput',false)');
+    condTable.SiteNum = cell2mat(arrayfun(@(s,c) repmat(s,c,1), siteDateMap.Site,condUnitMapping,'UniformOutput',false));
     condTable.Monkey = categorical(mapSites2Units(condUnitMapping,siteDateMap.Monkey));
     condTable.Somatotopy = categorical(allReps);
     mInds= condTable.Monkey=="Skipper";

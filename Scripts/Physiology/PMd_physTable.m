@@ -1,6 +1,9 @@
 varNames = ["Unit" "SiteNum" "Monkey" "Somatotopy" "Channel" "X" "Y" "Condition"...
      "TaskUnits" "DiffRest"];
 rNames = ["RT_r", "RSpeed_r"];
+conditions = ["Extra Small Sphere", "Large Sphere", "Photocell","Rest"];
+params = PhysRecording(string(conditions),.01,.15,-6,5,containers.Map(conditions,...
+    {"StartReach","StartReach","StartReach","GoSignal"}));
 conditions = params.condNames;
 phaseNames = ["Baseline", "Go", "Reach", "Hold","Reward"];
 phaseAlignmentPoints = {["GoSignal","GoSignal","StartReach","StartHold","StartReward"],...
@@ -26,6 +29,9 @@ allSegs = params.condSegMap.values;
 maxSegL = allSegs{maxSegL};
 condSegMappedInds = cellfun(@(f) find(contains(maxSegL,f)), allSegs, 'UniformOutput', false);
 close all;
+%%
+[siteDateMap, siteSegs, siteTrialPSTHS, ~, siteChannels,chMaps,~,~] = ...
+    getAllSessions(params,"Single","PMd","");
 %%
 trialFR = cellfun(@(ct,cs,ta) cellfun(@(a,b) cell2mat(cellfun(@(m,tt) ...
     squeeze(mean(m(:,max(1,tt(1)):max(1,tt(end)),:),2,'omitnan').*(1*~all(isnan(tt)))),...

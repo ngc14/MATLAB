@@ -129,7 +129,7 @@ scatter(unique([get(xa,"Children").XData],'sorted'),plotVals,200,'black',"_",'Li
 saveFigures(gcf,savePath,"Normalized_Violins",[]);
 %%
 allSegs = cellfun(@(c,n) cellfun(@(s,t) repmat(mean([s{:}],1,'omitnan'),size(t,1),1), c,n, 'UniformOutput',false), sumSegs,normPSTH,'UniformOutput',false);
-allPSTHS = cellfun(@(psite) num2cell(p,[2,3]),vertcat(normPSTH{:}),'UniformOutput',false); %
+allPSTHS = cellfun(@(p) num2cell(p,[2,3]),vertcat(normPSTH{:}),'UniformOutput',false); %
 psthLabs = arrayfun(@(c,s) repmat(c,height(tPhys),1)+"_"+string(tPhys.Somatotopy)+"_"+tPhys.("unitType_"+c),string(params.condAbbrev.values),allSegs,'UniformOutput',false);%+"_"+string(tPhys.Channel>16)
 allLabs = unique([psthLabs{:}]); 
 emptyConds = allLabs(contains(allLabs,"_0"));

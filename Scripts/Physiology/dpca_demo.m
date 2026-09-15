@@ -37,8 +37,9 @@ allSegs = allSegs(numUnits,:);
 %%
 segInds = cellfun(@(n) n(:,arrayfun(@(c)find(strcmp(maxSegL,c)),["GoSignal","StartReach","StartHold","StartWithdraw"])),cellfun(@cell2mat,...
     num2cell(cellfun(@(aa) findBins(mean(aa,1,'omitnan'),params.bins),allSegs,'UniformOutput',false),1),'Uniformoutput',false),'UniformOutput',false);
-currD= cellfun(@(v) permute(cell2mat(reshape(cellfun(@(d) resize(max(0,d),[size(d,1),max(sTrials*4,size(d,2))],'FillValue',NaN)',...
-    v,'Uniformoutput',false),1,1,[])),[3 1 2]),num2cell(tablePSTHD(numUnits,:),1), 'UniformOutput',false);
+currD= cellfun(@(v) permute(cell2mat(reshape(cellfun(@(d) downsampleTrials(resize(max(0,d),[size(d,1),max(sTrials*2,size(d,2))],...
+    'FillValue',NaN),sTrials)',v,'Uniformoutput',false),1,1,[])),[3 1 2]),num2cell(tablePSTHD(numUnits,:),1), 'UniformOutput',false);
+clear tablePSTHD;
 currD = squeeze(cellfun(@squeeze,num2cell(cellfun(@squeeze,num2cell(cat(4,currD{:}),[2,3]),'UniformOutput',false),4),'UniformOutput',false));
 %% Define parameter grouping
 % firingRates array has [N S D T E] size; ignore the 1st dimension (neurons)
@@ -58,12 +59,12 @@ currD = squeeze(cellfun(@squeeze,num2cell(cellfun(@squeeze,num2cell(cat(4,currD{
 trialPSTH = cell(1,length(currD));
 trialLength = floor(size(currD{1}{1}, 2) / binWidth);
 for n = 1:length(currD)
-    trialPSTH{n} = cellfun(@(n) NaN(sum(~all(isnan(n),2)),trialLength), currD{n},'UniformOutput',false);%repmat({NaN(sTrials,trialLength)},length(params.condNames),1);
+    trialPSTH{n} = repmat({NaN(sTrials,trialLength)},length(params.condNames),1);%NaN(sum(~all(isnan(n),2)),trialLength), currD{n},'UniformOutput',false);%
     for c = 1:length(trialPSTH{n})
         for t = 1:trialLength
             iStart = binWidth * (t-1) + 1;
             iEnd   = binWidth *t;
-            trialPSTH{n}{c}(:,t) = sum(currD{n}{c}(~all(isnan(currD{n}{c}),2),iStart:iEnd),2);
+            trialPSTH{n}{c}(:,t) = sum(currD{n}{c}(:,iStart:iEnd),2);
         end
     end
 end
@@ -90,10 +91,9 @@ for n = 1:size(firingRates,1)
         %end
     end
 end
+firingRates(isnan(firingRates)) = 0;
 % firingRatesAverage = cell2mat(cellfun(@(r) reshape(cell2mat(r),size(r{1},1),1,[]),cellfun(@(s) cellfun(@(t) cell2mat(cellfun(@(n)circshift(n,randi([2*binWidth,length(n)-2*binWidth],1)),n,num2cell(t(mv,unique(round(ms_bins./binWidth))),2),'UniformOutput',false)),s,'UniformOutput',false)',trialPSTH, 'UniformOutput',false),'UniformOutput',false));
 firingRatesAverage = mean(firingRates, length(size(firingRates)),'omitnan');
-firingRatesAverage(isnan(firingRatesAverage)) = 0;
-firingRates(isnan(firingRates)) = 0;
 timeEventConds = cell2mat(cellfun(@(i) mean(findBins(params.bins(i),time),1,'omitnan'),...
     cellfun(@(s) fix(s(mv,~all(isnan(s),1))),segInds,'UniformOutput',false)','UniformOutput',false));
 timeEvents = time(round([mean(timeEventConds(:,1:2),1,'omitnan'),median(timeEventConds(:,3:4),1,'omitnan')]));
@@ -115,19 +115,18 @@ dpca_plot(firingRatesAverage, W, V, @dpca_plot_default,'explainedVar', explVar, 
 %% Step 4: dPCA with regularization
 %load('optimalLambda'). Note that it includes noise covariance matrix Cnoise
 % which provides substantial regularization itself (even with lambda=0). %
-%somaIndex = cell2mat(arrayfun(@(a) find(somaTable(mv)==a,min(groupcounts(somaTable(mv)))),unique(somaTable(mv)),'UniformOutput',false));
-%somaIndex = contains(string(somaTable(mv)),["Hand"]);
+somaIndex = cell2mat(arrayfun(@(a) find(somaTable(mv)==a,min(groupcounts(somaTable(mv)))),unique(somaTable(mv)),'UniformOutput',false));
+somaIndex = contains(string(somaTable(mv)),["Hand"]);
 
-firingRates = cellfun(@(c) cellfun(@(m) num2cell(m,[2 3]),c,'UniformOutput',false), normPSTH, 'UniformOutput',false);
-firingRates = cellfun(@(c)  vertcat(c{:}), firingRates, 'UniformOutput',false);
-goodUnits = all(cell2mat(cellfun(@(c) cellfun(@(s) size(s,3)>=sTrials, c),firingRates, 'UniformOutput',false)),2);
-firingRates = cellfun(@(c) cellfun(@squeeze,c(goodUnits),'UniformOutput',false),firingRates, 'UniformOutput',false);
-firingRates= cell2mat(cellfun(@(v) permute(cell2mat(reshape(cellfun(@(d) downsampleTrials(resize(d(discretize(timePlot,params.bins),:),...
-    [length(timePlot),sTrials*2],'FillValue',NaN),sTrials)',v,'Uniformoutput',false),1,1,[])),[3 4 2 1]),firingRates, 'UniformOutput',false));
-trialNum = ones(size(firingRates,1:length(size(firingRates))-2)).*size(firingRates,length(size(firingRates)));
-firingRatesAverage = mean(firingRates,ndims(firingRates),'omitnan');
-
-somaIndex = goodUnits & tPhys.Somatotopy=="Hand";
+%firingRates = cellfun(@(c) cellfun(@(m) num2cell(m,[2 3]),c,'UniformOutput',false), normPSTH, 'UniformOutput',false);
+% firingRates = cellfun(@(c)  vertcat(c{:}), firingRates, 'UniformOutput',false);
+% goodUnits = all(cell2mat(cellfun(@(c) cellfun(@(s) size(s,3)>=sTrials, c),firingRates, 'UniformOutput',false)),2);
+% firingRates = cellfun(@(c) cellfun(@squeeze,c(goodUnits),'UniformOutput',false),firingRates, 'UniformOutput',false);
+% firingRates= cell2mat(cellfun(@(v) permute(cell2mat(reshape(cellfun(@(d) downsampleTrials(resize(d(discretize(timePlot,params.bins),:),...
+%     [length(timePlot),sTrials*2],'FillValue',NaN),sTrials)',v,'Uniformoutput',false),1,1,[])),[3 4 2 1]),firingRates, 'UniformOutput',false));
+% trialNum = ones(size(firingRates,1:length(size(firingRates))-2)).*size(firingRates,length(size(firingRates)));
+% firingRatesAverage = mean(firingRates,ndims(firingRates),'omitnan');
+%somaIndex = goodUnits & tPhys.Somatotopy=="Hand";
 
 optimalLambda = dpca_optimizeLambda(firingRatesAverage(somaIndex,:,:,:),firingRates(somaIndex,:,:,:,:),...
     trialNum(somaIndex,:,:),'combinedParams', combinedParams, 'simultaneous', false,'numRep', 10);

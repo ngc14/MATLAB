@@ -20,88 +20,63 @@ clear
 close all
 %% VARIABLES FOR USER MODIFICATION
 appendToGilliganCummulativeData='no'; %'yes' or 'no'*
-monkey = 'Skipper';
-sessionDate = '11_25_2020';
+monkey = 'Gilligan';
+sessionDate = '07_05_2022';
 
-%splitErrors = {'Stim', ''};
-splitErrors = {'Extra Small Sphere','Large Sphere','Photocell','Rest'};
-
-%mainEffect = {'Extra Small Sphere','Stim_Extra Small Sphere','Photocell', 'Stim_Photocell'};
-mainEffect = {'Extra Small Sphere','Large Sphere','Photocell'};
-
-%sigComps = {{'Extra Small Sphere','Stim_Extra Small Sphere'},{'Photocell', 'Stim_Photocell'}}
-sigComps = {{[],[]}};
-
-% Variable needed for multiple plots and proper addition to
-% GilliganCummulative Data (DO NOT CHANGE)
-allConditions_withRest={'Extra Small Sphere','Large Sphere','Photocell' ,'Rest'};
-%allConditions_withRest={'Extra Small Sphere','Stim_Extra Small Sphere','StimBeforeGo_Extra Small Sphere','StimBeforeGo10_Extra Small Sphere'};
-% Do not append the same file information twice! If a mistake is made, the
-% duplicate information in appendToGilliganCummulativeData will need to be
-% deleted.
 alphaVal = 0.05;
+splitErrors = {'Extra Small Sphere','Large Sphere','Photocell','Rest'}; %{'Stim', ''};
+mainEffect = {'Extra Small Sphere','Large Sphere','Photocell'}; %{'Extra Small Sphere','Stim_Extra Small Sphere','Photocell', 'Stim_Photocell'};
+sigComps = {{[],[]}}; %{{'Extra Small Sphere','Stim_Extra Small Sphere'},{'Photocell', 'Stim_Photocell'}}
+
+% Variable needed for multiple plots and proper addition to GilliganCummulativeData
+% DO NOT CHANGE
+allConditions_withRest={'Extra Small Sphere','Large Sphere','Photocell' ,'Rest'};
+% Do not append the same file information twice! If a mistake is made, the
+% duplicate information in appendToGilliganCummulativeData will need deleted.
 %% IMPORT DATA FROM TXT FILE
-% need importdatafile function
-% importdatafile works regardless of if the txt file has a header row or not
-
-%%%%%%%%%%%%% can edit this portion so that the script runs for multiple files
-% cd('S:\Lab\BehaveBackup\Monkey_Training\Gilligan_Macaque_110-16')
-% tempallfilenames=dir;
-% tempallfilenames={tempallfilenames.name};
-% allfilenames={tempallfilenames{:,[89:133]}};
-%
-% for z=1:length(allfilenames)
-%     filename=allfilenames{z};
-%%%%%%%%%%%%%
-filename= [monkey,'_',sessionDate]; % DO NOT INCLUDE FILE EXTENSION (e.g. '.txt')
+filename= [monkey,'_',char(datetime(sessionDate,'InputFormat','MM_dd_uuuu','Format','uuuu_MM_dd'))]; % EXCLUDE FILE EXTENSION (e.g. '.txt')
 filePathDir=['S:\Lab\', monkey,'\All Data\',filename,'\Arduino\'];
-
-% Copy Arduino file from BehaveBackup\Monkey_Training to
-% % Gilligan\All Data
+% Copy Arduino file from BehaveBackup\Monkey_Training to Gilligan\All Data
 if(~exist(filePathDir, 'dir'))
     mkdir(filePathDir);
 end
 if(~exist([filePathDir,filename,'txt'],'file'))
     if(strcmp(monkey, 'Gilligan'))
-        copyfile(['S:\Lab\BehaveBackup\Monkey_Training\Gilligan_Macaque_110-16\',filename,'\',filename,'.txt'],[filePathDir,filename,'.txt']);
+        copyfile(['S:\Lab\BehaveBackup\Monkey_Training\Gilligan_Macaque_110-16\',monkey,'_',sessionDate,'\',monkey,'_',sessionDate,'.txt'],...
+            [filePathDir,filename,'.txt']);
     elseif(strcmp(monkey, 'Skipper'))
-        copyfile(['S:\Lab\BehaveBackup\Monkey_Training\Skipper_Macaque_152_17\',filename,'\',filename,'.txt'],[filePathDir,filename,'.txt']);
+        copyfile(['S:\Lab\BehaveBackup\Monkey_Training\Skipper_Macaque_152_17\',monkey,'_',sessionDate, '\', monkey,'_',sessionDate,'.txt'],...
+            [filePathDir,filename,'.txt']);
     end
 end
-% Import data
-addpath('S:\Lab\Jennifer\MATLAB\GilliganGraphScripts');
 
+% need importdatafile function
+% importdatafile works regardless of if the txt file has a header row or not
 session=importdatafile([filePathDir,filename,'.txt']);
 
-% Removes pauses
+% Removes pauses and trials with 1 ms durations
 session=session(~isnan(session.Trial),:);
-% blockInd = randi(50,1,30);
-% session = session(ismember(session.Block,blockInd),:);
-
-% Remove trials with 1 ms durations
 Idx_1ms=sum((table2array(session(:,5:9))==1),2)~=0;
 trialIdx=find(~Idx_1ms);
 session=session(trialIdx,:);
 
 % Data for GilliganCummulativeData
 spreadsheetData{1}=filename;
-
 numAllConditions_withRest=length(allConditions_withRest);
 
-% Seperate Rest conditions from all other conditions
+% seperate Rest conditions from movement conditions
 conditions=allConditions_withRest(~strcmp(allConditions_withRest,'Rest'));
 numConditions=length(conditions);
 restTrialIdx=strcmp(session.Condition,'Rest');
 session_noRest=session(~restTrialIdx,:);
 session_Rest=session(restTrialIdx,:);
-
 %% PLOT OF ERRORS
 % NOTE: The number of each specific type of error may not match the last
 % line in the text file outputted from Arduino because the rest conditions
 % are dealt seperately in this script. For instance, a false start on a
 % rest trial is not counted as a false start here. Rather, a false start on
 % a rest trial is ONLY counted as a rest error.
-%h1=figure('units','normalized','outerposition',[0 0 1 1],'Name',[filename, ': plot of errors'],'NumberTitle','off');
+h1=figure('units','normalized','outerposition',[0 0 1 1],'Name',[filename, ': plot of errors'],'NumberTitle','off');
 
 % Rest errors
 % Convert Successful Trial column from text to matrix of numbers and NaNs
@@ -140,8 +115,6 @@ if(any(cellfun(@isempty, splitErrors)) && length(splitErrors)>1)
     splitErrors{find(cellfun(@isempty,splitErrors))} = 'No_Stim';
 end
 
-% subplot(1,2,1)
-% bar(barGroup')
 if isempty(session_Rest)
     errorType={'False Start','Failed Reach','Failed Contact','Failed Lift',...
         'Failed Hold','Failed Replace','Failed Replace Hold'};
@@ -149,18 +122,19 @@ else
     errorType={'False Start','Failed Reach','Failed Contact','Failed Lift',...
         'Failed Hold','Failed Replace','Failed Replace Hold','Failed Rest'};
 end
-% xlabel('Error Type')
-% ylabel('Number of Occurances')
-% set(gca,'XTickLabel',errorType,'XTick',1:numel(errorType),'FontSize',16,...
-%     'box','off','xTickLabelRotation',45)
-% legend(splitErrors);
-% ylim([0,max([falseStart,failedReach,failedContact,failedLift,...
-%     failedHold,failedReplace,failedReplaceHold])+5])
-% title('Number of Each Error Type')
-% 
-% text(7,14,['Total Errors: ',num2str(totalErrors)],'FontSize',16)
-% text(7,11,['Number of Trials: ',num2str(trials)],'FontSize',16)
-% text(7,8,['Error Percent: ',num2str(errorPercent),'%'],'FontSize',16)
+subplot(1,2,1)
+bar(barGroup')
+xlabel('Error Type')
+ylabel('Number of Occurances')
+set(gca,'XTickLabel',errorType,'XTick',1:numel(errorType),'FontSize',16,...
+    'box','off','xTickLabelRotation',45)
+legend(splitErrors);
+ylim([0,max([falseStart,failedReach,failedContact,failedLift,...
+    failedHold,failedReplace,failedReplaceHold])+5])
+title('Number of Each Error Type');
+text(gca,-2,max(get(gca,'YLim'))-(.5+range(get(gca,'YLim'))/6),['Total Errors: ',num2str(totalErrors)],'FontSize',16)
+text(gca,-2,max(get(gca,'YLim'))-(.25+range(get(gca,'YLim'))/6),['Number of Trials: ',num2str(trials)],'FontSize',16)
+text(gca,-2,max(get(gca,'YLim'))-range(get(gca,'YLim'))/6,['Error Percent: ',num2str(errorPercent),'%'],'FontSize',16)
 
 % Find number of trials for each condition
 correctTrialsPerCond=[];
@@ -169,24 +143,21 @@ for i=1:numAllConditions_withRest
     ct = session.Block(tempCondIdx);
     correctTrialsPerCond=[correctTrialsPerCond,mean(arrayfun(@(s) sum(ct==s), unique(ct))-1)];
 end
-correctTrialsPerCond'
+
 % Data for GilliganCummulativeData
 tempCorrectTrials=cellfun(@str2num,session.SuccessfulTrial,'UniformOutput',false);
 correctTrials=sum(~cellfun(@isempty,tempCorrectTrials));
 spreadsheetData{2}=[correctTrials,trials,correctTrialsPerCond,falseStart,...
     failedReach,failedContact,failedLift,failedHold,failedReplace,...
     failedReplaceHold,[],totalErrors,errorPercent];
-clearvars restData restTrials restTrialsIdx failedRest errorType trials...
-    errorPercent totalErrors tempCorrectTrials correctTrials
-
+clearvars restData restTrials restTrialsIdx failedRest errorType trials errorPercent totalErrors tempCorrectTrials correctTrials
 %% PLOT SUCCESSFUL TRIALS
-
 for i=1:numAllConditions_withRest
     tempCondIdx=strcmp(session.Condition,allConditions_withRest(i));
     tempNumCond=sum(tempCondIdx);
     tempNumSuccessful=sum(successfulTrial(tempCondIdx)>0);
     tempPercentSuccessful=tempNumSuccessful/tempNumCond;
-    
+
     percentSuccessfulCummulative(i)=tempPercentSuccessful*100;
 end
 subplot(1,2,2)
@@ -200,32 +171,27 @@ title('Percent of Successful Trials')
 
 % Data for GilliganCummulativeData
 spreadsheetData{2}=[spreadsheetData{2},percentSuccessfulCummulative];
-clearvars i tempCondIdx tempNumCond tempNumSuccessful...
-    tempPercentSuccessful percentSuccessfulCummulative
-
+clearvars i tempCondIdx tempNumCond tempNumSuccessful tempPercentSuccessful percentSuccessfulCummulative
 %% PLOT REACTION TIME
 h2=figure('units','normalized','outerposition',[0 0 1 1],'Name',[filename, ': only correct trials included'],'NumberTitle','off');
-
 % Isolate successful trials for graphing.
 successfulTrial_noRest=cellfun(@str2num,session_noRest.SuccessfulTrial,'UniformOutput',false);
 successfulIdx=find(~cellfun(@isempty,successfulTrial_noRest));
 session_noRest=session_noRest(successfulIdx,:);
 
-% Maybe not neccessary. Remove rows with a NaN in the SuccessfulTrial
-% column. (Just an additional safegaurd.)
+% Remove rows with a NaN in the SuccessfulTrial column (additional safegaurd)
 %successfulTrial_noRest=cellfun(@str2num,session_noRest.SuccessfulTrial,'UniformOutput',false);
 %successfulIdx=~cellfun(@isnan,successfulTrial_noRest);
 %session_noRest=session_noRest(successfulIdx,:);
-
 for i=1:numConditions
     tempCondIdx=strcmp(session_noRest.Condition,conditions(i));
     condRxtTime=session_noRest.Reaction_time(tempCondIdx);
     averageCondRxtTime=nanmean(condRxtTime);
     semCondRxtTime=nanstd(condRxtTime)/sqrt(length(condRxtTime));
-    
+
     avgRxtTimeCummulative(i)=averageCondRxtTime;
     semRxtTimeCummulative(i)=semCondRxtTime;
-    
+
     rxtTimeArray{i}=condRxtTime;
 end
 subplot(2,3,1)
@@ -240,8 +206,6 @@ set(gca,'XTickLabel',conditions(~isnan(avgRxtTimeCummulative)),...
     'FontSize', 10, 'box','off','xTickLabelRotation',45)
 title('Average Reaction Time')
 
-
-% Overlay reaction times for individual trials
 hold on;
 yMax=-Inf;
 xLoc=1;
@@ -283,21 +247,18 @@ if(isempty(mainEffect) || anova1(allRTs,[],'off')<alphaVal)
 end
 % Data for GilliganCummulativeData
 spreadsheetData{2}=[spreadsheetData{2},avgRxtTimeCummulative,semRxtTimeCummulative];
-clearvars averageCondRxtTime avgRxtTimeCummulative condRxtTime h i...
-    reactionTimeIdx rxtTimeArray stdCondRxtTime stdRxtTimeCummulative...
-    tempCondIdx tempsession
-
+clearvars averageCondRxtTime avgRxtTimeCummulative condRxtTime h i tempCondIdx ...
+    tempsession reactionTimeIdx rxtTimeArray stdCondRxtTime stdRxtTimeCummulative
 %% PLOT REACH DURATION
-
 for i=1:numConditions
     tempCondIdx=strcmp(session_noRest.Condition,conditions(i));
     condReachDur=session_noRest.ReachDuration(tempCondIdx);
     averageCondReachDur=nanmean(condReachDur);
     semCondReachDur=nanstd(condReachDur)/sqrt(length(condReachDur));
-    
+
     avgReachDurCummulative(i)=averageCondReachDur;
     semReachDurCummulative(i)=semCondReachDur;
-    
+
     reachDurArray{i}=condReachDur;
 end
 subplot(2,3,2)
@@ -352,20 +313,18 @@ if(isempty(mainEffect) || anova1(allRs,[],'off')<alphaVal)
 end
 % Data for GilliganCummulativeData
 spreadsheetData{2}=[spreadsheetData{2},avgReachDurCummulative,semReachDurCummulative];
-clearvars averageCondReachDur avgReachDurCummulative condReachDur...
-    reachDurArray reachDurationIdx stdCondReachDur...
-    stdReachDurCummulative tempsession h i tempCondIdx
-
+clearvars averageCondReachDur avgReachDurCummulative condReachDur tempsession ...
+    reachDurArray reachDurationIdx stdCondReachDur stdReachDurCummulative h i tempCondIdx
 %% PLOT GRASP DURATION
 for i=1:numConditions
     tempCondIdx=strcmp(session_noRest.Condition,conditions(i));
     condGraspDuration=session_noRest.GraspDuration(tempCondIdx);
     averageCondGraspDur=nanmean(condGraspDuration);
     semCondGraspDur=nanstd(condGraspDuration)/sqrt(length(condGraspDuration));
-    
+
     avgGraspDurCummulative(i)=averageCondGraspDur;
     semGraspDurCummulative(i)=semCondGraspDur;
-    
+
     graspDurArray{i}=condGraspDuration;
 end
 subplot(2,3,3)
@@ -420,11 +379,9 @@ if(isempty(mainEffect) || anova1(allGs,[],'off')<alphaVal)
 end
 % Data for GilliganCummulativeData
 spreadsheetData{2}=[spreadsheetData{2},avgGraspDurCummulative,semGraspDurCummulative];
-clearvars averageCondGraspDur avgGraspDurCummulative condGraspDur...
-    graspDurArray graspDurationIdx stdCondGraspDur...
-    stdReachDurCummulative tempsession h i tempCondIdx
+clearvars averageCondGraspDur avgGraspDurCummulative condGraspDur stdReachDurCummulative...
+    graspDurArray graspDurationIdx stdCondGraspDur tempsession h i tempCondIdx
 %% PLOT LIFT DURATION
-
 % Remove conditions that do not have a lift duration
 tempsession=session_noRest(~strcmp(session_noRest.Condition,'Photocell'),:);
 tempsession=tempsession(~strcmp(tempsession.Condition,'Empty'),:);
@@ -432,16 +389,15 @@ tempsession=tempsession(~strcmp(tempsession.Condition,'Empty'),:);
 tempConditions=conditions(~strcmp(conditions,'Photocell'));
 tempConditions=tempConditions(~strcmp(tempConditions,'Empty'));
 tempNumConditions=length(tempConditions);
-
 for i=1:tempNumConditions
     tempCondIdx=strcmp(tempsession.Condition,tempConditions(i));
     condLiftDur=tempsession.LiftDuration(tempCondIdx);
     averageCondLiftDur=nanmean(condLiftDur);
     semCondLiftDur=nanstd(condLiftDur)/sqrt(length(condLiftDur));
-    
+
     avgLiftDurCummulative(i)=averageCondLiftDur;
     semLiftDurCummulative(i)=semCondLiftDur;
-    
+
     liftDurArray{i}=condLiftDur;
 end
 subplot(2,3,4)
@@ -493,21 +449,18 @@ if(isempty(mainEffect) || anova1(allLs,[],'off')<alphaVal)
 end
 % Data for GilliganCummulativeData
 spreadsheetData{2}=[spreadsheetData{2},avgLiftDurCummulative,semLiftDurCummulative];
-clearvars averageCondLiftDur avgLiftDurCummulative condLiftDur h i...
-    liftDurArray liftDurationIdx stdCondLiftDur stdLiftDurCummulative...
-    tempCondIdx tempConditions tempNumConditions tempsession
-
+clearvars averageCondLiftDur avgLiftDurCummulative condLiftDur h i tempNumConditions ...
+    liftDurArray liftDurationIdx stdCondLiftDur stdLiftDurCummulative tempsession tempCondIdx tempConditions
 %% PLOT HOLD DURATION
-
 for i=1:numConditions
     tempCondIdx=strcmp(session_noRest.Condition,conditions(i));
     condHoldDur=session_noRest.HoldDuration(tempCondIdx);
     averageCondHoldDur=nanmean(condHoldDur);
     semCondHoldDur=nanstd(condHoldDur)/sqrt(length(condHoldDur));
-    
+
     avgHoldDurCummulative(i)=averageCondHoldDur;
     semHoldDurCummulative(i)=semCondHoldDur;
-    
+
     holdDurArray{i}=condHoldDur;
 end
 subplot(2,3,5)
@@ -563,21 +516,18 @@ if(isempty(mainEffect) || anova1(allHs,[],'off')<alphaVal)
 end
 % Data for GilliganCummulativeData
 spreadsheetData{2}=[spreadsheetData{2},avgHoldDurCummulative,semHoldDurCummulative];
-clearvars averageCondHoldDur avgHoldDurCummulative condHoldDur h...
-    holdDurArray holdDurationIdx i stdCondHoldDur stdHoldDurCummulative...
-    tempCondIdx tempsession
-
+clearvars averageCondHoldDur avgHoldDurCummulative condHoldDur h tempCondIdx...
+    holdDurArray holdDurationIdx i stdCondHoldDur stdHoldDurCummulative tempsession
 %% PLOT WITHDRAWAL DURATION
-
 for i=1:numConditions
     tempCondIdx=strcmp(session_noRest.Condition,conditions(i));
     condWithdrawalDur=session_noRest.WithdrawalDuration(tempCondIdx);
     averageCondWithdrawalDur=nanmean(condWithdrawalDur);
     semCondWithdrawalDur=nanstd(condWithdrawalDur)/sqrt(length(condWithdrawalDur));
-    
+
     avgWithdrawalDurCummulative(i)=averageCondWithdrawalDur;
     semWithdrawalDurCummulative(i)=semCondWithdrawalDur;
-    
+
     withdrawalDurArray{i}=condWithdrawalDur;
 end
 subplot(2,3,6)
@@ -632,10 +582,8 @@ if(isempty(mainEffect) || anova1(allWs,[],'off')<alphaVal)
 end
 % Data for GilliganCummulativeData
 spreadsheetData{2}=[spreadsheetData{2},avgWithdrawalDurCummulative,semWithdrawalDurCummulative];
-clearvars averageCondWithdrawalDur avgWithdrawalDurCummulative...
-    condWithdrawalDur h i semCondWithdrawalDur semWithdrawalDurCummulative...
-    tempCondIdx withdrawalDurArray withdrawalDurationIdx
-
+clearvars averageCondWithdrawalDur avgWithdrawalDurCummulative tempCondIdx withdrawalDurArray...
+    condWithdrawalDur h i semCondWithdrawalDur semWithdrawalDurCummulative withdrawalDurationIdx
 %% CREATE TABLE WITH  ONLY CORRECT TRIAL INFORMATION TO SAVE DAILY
 % Remove failed trials.
 falseTrialIdx=cellfun(@str2num,session.SuccessfulTrial,'UniformOutput',false);
@@ -643,7 +591,6 @@ correctTrialIdx=find(~cellfun(@isempty,falseTrialIdx));
 successfulTrial=session(correctTrialIdx,4:10);
 
 %allConditions_withRest={'Large Sphere','Photocell','Empty','Rest','Extra Small Sphere','Small Sphere'};
-
 sortedArduinoData.Date=filename;
 
 for i=1:numAllConditions_withRest
@@ -651,7 +598,7 @@ for i=1:numAllConditions_withRest
     if sum(tempCondIdx)~=0
         tempCondition=allConditions_withRest{i};
         tempCondition=tempCondition(~isspace(tempCondition));
-        
+
         if strcmp(allConditions_withRest(i),'Photocell')
             sortedArduinoData.(tempCondition)=successfulTrial(tempCondIdx,[1:4,6:7]);
         else
@@ -660,8 +607,6 @@ for i=1:numAllConditions_withRest
     end
 end
 
-
-
 % SAVE
 if(~exist([filePathDir,'Results\'],'dir'))
     mkdir([filePathDir,'Results\'])
@@ -669,14 +614,11 @@ end
 % Save sortedArduinoData
 save([filePathDir,'Results\',filename],'sortedArduinoData','-v7.3')
 %save(['S:\Lab\', monkey,'\Sorted Arduino Data\',filename],'sortedArduinoData','-v7.3')
-
 % Save graph of errors and successful trials.
 saveas(h1,[filePathDir,'Results\ErrorsAndSuccessGraph.png']);
-
 % Save graphs for reaction time, reach duration, lift duration,
 % hold duration, and withdrawal duration for each condition.
 saveas(h2,[filePathDir,'Results\SummaryGraphs_correctTrial.png']);
-
 % Append to excel spreadsheet GilliganCummulativeData
 if strcmp(appendToGilliganCummulativeData,'yes')
     cd(['S:\Lab\', monkey,'\All Data'])
@@ -689,7 +631,6 @@ if strcmp(appendToGilliganCummulativeData,'yes')
 else
     disp('Data not added to GilliganCummulativeData');
 end
-
 clearvars -except sortedArduinoData allConditions_withRest alphaVal sigComps session_noRest
 %%
 if(0);
@@ -701,7 +642,7 @@ if(0);
     react_to_grasp = cellfun(@(a) fillNans(a,maxLength), react_to_grasp, 'UniformOutput', false);
     reach_to_grasp = cellfun(@(a) sum(a(:,2:3),2), react_to_grasp, 'UniformOutput', false);
     react_to_grasp = cellfun(@(a) a(:,1), react_to_grasp, 'UniformOutput', false);
-    
+
     %
     subplot(1,2,1);
     bar(cellfun(@nanmean,react_to_grasp));
@@ -722,7 +663,7 @@ if(0);
             end
         end
     end
-    
+
     subplot(1,2,2);
     bar(cellfun(@nanmean,reach_to_grasp));
     hold on
@@ -742,7 +683,7 @@ if(0);
             end
         end
     end
-    
+
     figure()
     subplot(2,1,1);
     plot(react_to_grasp);
@@ -755,7 +696,7 @@ if(0);
     title('Reach, Grasp')
     xlabel('Trial')
     ylabel('Milliseconds (ms)')
-    
+
     figure();
     subplot(2,1,1);
     for i = 1:floor(length(react_to_grasp)/5)
@@ -773,7 +714,7 @@ if(0);
     title('Reaction, Reach, Grasp')
     xlabel('Blocks of 5')
     ylabel('Milliseconds (ms)')
-    
+
     subplot(2,1,2);
     for i = 1:floor(length(react_to_grasp)/5)
         blocksRHG(i,:) = mean(reach_to_grasp(5*(i-1)+1:5*(i-1)+5,:));
@@ -789,7 +730,7 @@ if(0);
     title('Reach, Grasp')
     xlabel('Blocks of 5')
     ylabel('Milliseconds (ms)')
-    
+
     figure();
     react_to_grasp = react_to_grasp(:,1:2);
     reach_to_grasp = reach_to_grasp(:,1:2);
@@ -818,8 +759,8 @@ if(0);
             end
         end
     end
-    
-     if(anova1(react_to_grasp,[],'off')<alphaVal)
+
+    if(anova1(react_to_grasp,[],'off')<alphaVal)
         for s = 1:1
             sInd1 = find(strcmp(sigComps{s}(1),conds));
             sInd2 = find(strcmp(sigComps{s}(2),conds));
@@ -830,11 +771,7 @@ if(0);
     end
 end
 
-
 function filled = fillNans(vec,maxLength)
 filled = vec;
 filled(end:maxLength,:) = NaN;
 end
-%%%%%%%%%%%%
-% clearvars -except allfilenames
-% end

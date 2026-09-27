@@ -34,7 +34,7 @@ fileName = monkey;
 %%% vessel mask
 vMask =  im2double(im2gray(imread(strcat(dirPath, "Mapping\clean_reference_mask.png"),"BackgroundColor","none")));
 %%% all mapped sites and x,y locations
-rawRef=readcell(strcat(dirPath,"Mapping\",fileName,"_MM_Sites.xlsx"));
+rawRef=readcell(strcat(dirPath,"Mapping\",fileName,"_MM_Sites.xlsm"));
 % file header info
 heading = rawRef(1,:);
 rawRef(1,:) = [];
@@ -150,9 +150,9 @@ PMVmask = double(~M1mask & poly2mask(pointsYPM,pointsXPM,size(MM,1),size(MM,2)))
 PMDmask = ~M1mask & ~PMVmask;
 masks = {vMask,M1mask,PMDmask,PMVmask};
 % validate M1 sites based on location
-infoTable{find(arrayfun(@(a,b) M1mask(b,a), infoTable.x,infoTable.y)),'Domain'} = {"M1"};
-infoTable{find(arrayfun(@(a,b) PMDmask(b,a), infoTable.x,infoTable.y)),'Domain'} = {"PMd"};
-infoTable{find(arrayfun(@(a,b) PMVmask(b,a), infoTable.x,infoTable.y)),'Domain'} = {"PMv"};
+infoTable{find(arrayfun(@(a,b) M1mask(fix(b),fix(a)), infoTable.x,infoTable.y)),'Domain'} = {"M1"};
+infoTable{find(arrayfun(@(a,b) PMDmask(fix(b),fix(a)), infoTable.x,infoTable.y)),'Domain'} = {"PMd"};
+infoTable{find(arrayfun(@(a,b) PMVmask(fix(b),fix(a)), infoTable.x,infoTable.y)),'Domain'} = {"PMv"};
 infoTable(find(cellfun(@(s) ~any(strcmp(s,domains)), infoTable.Domain)),:) = [];
 %infoTable([infoTable.Site]~=[infoTable.Site2],:) = [];
 %%% activity maps from imaging

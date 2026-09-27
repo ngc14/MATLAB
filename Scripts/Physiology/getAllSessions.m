@@ -50,7 +50,7 @@ parfor  i = 1:numSites
         "_",string(currSession.Date),"\Physiology\");
     physDir = strcat(physDir,"Results\");
     if(isempty(dir(physDir+"*.mat")))
-        if(~ismember(currSession.Date,{'05_02_2019','11_11_2019','2021_09_20','2022_06_22','2022_06_28','2022_07_11','2022_07_12'}))
+        if(~ismember(currSession.Date,{'04_05_2019','05_02_2019','11_11_2019','2021_09_20','2022_06_22','2022_06_28','2022_07_11','2022_07_12'}))
             disp(['Parsing and labeling session: ',currSession.Date,'...']);
             Spike_SortRawData(currSession.Date,char(currSession.Monkey));
             labelSingleUnits(currSession.Date,char(currSession.Monkey));

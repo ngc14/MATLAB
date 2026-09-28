@@ -3,7 +3,8 @@ function [siteDateMap,siteSegs,siteTrialPSTHS,rawSpikes,siteChannels,channelMap,
 %  assign parameters
 drivePath = "S:\Lab\";
 monkeys = ["Gilligan", "Skipper"];
-badSession = ["04_05_2019","05_13_2019","11_11_2019","2021_09_20","2022_06_22","2022_06_28","2022_07_11","2022_07_12"];
+badSession = ["04_05_2019","05_13_2019","11_11_2019","02_16_2021","03_11_2021","06_02_2022","06_03_2022","06_16_2022","06_27_2022",...
+    "2021_09_20","2022_06_22","2022_06_28","2022_07_11","2022_07_12"];
 % PSTH parameters: bin sizes, smoothing kernel, seconds prior to zero
 % alignment,seconds after zero alignment, alignment point(s) for each condition
 conditions = cellstr(params.condNames);
@@ -29,7 +30,7 @@ numSites = height(siteDateMap);
 [siteRep,siteSegs,siteChannels,siteTrialPSTHS,siteActiveInd,trialInfo,rawSpikes,channelMap] ...
     = deal(cell(1,numSites));
 delete(gcp('nocreate'));
-parpool('local'); 
+parpool('Processes'); 
 parRun = size(gcp('nocreate'),1);
 if(~parRun)
     hbar = waitbar(0, 'Processing...', 'Name',['Iterating ',num2str(numSites),' instances....']);
@@ -37,7 +38,7 @@ else
     hbar = parforProgress(numSites);
 end
 %%
-for  i = 1:numSites
+parfor  i = 1:numSites
     currSession = siteDateMap(i,:);
     if(strcmpi(currSession.Monkey,"Gilligan"))
         dateFormat = 'MM_dd_uuuu';
@@ -66,8 +67,6 @@ for  i = 1:numSites
                 && ~ismember(currSession.Date,badSession))
             disp(['Labeling session: ',currSession.Date,'...']);
             labelSingleUnits(currSession.Date,char(currSession.Monkey));
-        else
-            disp(['Bad session: ', currSession.Date]);
         end
     end
     [spikes,times,weights,currTrials,sessionConds,channels,eventNames,~,chMap] =...

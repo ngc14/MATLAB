@@ -1,6 +1,6 @@
 %ASSUMPTIONS
 % -MOTOR MAPPING INFO
-%   - \dirPath\Mapping\*_MMSites.xlsx : file that stores all recording and 
+%   - \dirPath\Mapping\*_MMSites.xlsm : file that stores all recording and 
 %   and motor mapped sites for monkey. Header of file contains:
 %   Recording (Y/N), Thresholds, Evoked Movement, X site location, Y site location
 %
@@ -52,17 +52,11 @@ else
     validSiteInds = cellfun(@(a,b,c) isnumeric(a) & ~ismissing(b) & ~ismissing(c), ...
         rawRef(:,siteInd),rawRef(:,xInd),rawRef(:,yInd));
 end
-% if(strcmp(monkey,"Skipper"))
-%     validSiteInds = validSiteInds & [rawRef{:,siteInd}]'<247;
-% elseif(strcmp(monkey,"Gilligan"))
-%     validSiteInds = validSiteInds & [rawRef{:,siteInd}]'<290 & [rawRef{:,siteInd}]'>6;
-% end
 % store locaiton and site number for each site
 infoTable = array2table(cellfun(@str2double, string(rawRef(validSiteInds,...
     [siteInd,xInd,yInd]))),'VariableNames', ["Site", "x", "y"]);
 % mapped sites to determine identity of recorded sites
-mappedSiteInds = find(~cellfun(@(e) (length(e)==1 && isnan(e)) || ...
-    strcmp(e, "No response"), rawRef(:,erInd)));
+mappedSiteInds = find(~cellfun(@(e) all(ismissing(e)) || strcmp(e, "No response"), rawRef(:,erInd)));
 allLocs = [cellfun(@double, rawRef(mappedSiteInds,xInd), 'UniformOutput', true),...
     cellfun(@double, rawRef(mappedSiteInds,yInd), 'UniformOutput', true)];
 validSiteInds = find(validSiteInds);

@@ -3,6 +3,7 @@ function [siteDateMap,siteSegs,siteTrialPSTHS,rawSpikes,siteChannels,channelMap,
 %  assign parameters
 drivePath = "S:\Lab\";
 monkeys = ["Gilligan", "Skipper"];
+badSession = ["04_05_2019","05_13_2019","11_11_2019","2021_09_20","2022_06_22","2022_06_28","2022_07_11","2022_07_12"];
 % PSTH parameters: bin sizes, smoothing kernel, seconds prior to zero
 % alignment,seconds after zero alignment, alignment point(s) for each condition
 conditions = cellstr(params.condNames);
@@ -36,7 +37,7 @@ else
     hbar = parforProgress(numSites);
 end
 %%
-parfor  i = 1:numSites
+for  i = 1:numSites
     currSession = siteDateMap(i,:);
     if(strcmpi(currSession.Monkey,"Gilligan"))
         dateFormat = 'MM_dd_uuuu';
@@ -50,7 +51,7 @@ parfor  i = 1:numSites
         "_",string(currSession.Date),"\Physiology\");
     physDir = strcat(physDir,"Results\");
     if(isempty(dir(physDir+"*.mat")))
-        if(~ismember(currSession.Date,{'04_05_2019','05_02_2019','11_11_2019','2021_09_20','2022_06_22','2022_06_28','2022_07_11','2022_07_12'}))
+        if(~ismember(currSession.Date,badSession))
             disp(['Parsing and labeling session: ',currSession.Date,'...']);
             Spike_SortRawData(currSession.Date,char(currSession.Monkey));
             labelSingleUnits(currSession.Date,char(currSession.Monkey));
@@ -62,9 +63,11 @@ parfor  i = 1:numSites
     if(~isempty(dirChannels))
         firstChannel = load([strcat(dirChannels(1).folder,"\",dirChannels(1).name)]);
         if(~isfield(firstChannel,'label') && ~contains(fieldnames(firstChannel,'-full'),'label') ...
-                && ~ismember(currSession.Date,{'04_05_2019','04_09_2019'}))
+                && ~ismember(currSession.Date,badSession))
             disp(['Labeling session: ',currSession.Date,'...']);
             labelSingleUnits(currSession.Date,char(currSession.Monkey));
+        else
+            disp(['Bad session: ', currSession.Date]);
         end
     end
     [spikes,times,weights,currTrials,sessionConds,channels,eventNames,~,chMap] =...
@@ -89,7 +92,7 @@ parfor  i = 1:numSites
                 string(values(params.condAbbrev,{currCond})));
             if(allActivityMaps.isKey(monkeyImFile))
                 condImgMap = values(allActivityMaps,{monkeyImFile});
-                currActive{c} = condImgMap{1}(currSession.y, currSession.x);
+                currActive{c} = condImgMap{1}(fix(currSession.y), fix(currSession.x));
             else
                 currActive{c} = [NaN, NaN];
             end

@@ -78,7 +78,7 @@ for d = 1:length(dateArray)
                         hold on;
                     end
                     if(NEVFile)
-                        [~,nevFile] = ns_OpenFile([loadFile.folder, '\', loadFile.name]);
+                        [~,spFile] = ns_OpenFile([loadFile.folder, '\', loadFile.name]);
                     end
                     %%
                      for e = 1:dirTotal
@@ -87,7 +87,7 @@ for d = 1:length(dateArray)
                         savedFields = fieldnames(savedStruct);
                         if(~any(contains(savedFields, 'label')) | writeLabels | plotWaveforms)
                             if(NEVFile)
-                                [dataTime, ids] = loadSpikeData(nevFile, sChInd);
+                                [dataTime, ids] = loadSpikeData(spFile, sChInd);
                                 %sortedIDs = 1:nevFile.Entity(sChInd).nUnits;
                                 sortedIDs = 1:sum(unique(ids) > 0 & unique(ids)<255);
                             else
@@ -104,7 +104,7 @@ for d = 1:length(dateArray)
                                     for s = 1:length(unitIndx)
                                          [~,~,data(:,s),~,~] = ns_GetSegmentData(hFileRaw, ...
                                            spkInds([hFileRaw.Entity(spkInds).ElectrodeID]== ...
-                                           nevFile.Entity(sChInd).ElectrodeID), unitIndx(s));
+                                           spFile.Entity(sChInd).ElectrodeID), unitIndx(s));
                                     end
                                 else
                                     [~,~,currUnitTime,data] = plx_waves_v(...
@@ -179,7 +179,7 @@ for d = 1:length(dateArray)
                 end
                 if(NEVFile)
                     ns_CloseFile(hFileRaw);
-                    ns_CloseFile(nevFile);
+                    ns_CloseFile(spFile);
                 end
             end
             fclose('all');

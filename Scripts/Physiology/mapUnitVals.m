@@ -1,4 +1,4 @@
-function figureMap = mapUnitVals(vMask,siteMask,valsToGraph,emptyInds,countZeroIn,numStepsIn,rangeIn)
+function [figureMap, cMap] = mapUnitVals(vMask,siteMask,valsToGraph,emptyInds,countZeroIn,numStepsIn,rangeIn)
 zeroColor = [.7 .7 .7];
 txColor = [0 .5 0];
 fontSize = 8;
@@ -73,7 +73,8 @@ end
 % MM_image(vMask==0) = length(cMap)-1;
 MM_image(isinf(MM_image) & vMask==1) = length(cMap);
 MM_image(vMask~=1) = size(cMap,1)+1;
-figureMap = ind2rgb(MM_image,[cMap; .3 .3 .3]);
+cMap = [cMap; .3 .3 .3];
+figureMap = ind2rgb(MM_image,cMap);
 if(isempty(get(0,'CurrentFigure')))
     figure('Units', 'normalized', 'Position', [0 0 1 1]);hold on;
 end

@@ -24,9 +24,11 @@ allSegsL = params.condSegMap.values;
 maxSegL = allSegsL{maxSegL};
 tPhys = unitTable(conditions,params);
 %%
-tableInds = contains(string(tPhys.Somatotopy),["Arm","Hand","Face","Trunk"]);
+tableInds = contains(string(tPhys.Somatotopy),["Arm","Hand"]);
 somaTable = tPhys{tableInds,"Somatotopy"};
-allLocations = tPhys{tableInds,["XT","YT"]};
+allLocations = tPhys{tableInds,["X","Y"]};
+siteMap = tPhys{tableInds,"SiteNum"};
+monkeyInd = tPhys{tableInds,"Monkey"};
 allSegs= tPhys{tableInds,contains(tPhys.Properties.VariableNames,"Segs_"+params.condAbbrev.values)};%
 tablePSTHD= tPhys{tableInds,contains(tPhys.Properties.VariableNames,"PSTH_"+params.condAbbrev.values)};
 clear tPhys
@@ -34,6 +36,41 @@ numUnits = all(cell2mat(cellfun(@(s) size(s,2), tablePSTHD,'UniformOutput',false
 somaTable = somaTable(numUnits);
 allLocations = allLocations(numUnits,:);
 allSegs = allSegs(numUnits,:);
+siteMap = siteMap(numUnits);
+monkeyInd = monkeyInd(numUnits);
+monkeys = unique(tPhys.Monkey);
+vMask = dictionary;
+for m = 1:length(monkeys)
+    [~, monkeyMask, ~] = getMonkeyInfo("S:\Lab\",string(monkeys(m)),"M1",true);
+    vMask(monkeys(m)) = {monkeyMask};
+end
+%%
+[sn,ui,~] = unique(siteMap);
+siteMasks = cell(1,length(sn));
+prevInd = 0;
+for m = 1:length(monkeys)
+    if(monkeys(m)=="Skipper")
+        mm = MotorMapping(55);
+    else
+        mm = MotorMapping(35);
+    end
+    mRefMask = vMask{monkeys(m)}{1};
+    mMap = ui(monkeyInd(ui)==monkeys(m));
+    [verticies, vCells] = voronoin(fliplr([fix(allLocations(mMap,:)); [0 size(mRefMask,2); ...
+        size(mRefMask,1) 0; 0 0;size(mRefMask,1) size(mRefMask,2)]]));
+    for i = 1:length(mMap)
+        currSite = fix(allLocations(mMap(i),:));
+        tempCircle = zeros(size(mRefMask)+2*mm.tileBuffer);
+        tempCircle((currSite(2)-mm.siteRadius+mm.tileBuffer):(currSite(2)+...
+            mm.siteRadius+mm.tileBuffer),(currSite(1)-mm.siteRadius+mm.tileBuffer):...
+            (currSite(1)+mm.siteRadius+mm.tileBuffer))= mm.poolCircle;
+        tempCircle = tempCircle(mm.tileBuffer:end-(mm.tileBuffer+1),...
+            mm.tileBuffer:end-(mm.tileBuffer+1));
+        siteMasks{i+prevInd} = tempCircle & poly2mask(verticies(vCells{i},2),...
+            verticies(vCells{i},1),size(tempCircle,1),size(tempCircle,2));
+    end
+    prevInd = prevInd + length(mMap);
+end
 %%
 segInds = cellfun(@(n) n(:,arrayfun(@(c)find(strcmp(maxSegL,c)),["GoSignal","StartReach","StartHold","StartWithdraw"])),cellfun(@cell2mat,...
     num2cell(cellfun(@(aa) findBins(mean(aa,1,'omitnan'),params.bins),allSegs,'UniformOutput',false),1),'Uniformoutput',false),'UniformOutput',false);
@@ -116,7 +153,7 @@ dpca_plot(firingRatesAverage, W, V, @dpca_plot_default,'explainedVar', explVar, 
 %load('optimalLambda'). Note that it includes noise covariance matrix Cnoise
 % which provides substantial regularization itself (even with lambda=0). %
 somaIndex = cell2mat(arrayfun(@(a) find(somaTable(mv)==a,min(groupcounts(somaTable(mv)))),unique(somaTable(mv)),'UniformOutput',false));
-somaIndex = contains(string(somaTable(mv)),["Hand"]);
+somaIndex = contains(string(somaTable(mv)),["Arm", "Hand"]);
 
 %firingRates = cellfun(@(c) cellfun(@(m) num2cell(m,[2 3]),c,'UniformOutput',false), normPSTH, 'UniformOutput',false);
 % firingRates = cellfun(@(c)  vertcat(c{:}), firingRates, 'UniformOutput',false);
@@ -140,6 +177,33 @@ dpca_plot(firingRatesAverage(somaIndex,:,:,:), W, V, @dpca_plot_default, ...
     'whichMarg', whichMarg,'time', time,'timeEvents', timeEvents,'timeMarginalization', 2,...
     'legendSubplot', {16,params.condNames},'ylims',[]);
 Z =  bsxfun(@minus, firingRatesAverage(somaIndex,:)', mean(firingRatesAverage(somaIndex,:),[2,3])')* W;
+%% spatial maps of demixed decoder weights
+figure(); tiledlayout(1,4);
+cLim = [0 1];
+cSteps = 256;
+cMap = [flipud([repmat(linspace(.9,0,cSteps/2)',1,2), ones(cSteps/2,1)]);[ones(cSteps/2,1), repmat(linspace(.9,0,cSteps/2)',1,2)]];
+cMap = [linspace(1,.9,cSteps)',repmat(linspace(1,0,cSteps)',1,2)];
+monkey = "Skipper";
+cMap = [cMap; 1,1,1; .3,.3,.3];
+sm = siteMap(mv);
+[~,ui,~] = unique(sm);
+mInd = monkeyInd(mv);
+for m = 1:length(margNames)
+    wInd = find(whichMarg==m,2);
+    for n = 1:length(wInd)
+        nexttile(); hold on;
+        title(margNames(m));
+        xlabel("Component "+num2str(n));
+        [FRMapFig,ogCM] = mapUnitVals(vMask{monkey}{1},siteMasks(mInd(ui)==monkey),groupsummary(abs(W(mInd==monkey,wInd(n))),...
+            sm(mInd==monkey),'sum'),groupcounts(sm(mInd==monkey))<1,0,cSteps,cLim);
+        FRMapFig = FRMapFig(:,find(any(~all(FRMapFig==ones(1,1,3)*.3,3),1),1,'first'):find(any(~all(FRMapFig==ones(1,1,3),3),1),1,'last'),:);
+        FRMapFig = ind2rgb(rgb2ind(FRMapFig,ogCM),cMap);
+        imshow(FRMapFig); colormap(cMap); colorbar('off');
+    end
+end
+cb = colorbar;
+cb.Ticks = linspace(cb.Limits(1),cb.Limits(end),6);
+cb.TickLabels = arrayfun(@num2str,linspace(cLim(1),cLim(end),6),'UniformOutput',false);
 %% 2. Transform / Project TRIAL-AVERAGED PETHs (X) into dPCA space
 targMarg =2; targNum =2;
 colors = [1 0 0; 1 .7 0; 0 0 1];

@@ -22,6 +22,7 @@ params = PhysRecording(conditions,.001,.001,-5,3,containers.Map(conditions,repma
 allSegsL = params.condSegMap.values;
 [~,maxSegL]= max(cellfun(@length,allSegsL));
 maxSegL = allSegsL{maxSegL};
+savePath = "S:\Lab\ngc14\Working\dPCA\";
 tPhys = unitTable(conditions,params);
 %%
 tableInds = contains(string(tPhys.Somatotopy),["Arm","Hand"]);
@@ -38,7 +39,7 @@ allLocations = allLocations(numUnits,:);
 allSegs = allSegs(numUnits,:);
 siteMap = siteMap(numUnits);
 monkeyInd = monkeyInd(numUnits);
-monkeys = unique(tPhys.Monkey);
+monkeys = unique(monkeyInd);
 vMask = dictionary;
 for m = 1:length(monkeys)
     [~, monkeyMask, ~] = getMonkeyInfo("S:\Lab\",string(monkeys(m)),"M1",true);
@@ -134,6 +135,8 @@ firingRatesAverage = mean(firingRates, length(size(firingRates)),'omitnan');
 timeEventConds = cell2mat(cellfun(@(i) mean(findBins(params.bins(i),time),1,'omitnan'),...
     cellfun(@(s) fix(s(mv,~all(isnan(s),1))),segInds,'UniformOutput',false)','UniformOutput',false));
 timeEvents = time(round([mean(timeEventConds(:,1:2),1,'omitnan'),median(timeEventConds(:,3:4),1,'omitnan')]));
+siteMap = siteMap(mv);
+monkeyInd = monkeyInd(mv);
 %% Step 1: PCA of the dataset
 [W,~,~] = svd(firingRatesAverage(:,:), 'econ');
 dpca_plot(firingRatesAverage, W, W, @dpca_plot_default);
@@ -178,24 +181,22 @@ dpca_plot(firingRatesAverage(somaIndex,:,:,:), W, V, @dpca_plot_default, ...
     'legendSubplot', {16,params.condNames},'ylims',[]);
 Z =  bsxfun(@minus, firingRatesAverage(somaIndex,:)', mean(firingRatesAverage(somaIndex,:),[2,3])')* W;
 %% spatial maps of demixed decoder weights
-figure(); tiledlayout(1,4);
+monkey = "Skipper";
 cLim = [0 1];
 cSteps = 256;
 cMap = [flipud([repmat(linspace(.9,0,cSteps/2)',1,2), ones(cSteps/2,1)]);[ones(cSteps/2,1), repmat(linspace(.9,0,cSteps/2)',1,2)]];
 cMap = [linspace(1,.9,cSteps)',repmat(linspace(1,0,cSteps)',1,2)];
-monkey = "Skipper";
 cMap = [cMap; 1,1,1; .3,.3,.3];
-sm = siteMap(mv);
-[~,ui,~] = unique(sm);
-mInd = monkeyInd(mv);
+[~,ui,~] = unique(siteMap);
+figure(); tiledlayout(1,4);
 for m = 1:length(margNames)
     wInd = find(whichMarg==m,2);
     for n = 1:length(wInd)
         nexttile(); hold on;
         title(margNames(m));
         xlabel("Component "+num2str(n));
-        [FRMapFig,ogCM] = mapUnitVals(vMask{monkey}{1},siteMasks(mInd(ui)==monkey),groupsummary(abs(W(mInd==monkey,wInd(n))),...
-            sm(mInd==monkey),'sum'),groupcounts(sm(mInd==monkey))<1,0,cSteps,cLim);
+        [FRMapFig,ogCM] = mapUnitVals(vMask{monkey}{1},siteMasks(monkeyInd(ui)==monkey),groupsummary((W(monkeyInd==monkey,wInd(n))),...
+            siteMap(monkeyInd==monkey),'sum'),groupcounts(siteMap(monkeyInd==monkey))<1,0,cSteps,cLim);
         FRMapFig = FRMapFig(:,find(any(~all(FRMapFig==ones(1,1,3)*.3,3),1),1,'first'):find(any(~all(FRMapFig==ones(1,1,3),3),1),1,'last'),:);
         FRMapFig = ind2rgb(rgb2ind(FRMapFig,ogCM),cMap);
         imshow(FRMapFig); colormap(cMap); colorbar('off');

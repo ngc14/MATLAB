@@ -7,14 +7,16 @@ allSegs = params.condSegMap.values;
 maxSegL = allSegs{maxSegL};
 %% load all single units from M1 recordings that were not from the face zone
 [siteDateMap, siteSegs, siteTrialPSTHS,~, siteChannels,chMaps,~,~]=...
-    getAllSessions(params,"Single","M1","Face");
+    getAllSessions(params,"Single","M1","");
 %%
 % unit somatotopy and channel number
-siteRep =cell2mat(cellfun(@(r,t) r(find((t.*~contains(r,"Face"))==min(t),1)),siteDateMap.SiteRep,siteDateMap.Thresh,'UniformOutput', false));
+siteRep =cellfun(@(r,t) r(find((t.*~contains(r,["Trunk","Face"]))==min(t),1)),siteDateMap.SiteRep,siteDateMap.Thresh,'UniformOutput', false);
+siteRep(cellfun(@isempty,siteRep)) = cellfun(@(r,t) r(find(t==min(t),1)), siteDateMap{cellfun(@isempty,siteRep),'SiteRep'}, siteDateMap{cellfun(@isempty,siteRep),'Thresh'},'UniformOutput',false);
+siteRep = cell2mat(siteRep);
 mappedChannels = cellfun(@(ch,l) ch{2}(l(~isnan(l))), chMaps,siteChannels, 'Uniformoutput', false)';
 % normalize PSTHs to baseline activity (averaged 1s before Cue)
 sumSegs = cellfun(@(c) cellfun(@(n) [n{:}], c, 'UniformOutput',false), siteSegs,'UniformOutput',false);
-goSegs = cellfun(@(c) cellfun(@(a) cell2mat(cellfun(@(t) findBins(t(:,strcmp(maxSegL,"GoSignal"))-1,...
+goSegs = cellfun(@(c) cellfun(@(a) cell2mat(cellfun(@(t) findBins(t(:,strcmp(maxSegL,"GoSignal"))-3,...
     params.bins),a,'UniformOutput',false)),c,'UniformOutput',false),siteSegs,'UniformOutput',false);
 normBaseline = cellfun(@(p,t)cellfun(@(a,n) [max(1,median(cell2mat(reshape(cellfun(@(s) ...
     permute(mean(a(:,max(1,s):max(1,s)+(1/params.binSize),:),[2],'omitnan'),[1 3 2]),...

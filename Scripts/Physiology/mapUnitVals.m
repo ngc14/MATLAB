@@ -33,8 +33,9 @@ if(countZero)
         if(isempty(zeroInd))
             cMap = [zeroColor; cMap];
             zeroInd = 1;
+        else
+            countRange = [countRange(1:zeroInd), 0, countRange(zeroInd+1:end)];
         end
-        %countRange = [countRange(1:zeroInd), 0, countRange(zeroInd+1:end)];
     else
         zeroInd = find(countRange==0);
     end

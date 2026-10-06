@@ -20,33 +20,26 @@ params = PhysRecording(conditions,.01,.15,-5,3,containers.Map(conditions,repmat(
 allSegsL = params.condSegMap.values;
 [~,maxSegL]= max(cellfun(@length,allSegsL));
 maxSegL = allSegsL{maxSegL};
-savePath = "S:\Lab\ngc14\Working\dPCA\";
+savePath = "S:\Lab\ngc14\Working\dPCA\PMd\";
 tPhys = unitTable(conditions,params);
 %%
 plotTime = findBins(plotTime(1):params.binSize:plotTime(end),params.bins);
-tableInds = contains(string(tPhys.Somatotopy),["Arm","Hand","Trunk","Face"]);
-somaTable = tPhys{tableInds,"Somatotopy"};
-allLocations = tPhys{tableInds,["X","Y"]};
-siteMap = tPhys{tableInds,"SiteNum"};
+tablePSTHD= tPhys{:,contains(tPhys.Properties.VariableNames,"PSTH_"+params.condAbbrev.values)};
+tableInds = all(cell2mat(cellfun(@(s) size(s,2), tablePSTHD,'UniformOutput',false))>=sTrials,2);
+allSegs= tPhys{tableInds,contains(tPhys.Properties.VariableNames,"Segs_"+params.condAbbrev.values)};
+tablePSTHD = tablePSTHD(tableInds,:);
+somatotopicID = tPhys{tableInds,"Somatotopy"};
 monkeyInd = tPhys{tableInds,"Monkey"};
-allSegs= tPhys{tableInds,contains(tPhys.Properties.VariableNames,"Segs_"+params.condAbbrev.values)};%
-tablePSTHD= tPhys{tableInds,contains(tPhys.Properties.VariableNames,"PSTH_"+params.condAbbrev.values)};
-numUnits = all(cell2mat(cellfun(@(s) size(s,2), tablePSTHD,'UniformOutput',false))>=sTrials,2);%
-somaTable = somaTable(numUnits);
-allLocations = allLocations(numUnits,:);
-allSegs = allSegs(numUnits,:);
-siteMap = siteMap(numUnits);
-monkeyInd = monkeyInd(numUnits);
+allLocations = tPhys{tableInds,["X","Y"]};
+siteInd = tPhys{tableInds,"SiteNum"};
+[sn,ui,~] = unique(siteInd);
+siteMasks = dictionary;
 monkeys = unique(monkeyInd);
 vMask = dictionary;
 for m = 1:length(monkeys)
     [~, monkeyMask, ~] = getMonkeyInfo("S:\Lab\",string(monkeys(m)),"M1",true);
     vMask(monkeys(m)) = {monkeyMask};
 end
-clear tPhys
-%%
-[sn,ui,~] = unique(siteMap);
-siteMasks = dictionary;
 for m = 1:length(monkeys)
     if(monkeys(m)=="Skipper")
         mm = MotorMapping(55);
@@ -57,7 +50,6 @@ for m = 1:length(monkeys)
     mMap = ui(monkeyInd(ui)==monkeys(m));
     [verticies, vCells] = voronoin(fliplr([fix(allLocations(mMap,:)); [0 size(mRefMask,2); ...
         size(mRefMask,1) 0; 0 0;size(mRefMask,1) size(mRefMask,2)]]));
-    sm = cell(1,length(mMap));
     for i = 1:length(mMap)
         currSite = fix(allLocations(mMap(i),:));
         tempCircle = zeros(size(mRefMask)+2*mm.tileBuffer);
@@ -66,23 +58,19 @@ for m = 1:length(monkeys)
             (currSite(1)+mm.siteRadius+mm.tileBuffer))= mm.poolCircle;
         tempCircle = tempCircle(mm.tileBuffer:end-(mm.tileBuffer+1),...
             mm.tileBuffer:end-(mm.tileBuffer+1));
-        sm{i} = tempCircle & poly2mask(verticies(vCells{i},2),...
+        siteMasks{siteInd(mMap(i))} = tempCircle & poly2mask(verticies(vCells{i},2),...
             verticies(vCells{i},1),size(tempCircle,1),size(tempCircle,2));
     end
-    siteMasks{monkeys(m)} = sm;
 end
-clear tempCircle mRefMask monkeyMask;
 %%
 segInds = cellfun(@(n) n(:,arrayfun(@(c)find(strcmp(maxSegL,c)),["GoSignal","StartReach","StartHold","StartWithdraw"])),cellfun(@cell2mat,...
     num2cell(cellfun(@(aa) findBins(mean(aa,1,'omitnan'),params.bins),allSegs,'UniformOutput',false),1),'Uniformoutput',false),'UniformOutput',false);
-currD= cellfun(@(v) permute(cell2mat(reshape(cellfun(@(d) downsampleTrials(resize(max(0,d),[size(d,1),max(sTrials*2,size(d,2))],...
-    'FillValue',NaN),sTrials)',v,'Uniformoutput',false),1,1,[])),[3 1 2]),num2cell(tablePSTHD(numUnits,:),1), 'UniformOutput',false);
-currD = squeeze(cellfun(@squeeze,num2cell(cellfun(@squeeze,num2cell(cat(4,currD{:}),[2,3]),'UniformOutput',false),4),'UniformOutput',false));
-firingRates = permute(cell2mat(reshape(cat(4,currD{:}),1,1,[],length(currD))),[4 3 2 1]);
-clear tablePSTHD currD;
+firingRates= cellfun(@(v) permute(cell2mat(reshape(cellfun(@(d) downsampleTrials(resize(max(0,d),[size(d,1),max(sTrials*2,size(d,2))],...
+    'FillValue',NaN),sTrials)',v,'Uniformoutput',false),1,1,[])),[3 1 2]),num2cell(tablePSTHD,1), 'UniformOutput',false);
+firingRates = squeeze(cellfun(@squeeze,num2cell(cellfun(@squeeze,num2cell(cat(4,firingRates{:}),[2,3]),'UniformOutput',false),4),'UniformOutput',false));
+firingRates = permute(cell2mat(reshape(cat(4,firingRates{:}),1,1,[],length(firingRates))),[4 3 2 1]);
+clear tPhys tablePSTHD tempCircle mRefMask monkeyMask;
 %%
-mv = cellfun(@(m) sum(any(mean(m,3,'omitnan') > 1,2))>sTrials/2, num2cell(firingRates,[2 3 4])) | ...
-    cellfun(@(m) sum(all(mean(m,3,'omitnan') <250,2))>sTrials/2, num2cell(firingRates,[2 3 4]));
 %firingRates = cell2mat(cellfun(@(r) circshift(r,randi([2*binWidth,size(r,3)-2*binWidth],1),3), num2cell(firingRates,3),'UniformOutput',false));
 trialNum = ones(size(firingRates,1:length(size(firingRates))-2)).*size(firingRates,length(size(firingRates)));
 for n = 1:size(firingRates,1)
@@ -95,10 +83,8 @@ end
 firingRates(isnan(firingRates)) = 0;
 firingRatesAverage = mean(firingRates, length(size(firingRates)),'omitnan');
 timeEventConds = cell2mat(cellfun(@(i) mean(params.bins(i),1,'omitnan'),...
-    cellfun(@(s) fix(s(mv,~all(isnan(s),1))),segInds,'UniformOutput',false)','UniformOutput',false));
+    cellfun(@(s) fix(s(:,~all(isnan(s),1))),segInds,'UniformOutput',false)','UniformOutput',false));
 timeEvents = [mean(timeEventConds(:,1:2),1,'omitnan'),median(timeEventConds(:,3:4),1,'omitnan')];
-siteMap = siteMap(mv);
-monkeyInd = monkeyInd(mv);
 %% Step 1: PCA of the dataset
 [W,~,~] = svd(firingRatesAverage(:,:), 'econ');
 dpca_plot(firingRatesAverage, W, W, @dpca_plot_default);
@@ -116,9 +102,11 @@ dpca_plot(firingRatesAverage, W, V, @dpca_plot_default,'explainedVar', explVar, 
     'time', params.bins(plotTime),'timeEvents', timeEvents,'timeMarginalization', 2,'legendSubplot', 16);
 %% Step 4: dPCA with regularization
 %load('optimalLambda'). Note that it includes noise covariance matrix Cnoise
-% which provides substantial regularization itself (even with lambda=0). %
-somaIndex = cell2mat(arrayfun(@(a) find(somaTable(mv)==a,min(groupcounts(somaTable(mv)))),unique(somaTable(mv)),'UniformOutput',false));
-somaIndex = mv;%somaTable(mv)=="Arm" | somaTable(mv)=="Hand";
+% which provides substantial regularization itself (even with lambda=0).
+mv = cellfun(@(m) sum(all(mean(m,3,'omitnan') > 1,2))>sTrials/2, num2cell(firingRates,[2 3 4])) | ...
+    cellfun(@(m) sum(all(mean(m,3,'omitnan') <250,2))>sTrials/2, num2cell(firingRates,[2 3 4]));
+somaIndex = cell2mat(arrayfun(@(a) find(somatotopicID==a,min(groupcounts(somatotopicID))),unique(somatotopicID),'UniformOutput',false));
+somaIndex = mv & (somatotopicID=="Arm") % somatotopicID=="Hand") %| somatotopicID == "Face" | somatotopicID == "Trunk");
 % goodUnits = all(cell2mat(cellfun(@(c) cellfun(@(s) size(s,3)>=sTrials, c),firingRates, 'UniformOutput',false)),2);
 optimalLambda = dpca_optimizeLambda(firingRatesAverage(somaIndex,:,plotTime,:),firingRates(somaIndex,:,plotTime,:,:),...
     trialNum(somaIndex,:,:),'combinedParams', combinedParams, 'simultaneous', false,'numRep', 10);
@@ -137,20 +125,29 @@ monkey = "Skipper";
 cLim = [-.1 .1];
 cSteps = 256;
 cMap = [flipud([repmat(linspace(.9,0,cSteps/2)',1,2), ones(cSteps/2,1)]);[ones(cSteps/2,1), repmat(linspace(.9,0,cSteps/2)',1,2)]];
-cMap = [cMap; 1,1,1; .3,.3,.3];
-[~,ui,~] = unique(siteMap(monkeyInd(somaIndex)==monkey));
+cMap = [.85,.85,.85;cMap; 1,1,1; .3,.3,.3];
+uv= unique(siteInd(monkeyInd==monkey));
+ui = ismember(uv,unique(siteInd(somaIndex).*double(monkeyInd(somaIndex)==monkey)));
+wVals = NaN(length(somaIndex),size(W,2));
+wVals(somaIndex,:) = W(:,:);
 figure(); tiledlayout(1,4);
+FRMapFig = cell(2,2);
 for m = 1:length(margNames)
     wInd = find(whichMarg==m,2);
     for n = 1:length(wInd)
         nexttile(); hold on;
         title(margNames(m));
         xlabel("Component "+num2str(n));
-        [FRMapFig,ogCM] = mapUnitVals(vMask{monkey}{1},siteMasks{monkey},groupsummary((W(monkeyInd(somaIndex)==monkey,wInd(n))),...
-            siteMap(monkeyInd(somaIndex)==monkey),'mean'),groupcounts(siteMap(monkeyInd(somaIndex)==monkey))<1,0,cSteps,cLim);
-        FRMapFig = FRMapFig(:,find(any(~all(FRMapFig==ones(1,1,3)*.3,3),1),1,'first'):find(any(~all(FRMapFig==ones(1,1,3),3),1),1,'last'),:);
-        FRMapFig = ind2rgb(rgb2ind(FRMapFig,ogCM),cMap);
-        imshow(FRMapFig); colormap(cMap); colorbar('off');
+        [FRMapFig{m,n},ogCM] = mapUnitVals(vMask{monkey}{1},siteMasks(uv),...
+            groupsummary(wVals(monkeyInd==monkey,wInd(n)),siteInd(monkeyInd==monkey),'mean'),false(1,length(uv)),false,cSteps,cLim);
+        beginCrop = find(any(~all(FRMapFig{m,n}==ones(1,1,3)*.3,3),1),1,'first');
+        FRMapFig{m,n} = FRMapFig{m,n}(:,beginCrop:find(any(~all(FRMapFig{m,n}==ones(1,1,3),3),1),1,'last'),:);
+        FRMapFig{m,n} = rgb2ind(FRMapFig{m,n},ogCM);
+        plotFig = ind2rgb(FRMapFig{m,n},cMap(1+all(ogCM(1,:)~=cMap(1,:)):end,:));
+        imshow(plotFig); colormap(cMap); colorbar('off');
+        bnds = arrayfun(@(b) bwboundaries(siteMasks{b}), uv(~ui), 'UniformOutput',false);
+        cellfun(@(tr) plot(tr{1}(:,2)-beginCrop, tr{1}(:,1), 'LineStyle','--', 'LineWidth',.5,...
+            'Color','k'),bnds,'UniformOutput',false);
     end
 end
 cb = colorbar;
@@ -164,10 +161,10 @@ phaseAlign = num2cell(find(contains(maxSegL,["GoSignal","StartReach","StartHold"
 phaseWin = {[0, phaseWindowSz],[-phaseWindowSz*(3/4),phaseWindowSz*(1/4)],[-phaseWindowSz*(5/4), -phaseWindowSz*(1/4)],[-phaseWindowSz*(3/4),phaseWindowSz*(1/4)]};
 
 sizeX = size(firingRates(somaIndex,:,:,:)); %,
-sizeX(1) = min(groupcounts(somaTable(mv)));
-xfull_Arm = reshape(firingRates(find(somaTable(mv)=="Arm",sizeX(1)),:,:,:), sizeX(1), []);
+sizeX(1) = min(groupcounts(somatotopicID));
+xfull_Arm = reshape(firingRates(find(somatotopicID=="Arm",sizeX(1)),:,:,:), sizeX(1), []);
 Z_trials_Arm = reshape(WArm' * xfull_Arm, [],sizeX(2),length(plotTime),sizeX(end)); % [Components, Stimulus, Time, Trials]
-xfull_Hand = reshape(firingRates(find(somaTable(mv)=="Hand",sizeX(1)),:,:,:), sizeX(1), []);
+xfull_Hand = reshape(firingRates(find(somatotopicID=="Hand",sizeX(1)),:,:,:), sizeX(1), []);
 Z_trials_Hand = reshape(WHand' * xfull_Hand, [],sizeX(2),length(plotTime),sizeX(end)); % [Components, Stimulus, Time, Trials]
 
 var_own = trace(cov([WArm(:,1:15)' * (xfull_Arm-mean(xfull_Arm,2,'omitnan'))]'));
@@ -180,8 +177,8 @@ handTarget=find(whichMargHand==targMarg,targNum);
 armPhaseCond = [];
 handPhaseCond = [];
 for c = 1:sizeX(2)
-    armSegs = mean(cell2mat(reshape(cellfun(@(s) downsampleTrials(s',sTrials)',allSegs(somaTable(mv)=="Arm",c),'UniformOutput',false),1,1,[])),3,'omitnan');
-    handSegs = mean(cell2mat(reshape(cellfun(@(s) downsampleTrials(s',sTrials)',allSegs(somaTable(mv)=="Hand",c),'UniformOutput',false),1,1,[])),3,'omitnan');
+    armSegs = mean(cell2mat(reshape(cellfun(@(s) downsampleTrials(s',sTrials)',allSegs(somatotopicID=="Arm",c),'UniformOutput',false),1,1,[])),3,'omitnan');
+    handSegs = mean(cell2mat(reshape(cellfun(@(s) downsampleTrials(s',sTrials)',allSegs(somatotopicID=="Hand",c),'UniformOutput',false),1,1,[])),3,'omitnan');
     armPhaseCond(:,:,c) = cell2mat(cellfun(@(p,w) abs(squeeze(mean(Z_trials_Arm(armTarget(end),c,findBins(armSegs(:,p),plotTime)+(w.*(1/params.binSize)),:),3))), phaseAlign, phaseWin,'UniformOutput',false));
     handPhaseCond(:,:,c) = cell2mat(cellfun(@(p,w) abs(squeeze(mean(Z_trials_Hand(handTarget(end),c,findBins(handSegs(:,p),plotTime)+(w.*(1/params.binSize)),:),3))), phaseAlign, phaseWin,'UniformOutput',false));
     for t = 1:sTrials
@@ -203,8 +200,8 @@ rmm = fitrm(fullTable,strjoin(fullTable.Properties.VariableNames(contains(fullTa
 tbl = ranova(rmm, 'WithinModel', 'Phase*Cond');
 tbl_posthoc = multcompare(rmm, 'Somatotopy', 'By', 'Phase','ComparisonType','Bonferroni')
 %sizeX(1) = max(groupcounts(somaTable(mv)));
-Z_avg_Arm = reshape(WArm' * reshape(mean(firingRates(find(somaTable(mv)=="Arm",min(groupcounts(somaTable(mv)))),:,:,:), 4, 'omitnan'), sizeX(1), []), [size(W,2), sizeX(2), length(plotTime)]);
-Z_avg_Hand = reshape(WHand' * reshape(mean(firingRates(find(somaTable(mv)=="Hand",min(groupcounts(somaTable(mv)))),:,:,:), 4, 'omitnan'), sizeX(1), []), [size(W,2), sizeX(2), length(plotTime)]);
+Z_avg_Arm = reshape(WArm' * reshape(mean(firingRates(find(somatotopicID=="Arm",min(groupcounts(somatotopicID))),:,:,:), 4, 'omitnan'), sizeX(1), []), [size(W,2), sizeX(2), length(plotTime)]);
+Z_avg_Hand = reshape(WHand' * reshape(mean(firingRates(find(somatotopicID=="Hand",min(groupcounts(somatotopicID))),:,:,:), 4, 'omitnan'), sizeX(1), []), [size(W,2), sizeX(2), length(plotTime)]);
 for c = 1:sizeX(2)
     h=plot(plotTime, abs(squeeze(Z_avg_Arm(armTarget(end), c, :))), 'Color', max(colors(c, :)-[.01 .01 .01],0), 'LineWidth', 3);
     h=plot(plotTime, abs(squeeze(Z_avg_Hand(handTarget(end), c, :))), 'Color', max(colors(c, :)-[.2 .2 .2],0), 'LineWidth', 3,'LineStyle','--');
@@ -252,14 +249,12 @@ for c = 1:length(combinedParams)+1
 end
 %saveFigures(gcf,"S:\Lab\ngc14\Working\DataHigh\Centered\Demixed\Weights\","Hand-Laminar",[]);
 %%
-somaLabels = somaTable(mv);
-location = allLocations(mv,:);
 [~,peakTimes] = max(firingRatesAverage(somaIndex,1,:),[],3);
-[~,sI] = sort(location(somaIndex,1)*ImagingParameters.px2mm);
-somaLabels = somaLabels(somaIndex);
-mvv = [find(somaLabels(sI)=="Arm",min(groupcounts(somaLabels)));find(somaLabels(sI)=="Hand",min(groupcounts(somaLabels)))];
-WS = W; WS(somaLabels(mvv)=="Arm",:) = W(somaLabels(mvv)=="Hand",:); WS(somaLabels(mvv)=="Hand",:) = W(somaLabels(mvv)=="Arm",:);
-VS = V; VS(somaLabels(mvv)=="Arm",:) = V(somaLabels(mvv)=="Hand",:); VS(somaLabels(mvv)=="Hand",:) = V(somaLabels(mvv)=="Arm",:);
+[~,sI] = sort(allLocations(somaIndex,1)*ImagingParameters.px2mm);
+somatotopicID = somatotopicID(somaIndex);
+mvv = [find(somatotopicID(sI)=="Arm",min(groupcounts(somatotopicID)));find(somatotopicID(sI)=="Hand",min(groupcounts(somatotopicID)))];
+WS = W; WS(somatotopicID(mvv)=="Arm",:) = W(somatotopicID(mvv)=="Hand",:); WS(somatotopicID(mvv)=="Hand",:) = W(somatotopicID(mvv)=="Arm",:);
+VS = V; VS(somatotopicID(mvv)=="Arm",:) = V(somatotopicID(mvv)=="Hand",:); VS(somatotopicID(mvv)=="Hand",:) = V(somatotopicID(mvv)=="Arm",:);
 dpca_plot(firingRatesAverage(somaIndex,:,:,:), W, V, @dpca_plot_default, ...
     'explainedVar', explVar,'marginalizationNames', margNames, 'marginalizationColours', margColours, ...
     'whichMarg', whichMarg,'time', plotTime,'timeEvents', timeEvents,'timeMarginalization', 2,...
@@ -275,8 +270,7 @@ saveFig = false;
 somaColors = containers.Map(["Arm","Hand"],{[0 1 .2],[.8 0 1]});
 savePath = "S:\Lab\ngc14\Working\DataHigh\Centered\Demixed\";
 plotSoma = "Arm"; plotLaminar = "";pDims = [1:10];
-somaLabels = somaTable(mv);
-somaLabels = somaLabels(somaIndex);
+somatotopicID = somatotopicID(somaIndex);
 
 if(0)
     if(strcmp(plotSoma,"Hand"))
@@ -296,7 +290,7 @@ if(0)
     end
 end
 
-Z =  bsxfun(@minus, reshape(firingRatesAverage(:,:),length(somaLabels),[])', ...
+Z =  bsxfun(@minus, reshape(firingRatesAverage(:,:),length(somatotopicID),[])', ...
     mean(firingRatesAverage(:,:)',1,'omitnan'))* W;
 
 projT = Z(:,cell2mat(arrayfun(@(f) find(whichMarg==f,dims),unique(whichMarg),'UniformOutput',false)));

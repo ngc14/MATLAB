@@ -1,4 +1,4 @@
-function tPhys = unitTable(conditions,params)
+function tPhys = unitTable(conditions,params,unitType,domain)
 if(~exist("conditions",'var'))
     conditions = params.condNames;
 end

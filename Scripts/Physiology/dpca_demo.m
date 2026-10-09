@@ -19,7 +19,7 @@ allSegsL = params.condSegMap.values;
 [~,maxSegL]= max(cellfun(@length,allSegsL));
 maxSegL = allSegsL{maxSegL};
 savePath = "S:\Lab\ngc14\Working\dPCA\PMd\";
-tPhys = unitTable(conditions,params);
+tPhys = unitTable(conditions,params,"Single","PMd");
 %%
 plotTime = findBins(plotTime(1):params.binSize:plotTime(end),params.bins);
 tablePSTHD= tPhys{:,contains(tPhys.Properties.VariableNames,"PSTH_"+params.condAbbrev.values)};

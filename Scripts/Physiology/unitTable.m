@@ -1,4 +1,4 @@
-function tPhys = unitTable(conditions,params,domain,unitType)
+function tPhys = unitTable(conditions,params)
 if(~exist("conditions",'var'))
     conditions = params.condNames;
 end
@@ -14,7 +14,7 @@ siteRep =cell2mat(cellfun(@(r,t) r(find((t.*~contains(r,"Face"))==min(t),1)),sit
 mappedChannels = cellfun(@(ch,l) ch{2}(l(~isnan(l))), chMaps,siteChannels, 'Uniformoutput', false)';
 % normalize PSTHs to baseline activity (averaged 1s before Cue)
 sumSegs = cellfun(@(c) cellfun(@(n) [n{:}], c, 'UniformOutput',false), siteSegs,'UniformOutput',false);
-goSegs = cellfun(@(c) cellfun(@(a) cell2mat(cellfun(@(t) findBins(t(:,strcmp(maxSegL,"GoSignal"))-1,...
+goSegs = cellfun(@(c) cellfun(@(a) cell2mat(cellfun(@(t) findBins(t(:,strcmp(maxSegL,"GoSignal"))-3,...
     params.bins),a,'UniformOutput',false)),c,'UniformOutput',false),siteSegs,'UniformOutput',false);
 normBaseline = cellfun(@(p,t)cellfun(@(a,n) [max(1,median(cell2mat(reshape(cellfun(@(s) ...
     permute(mean(a(:,max(1,s):max(1,s)+(1/params.binSize),:),[2],'omitnan'),[1 3 2]),...

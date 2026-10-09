@@ -6,9 +6,7 @@
 % D is the number of decisions (D=2)
 % T is the number of timepoints (note:trials should have same length in time)
 % trialNum -- number of trials for each neuron in each S,D condition
-% firingRates -- all single-trial data together, massive array. Here
-% If it's filled up with zeros
-%    firingRatesAverage = bsxfun(@times, mean(firingRates,5), size(firingRates,5)./trialNum)
+% firingRates -- all single-trial data together, massive array.
 sTrials = 20;
 dims = 20;
 plotTime= [-.5,1.5];

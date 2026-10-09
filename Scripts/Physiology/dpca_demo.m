@@ -18,14 +18,14 @@ combinedParams = {{1,[1 2]},{2}};%{{1,[1 3]},{2,[2,3]},{3},{[1,2],[1,2,3]}};
 margNames = {'Condition','Condition-Invariant'};%{'Condition','Somatotopy','Movement-Invariant','Cond/Soma Interaction'};
 margColours = [23 100 171; 200 160 43; 150 150 150; 180 25 180]/256;
 conditions = ["Extra Small Sphere","Large Sphere","Photocell"];
-params = PhysRecording(conditions,.001,.001,-5,3,containers.Map(conditions,repmat({"StartReach"},1,length(conditions))));
+params = PhysRecording(conditions,.01,.15,-5,3,containers.Map(conditions,repmat({"StartReach"},1,length(conditions))));
 allSegsL = params.condSegMap.values;
 [~,maxSegL]= max(cellfun(@length,allSegsL));
 maxSegL = allSegsL{maxSegL};
 savePath = "S:\Lab\ngc14\Working\dPCA\";
-tPhys = unitTable(conditions,params);
+tPhys = unitTable(conditions,params,"PMd","Single");
 %%
-tableInds = contains(string(tPhys.Somatotopy),["Arm","Hand"]);
+tableInds = contains(string(tPhys.Somatotopy),["Arm","Hand","Trunk","Face"]);
 somaTable = tPhys{tableInds,"Somatotopy"};
 allLocations = tPhys{tableInds,["X","Y"]};
 siteMap = tPhys{tableInds,"SiteNum"};
@@ -79,47 +79,10 @@ currD= cellfun(@(v) permute(cell2mat(reshape(cellfun(@(d) downsampleTrials(resiz
     'FillValue',NaN),sTrials)',v,'Uniformoutput',false),1,1,[])),[3 1 2]),num2cell(tablePSTHD(numUnits,:),1), 'UniformOutput',false);
 clear tablePSTHD;
 currD = squeeze(cellfun(@squeeze,num2cell(cellfun(@squeeze,num2cell(cat(4,currD{:}),[2,3]),'UniformOutput',false),4),'UniformOutput',false));
-%% Define parameter grouping
-% firingRates array has [N S D T E] size; ignore the 1st dimension (neurons)
-% marginalizations: 1 - stimulus, 2 - decision, 3 - time
-% 3 pairwise interactions:
-%    [1 3] - stimulus/time interaction
-%    [2 3] - decision/time interaction
-%    [1 2] - stimulus/decision interaction
-% 1 three-way interaction:
-%    [1 2 3] - rest
-% combinedParams = {{1, [1 3]}, {2, [2 3]}, {3}, {[1 2], [1 2 3]}};
-% margNames = {'Stimulus', 'Decision', 'Condition-independent', 'S/D Interaction'};
-%
-% For two parameters (stimulus and time), firingRates array of size [N S T E]
-% marginalizations: 1 - stimulus, 2 - time, [1 2] - stimulus/time interaction
-%    combinedParams = {{1, [1 2]}, {2}}
-trialPSTH = cell(1,length(currD));
-trialLength = floor(size(currD{1}{1}, 2) / binWidth);
-for n = 1:length(currD)
-    trialPSTH{n} = repmat({NaN(sTrials,trialLength)},length(params.condNames),1);%NaN(sum(~all(isnan(n),2)),trialLength), currD{n},'UniformOutput',false);%
-    for c = 1:length(trialPSTH{n})
-        for t = 1:trialLength
-            iStart = binWidth * (t-1) + 1;
-            iEnd   = binWidth *t;
-            trialPSTH{n}{c}(:,t) = sum(currD{n}{c}(:,iStart:iEnd),2);
-        end
-    end
-end
-clear currD;
+firingRates = permute(cell2mat(reshape(cat(4,currD{:}),1,1,[],length(currD))),[4 3 2 1]);
 %%
-mv = sum(cell2mat(cellfun(@(m)mean(cell2mat(m'),2,'omitnan').*100>1,num2cell([trialPSTH{:}],1),'UniformOutput',false)),1)>sTrials/2 | ...
-    mean(cell2mat(cellfun(@(n)mean(cat(2,n{:}),2,'omitnan'),trialPSTH,'UniformOutput',false)),1,'omitnan').*100>1;
-firingRates = cellfun(@(c) cellfun(@(s) (conv2(resize(s(:,fix(findBins(time,params.bins)/binWidth)),...
-    [size(s,1),length(time)+length(gausswin(ceil(smoothWin/binWidth)))-1],'Pattern','edge','side','both'),...
-    transpose(gausswin(ceil(smoothWin/binWidth)))./sum(gausswin(ceil(smoothWin/binWidth))),'valid')),c,'UniformOutput',false),trialPSTH,'UniformOutput',false);
-%+(rand(size(c)).*(std(c,0,2)*std(c,0,1)))
-%firingRates = cellfun(@(f) [f,cellfun(@(c) reshape(c(randperm(numel(c))),size(c)),f,'UniformOutput',false)],firingRates, 'UniformOutput',false);
-%firingRates(somaTable=="Hand") = cellfun(@(f) fliplr(f), firingRates(somaTable=="Hand"),'UniformOutput',false);
-
-firingRates = reshape(firingRates(mv),[ones(1,sum(size(firingRates{1})~=1)),sum(mv)]);
-firingRates = cat(length(size(firingRates))+sum(size(firingRates{1})~=1),firingRates{:});
-firingRates = permute(cell2mat(permute(firingRates,[4 2 3 1])),[3 4 2 1]);
+mv = cellfun(@(m) sum(any(mean(m,3,'omitnan') > 1,2))>sTrials/2, num2cell(firingRates,[2 3 4])) | ...
+    cellfun(@(m) sum(all(mean(m,3,'omitnan') <250,2))>sTrials/2, num2cell(firingRates,[2 3 4]));
 %firingRates = cell2mat(cellfun(@(r) circshift(r,randi([2*binWidth,size(r,3)-2*binWidth],1),3), num2cell(firingRates,3),'UniformOutput',false));
 trialNum = ones(size(firingRates,1:length(size(firingRates))-2)).*size(firingRates,length(size(firingRates)));
 for n = 1:size(firingRates,1)
@@ -130,7 +93,6 @@ for n = 1:size(firingRates,1)
     end
 end
 firingRates(isnan(firingRates)) = 0;
-% firingRatesAverage = cell2mat(cellfun(@(r) reshape(cell2mat(r),size(r{1},1),1,[]),cellfun(@(s) cellfun(@(t) cell2mat(cellfun(@(n)circshift(n,randi([2*binWidth,length(n)-2*binWidth],1)),n,num2cell(t(mv,unique(round(ms_bins./binWidth))),2),'UniformOutput',false)),s,'UniformOutput',false)',trialPSTH, 'UniformOutput',false),'UniformOutput',false));
 firingRatesAverage = mean(firingRates, length(size(firingRates)),'omitnan');
 timeEventConds = cell2mat(cellfun(@(i) mean(findBins(params.bins(i),time),1,'omitnan'),...
     cellfun(@(s) fix(s(mv,~all(isnan(s),1))),segInds,'UniformOutput',false)','UniformOutput',false));

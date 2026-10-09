@@ -23,14 +23,14 @@ for m = 1:length(monkeys)
 end
 siteDateMap = siteDateMap(~cellfun(@isempty, siteDateMap.Date),:);
 if(strcmp(domain,"PMd"))
-    siteDateMap = siteDateMap([2,4:17,19,20,21,23,24,25,27,28,31,32,38,43,46,47,48,49,51,53,56],:);
+    siteDateMap = siteDateMap([2,5:17,19,20,21,23,24,25,27,28,31,32,38,43,46,47,48,49,51,53,56],:);
 end
 % load info from all sites
 numSites = height(siteDateMap);
 [siteRep,siteSegs,siteChannels,siteTrialPSTHS,siteActiveInd,trialInfo,rawSpikes,channelMap] ...
     = deal(cell(1,numSites));
-delete(gcp('nocreate'));
-parpool('Processes'); 
+%delete(gcp('nocreate'));
+%parpool('Processes'); 
 parRun = size(gcp('nocreate'),1);
 if(~parRun)
     hbar = waitbar(0, 'Processing...', 'Name',['Iterating ',num2str(numSites),' instances....']);
@@ -38,7 +38,7 @@ else
     hbar = parforProgress(numSites);
 end
 %%
-parfor  i = 1:numSites
+for  i = 1:numSites
     currSession = siteDateMap(i,:);
     if(strcmpi(currSession.Monkey,"Gilligan"))
         dateFormat = 'MM_dd_uuuu';
@@ -50,7 +50,7 @@ parfor  i = 1:numSites
     currSession.Date = char(du);
     physDir = strcat(drivePath,currSession.Monkey,"\All Data\", currSession.Monkey,...
         "_",string(currSession.Date),"\Physiology\");
-    physDir = strcat(physDir,"Results\");
+    physDir = strcat(physDir,"Results_New\");
     if(isempty(dir(physDir+"*.mat")))
         if(~ismember(currSession.Date,badSession))
             disp(['Parsing and labeling session: ',currSession.Date,'...']);

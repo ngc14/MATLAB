@@ -1,5 +1,5 @@
 function done = labelSingleUnits(processDates,monkey)
-subDirName = '\Results';
+subDirName = '\Results_All';
 writeLabels = true;
 plotWaveforms = false;
 if(~exist('monkey','var'))
@@ -11,7 +11,7 @@ else
     dateFormat = 'uuuu_MM_dd';
 end
 if(~exist('processDates','var'))
-    dateArray = datetime(2019,05,20):datetime(2019,12,12);
+    dateArray = datetime(2020,02,05);
 else
     dateArray = datetime(processDates,'InputFormat',dateFormat);
 end
@@ -25,13 +25,16 @@ for d = 1:length(dateArray)
             & ~contains(names, 'stim') &  (contains(names, '.nev') | contains(names, '.plx')));
         ns5FilesInd = find(cellfun(@(a) ~contains(lower(a),"stim") & ...
             contains(a, '.ns5'), names));
+        if(isempty(ns5FilesInd))
+            ns5FilesInd = find(cellfun(@(a) contains(a,'.nf6'),names));
+        end
         if(~isempty(ns5FilesInd))
             [~,mostRecent]= sort({currDir(ns5FilesInd).date});
             ns5FilesInd = ns5FilesInd(mostRecent);
             ns5FilesInd = ns5FilesInd(end);
             rawFile = [currDir(ns5FilesInd).folder, '\', currDir(ns5FilesInd).name];
             [~, hFileRaw] = ns_OpenFile(rawFile);
-            rawSigInds = find([hFileRaw.Entity.FileType] == find(strcmp({hFileRaw.FileInfo.Type},'ns5')) & ...
+            rawSigInds = find([hFileRaw.Entity.FileType] == find(contains({hFileRaw.FileInfo.Type},["ns5","nf6"])) & ...
                 cellfun(@(s) strcmp(deblank(s),'uV'), {hFileRaw.Entity.Units}));
             rawSigInds = rawSigInds(sort(cellfun(@(r) str2double(extract(...
                 extractAfter(r,characterListPattern('. ')+wildcardPattern),digitsPattern)),{hFileRaw.Entity(rawSigInds).Label})));
@@ -81,7 +84,7 @@ for d = 1:length(dateArray)
                         [~,spFile] = ns_OpenFile([loadFile.folder, '\', loadFile.name]);
                     end
                     %%
-                     for e = 1:dirTotal
+                    for e = 1:dirTotal
                         sChInd = e;%channelMap(e);
                         savedStruct = matfile([currName, subDirName,'\', channelMats{e}], 'Writable', true);
                         savedFields = fieldnames(savedStruct);
@@ -102,9 +105,9 @@ for d = 1:length(dateArray)
                                     currUnitTime = dataTime(ids==sortedIDs(a));
                                     data = [];
                                     for s = 1:length(unitIndx)
-                                         [~,~,data(:,s),~,~] = ns_GetSegmentData(hFileRaw, ...
-                                           spkInds([hFileRaw.Entity(spkInds).ElectrodeID]== ...
-                                           spFile.Entity(sChInd).ElectrodeID), unitIndx(s));
+                                        [~,~,data(:,s),~,~] = ns_GetSegmentData(hFileRaw, ...
+                                            spkInds([hFileRaw.Entity(spkInds).ElectrodeID]== ...
+                                            spFile.Entity(sChInd).ElectrodeID), unitIndx(s));
                                     end
                                 else
                                     [~,~,currUnitTime,data] = plx_waves_v(...
@@ -174,12 +177,12 @@ for d = 1:length(dateArray)
                             end
                         end
                     end
+                    if(NEVFile)
+                        ns_CloseFile(hFileRaw);
+                        ns_CloseFile(spFile);
+                    end
                 else
                     disp(['No sorted file for: ', char(dateArray(d))]);
-                end
-                if(NEVFile)
-                    ns_CloseFile(hFileRaw);
-                    ns_CloseFile(spFile);
                 end
             end
             fclose('all');

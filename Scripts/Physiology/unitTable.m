@@ -1,4 +1,4 @@
-function tPhys = unitTable(conditions,params)
+function tPhys = unitTable(conditions,params,domain,unitType)
 if(~exist("conditions",'var'))
     conditions = params.condNames;
 end
@@ -7,7 +7,7 @@ allSegs = params.condSegMap.values;
 maxSegL = allSegs{maxSegL};
 %% load all single units from M1 recordings that were not from the face zone
 [siteDateMap, siteSegs, siteTrialPSTHS,~, siteChannels,chMaps,~,~]=...
-    getAllSessions(params,"Single","M1","Face");
+    getAllSessions(params,unitType,domain,"Face");
 %%
 % unit somatotopy and channel number
 siteRep =cell2mat(cellfun(@(r,t) r(find((t.*~contains(r,"Face"))==min(t),1)),siteDateMap.SiteRep,siteDateMap.Thresh,'UniformOutput', false));

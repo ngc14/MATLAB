@@ -23,7 +23,7 @@ for m = 1:length(monkeys)
 end
 siteDateMap = siteDateMap(~cellfun(@isempty, siteDateMap.Date),:);
 if(strcmp(domain,"PMd"))
-    siteDateMap = siteDateMap([2,5:17,19,20,21,23,24,25,27,28,31,33,39,44,46,47,48,49,52,54,57],:);
+    siteDateMap = siteDateMap([3,5:17,19,20,21,23,24,25,27,28,33,39,44,46,47,48,49,52,54,57],:);
 end
 % load info from all sites
 numSites = height(siteDateMap);
@@ -50,7 +50,7 @@ parfor  i = 1:numSites
     currSession.Date = char(du);
     physDir = strcat(drivePath,currSession.Monkey,"\All Data\", currSession.Monkey,...
         "_",string(currSession.Date),"\Physiology\");
-    physDir = strcat(physDir,"Results_New\");
+    physDir = strcat(physDir,"Results\");
     if(isempty(dir(physDir+"*.mat")))
         if(~ismember(currSession.Date,badSession))
             disp(['Parsing and labeling session: ',currSession.Date,'...']);

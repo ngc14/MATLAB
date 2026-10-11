@@ -7,10 +7,12 @@ allSegs = params.condSegMap.values;
 maxSegL = allSegs{maxSegL};
 %% load all single units from M1 recordings that were not from the face zone
 [siteDateMap, siteSegs, siteTrialPSTHS,~, siteChannels,chMaps,~,~]=...
-    getAllSessions(params,unitType,domain,"Face");
+    getAllSessions(params,unitType,domain,"");
 %%
 % unit somatotopy and channel number
-siteRep =cell2mat(cellfun(@(r,t) r(find((t.*~contains(r,"Face"))==min(t),1)),siteDateMap.SiteRep,siteDateMap.Thresh,'UniformOutput', false));
+siteRep =cellfun(@(r,t) r(find(t==min(t+(double(ismember(r,"Face"))*100)),1)),siteDateMap.SiteRep,siteDateMap.Thresh,'UniformOutput', false);
+siteRep(cellfun(@isempty,siteRep)) = {"Face"};
+siteRep = cell2mat(siteRep);
 mappedChannels = cellfun(@(ch,l) ch{2}(l(~isnan(l))), chMaps,siteChannels, 'Uniformoutput', false)';
 % normalize PSTHs to baseline activity (averaged 1s before Cue)
 sumSegs = cellfun(@(c) cellfun(@(n) [n{:}], c, 'UniformOutput',false), siteSegs,'UniformOutput',false);
@@ -60,7 +62,7 @@ for c = 1:length(conditions)
     end
     currSegMap = cell2mat(params.condSegMap.values(cellstr(conditions(c))));
     forwardTimes = cellfun(@(t) t(:,strcmp(currSegMap,"StartReplaceHold"))-t(:,strcmp(currSegMap,"GoSignal")),mapSites2Units(condUnitMapping,sumSegs{c}),'UniformOutput',false);
-    goodTrialInds = cellfun(@(t,b) squeeze(sum(t,2))> b & squeeze(sum(t,2).*params.binSize)< 200*b | isnan(b), vertcat(PSTH{:}), forwardTimes, 'UniformOutput',false);
+    goodTrialInds = cellfun(@(t,b) ~isnan(b), vertcat(PSTH{:}), forwardTimes, 'UniformOutput',false);
     condTable.PSTH = cellfun(@(t,i) permute(t(:,:,i),[2 3 1]),vertcat(PSTH{:}),goodTrialInds,'UniformOutput',false);
     condTable.Segs = cellfun(@(s,i) s(i,:), mapSites2Units(condUnitMapping,sumSegs{c}),goodTrialInds, 'UniformOutput',false);
     tPhys = [tPhys;condTable];

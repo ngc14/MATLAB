@@ -55,7 +55,7 @@ if ~exist('NEV', 'var')
 end
 
 if ~exist('units', 'var')
-    units = 1:5;
+    units = 0:5;
 end
 
 if ~exist('plottype', 'var')

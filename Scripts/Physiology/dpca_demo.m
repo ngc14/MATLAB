@@ -29,6 +29,7 @@ tablePSTHD = tablePSTHD(tableInds,:);
 somatotopicID = tPhys{tableInds,"Somatotopy"};
 monkeyInd = tPhys{tableInds,"Monkey"};
 allLocations = tPhys{tableInds,["X","Y"]};
+nLocations = tPhys{tableInds,["XT","YT"]};
 siteInd = tPhys{tableInds,"SiteNum"};
 [sn,ui,~] = unique(siteInd);
 siteMasks = dictionary;
@@ -74,7 +75,7 @@ trialNum = ones(size(firingRates,1:length(size(firingRates))-2)).*size(firingRat
 for n = 1:size(firingRates,1)
     for c = 1:size(firingRates,2)
         %for d = 1:size(firingRates,3)
-            assert(isempty(find(isnan(firingRates(n,c,1:trialNum(n,c))), 1)), 'Something is wrong!')
+        assert(isempty(find(isnan(firingRates(n,c,1:trialNum(n,c))), 1)), 'Something is wrong!')
         %end
     end
 end
@@ -104,7 +105,7 @@ dpca_plot(firingRatesAverage, W, V, @dpca_plot_default,'explainedVar', explVar, 
 mv = cellfun(@(m) sum(all(mean(m,3,'omitnan') > 1,2))>sTrials/2, num2cell(firingRates,[2 3 4])) | ...
     cellfun(@(m) sum(all(mean(m,3,'omitnan') <250,2))>sTrials/2, num2cell(firingRates,[2 3 4]));
 somaIndex = cell2mat(arrayfun(@(a) find(somatotopicID==a,min(groupcounts(somatotopicID))),unique(somatotopicID),'UniformOutput',false));
-somaIndex = mv & (somatotopicID=="Arm") % somatotopicID=="Hand") %| somatotopicID == "Face" | somatotopicID == "Trunk");
+somaIndex = mv & (somatotopicID=="Arm" | somatotopicID=="Hand") %| somatotopicID == "Face" | somatotopicID == "Trunk";
 % goodUnits = all(cell2mat(cellfun(@(c) cellfun(@(s) size(s,3)>=sTrials, c),firingRates, 'UniformOutput',false)),2);
 optimalLambda = dpca_optimizeLambda(firingRatesAverage(somaIndex,:,plotTime,:),firingRates(somaIndex,:,plotTime,:,:),...
     trialNum(somaIndex,:,:),'combinedParams', combinedParams, 'simultaneous', false,'numRep', 10);
@@ -118,6 +119,69 @@ dpca_plot(firingRatesAverage(somaIndex,:,plotTime,:), W, V, @dpca_plot_default, 
     'whichMarg', whichMarg,'time', params.bins(plotTime),'timeEvents', timeEvents,'timeMarginalization', 2,...
     'legendSubplot', {16,params.condNames},'ylims',[]);
 Z =  bsxfun(@minus, reshape(firingRatesAverage(somaIndex,:,plotTime),sum(somaIndex),[])', mean(firingRatesAverage(somaIndex,:,plotTime),[2,3])')* W;
+%%
+mStep = 55.65;
+minBinPerc = 5;
+[locs,ind] = unique(nLocations(somaIndex),'stable');
+for d = 1:2
+    if(d==1)
+        distV = nLocations(somaIndex,2)%ind
+        cBin = allLocations(somaIndex,2);
+        maxB = 9;
+    else
+        distV = nLocations(somaIndex,1);
+        cBin = allLocations(somaIndex,1);
+        maxB = 6;
+    end
+
+    edgs = min(cBin):mStep:(max(cBin)+(mStep-rem(max(cBin),mStep)))+abs(rem(min(cBin),mStep));
+    [tvalue,~,~] = histcounts(distV,[unique(distV)' max(distV)+1],'Normalization','count');
+    totalUnits = sum(tvalue);
+    tvalue = 100*(tvalue./totalUnits);
+    startInd = 1;
+    lastInd = maxB;
+    tvalue(startInd) = sum(tvalue(1:startInd));
+    tvalue(lastInd-1) = sum(tvalue(lastInd-1:end));
+    tvalue(lastInd:end) = [];
+    tvalue(1:startInd-1) = [];
+    edgs(lastInd:end-1) = [];
+    edgs(2:startInd) = [];
+    bars = string(arrayfun(@num2str, (0:length(edgs)-1).*ImagingParameters.px2mm*mStep, 'UniformOutput',false));
+    figure(); sax = tiledlayout(length(unique(whichMarg)),2);
+
+    for m = 1:length(margNames)
+        wInd = find(whichMarg==m,2);
+        for c = 1:2
+            [hvalues,~,p] = histcounts(cBin,edgs,'Normalization','count');
+            hvalues = hvalues./(sum(hvalues));
+            %p = somatotopicID(somaIndex); bars = ["Arm","Hand"]; xticklabels(bars);
+            plotWeights = W(:,wInd(c));%groupsummary(W(:,wInd(c)),siteInd(somaIndex),"mean")
+            nexttile(); sax(m,c) = gca(); hold on; title(margNames{m}+"-Component "+num2str(c))
+            swarmchart(p,plotWeights,'filled','XJitterWidth',0.8); hold on;
+            arrayfun(@(x,y) plot([-.2 .2]+x, [y y],'-r', 'LineWidth',3),1:length(unique(p)),groupsummary(plotWeights,p,"mean")');
+            f = findobj(get(sax(m,c),'Children'),{'tag', 'Box', '-or','tag','Median'});
+            % sig{d,m,c} = accumarray(p,W(:,wInd(c)),[max(p),1],@ttest, 0,1);
+            % f = findobj(get(gca,'Children'),{'tag', 'Lower Whisker', '-or' ,'tag','Upper Whisker'});
+            xticks([1:length(bars)]);
+            xticklabels(strsplit(sprintf('%.2f ',bars(2:end))));
+            xtickangle(25)
+            ylim([-0.3 0.3]);
+            plot([0, length(bars)],[0 0],'k');
+
+            if(d==1)
+                xlabel("Medial/Lateral (microns)");
+                if(c==2 & m==length(margNames) & 0)
+                    saveFigures(gcf,savePath,"ML-Units",[]);
+                end
+            else
+                xlabel("Caudal/Rostral (microns)");
+                if(c==2 & m==length(margNames) & 0)
+                    saveFigures(gcf,savePath,"RC-Units",[]);
+                end
+            end
+        end
+    end
+end
 %% spatial maps of demixed decoder weights
 monkey = "Skipper";
 cLim = [-.1 .1];

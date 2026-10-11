@@ -170,12 +170,12 @@ for d = 1:2
 
             if(d==1)
                 xlabel("Medial/Lateral (microns)");
-                if(c==2 & m==length(margNames) & 0)
+                if(c==2 & m==length(margNames))
                     saveFigures(gcf,savePath,"ML-Units",[]);
                 end
             else
                 xlabel("Caudal/Rostral (microns)");
-                if(c==2 & m==length(margNames) & 0)
+                if(c==2 & m==length(margNames))
                     saveFigures(gcf,savePath,"RC-Units",[]);
                 end
             end

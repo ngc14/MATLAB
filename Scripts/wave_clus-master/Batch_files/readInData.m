@@ -22,7 +22,7 @@ classdef readInData < handle
             [unused, fnam, ext] = fileparts(par_ui.filename);
             ext = lower(ext);
             obj.par = par_ui;
-            obj.nick_name = fnam;
+            obj.nick_name = [unused,'\',fnam];
             obj.n_to_read = 1;
             obj.with_results = false;
             obj.with_raw = false;

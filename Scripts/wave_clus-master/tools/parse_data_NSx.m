@@ -88,7 +88,7 @@ fclose('all');
 tcum = tcum + toc;
 fprintf('Total time spent in parsing the data was %s secs.\n',num2str(tcum, '%0.1f')); 
 
-metadata_file = fullfile(pwd, [output_name '_TimeStamps.mat']);
+metadata_file = fullfile([output_name '_TimeStamps.mat']);
 metadata = struct;
 if exist(metadata_file,'file')
     metadata = load(metadata_file);
@@ -103,7 +103,7 @@ if strcmp(nsx_ext,'5')
     metadata.nchan = nchan;
     metadata.sr = sr;
     metadata.chext = chext;
-    save(metadata_file, '-struct', 'metadata')
+    save(metadata_file, 'metadata')
 else
     if isfield(metadata,fext) && isfield(metadata.(fext),'sr')
         parsed_chs = union(parsed_chs,metadata.(fext).parsed_chs);

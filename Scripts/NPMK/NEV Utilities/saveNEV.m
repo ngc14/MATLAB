@@ -92,7 +92,7 @@ end
 
 % Validating input arguments
 if ~exist('FilePath',   'var'); FilePath = [fullfile(NEV.MetaTags.FilePath,NEV.MetaTags.Filename) '-out.nev']; end
-if ~exist('reportFlag', 'var'); reportFlag = 1; end;
+if ~exist('reportFlag', 'var'); reportFlag = 0; end;
 
 % Warning user about the consequences of the modified NEV file
 if reportFlag
@@ -102,14 +102,15 @@ if reportFlag
         return
     end
 end
-
+ExistCount = 0;
 % Validating and opening the writable file
 if exist(FilePath)
     
         if exist(FilePath)
          
                 disp('File already exists!');
-                OverwritePrompt = input('Would you like to overwrite? (Y/N)','s');
+                %OverwritePrompt = input('Would you like to overwrite? (Y/N)','s');
+                OverwritePrompt = 'n';
                 if strcmpi(OverwritePrompt,'y')
                     Overwrite = 1;
                     delete(FilePath);

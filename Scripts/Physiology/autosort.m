@@ -1,71 +1,38 @@
 nevFile = 'C:\Users\ngc14\Desktop\TODO-Spike_Sort\autosort\Gilligan_2022_06_23_0001.nev'; 
-matOutputFile = 'C:\Users\ngc14\Desktop\TODO-Spike_Sort\autosort\Gilligan_2022_06_23_0001-autosort.mat';
 nb_before = 15;
 nb_after = 37;
-waveform_length = nb_before + nb_after;
 %% 2. Read Metadata Header using NPMK
-fprintf('Reading NEV file headers...\n');
 NEV = openNEV(nevFile, 'report','nosave','noread','nomat');
-channelIDs = [NEV.ElectrodesInfo.ElectrodeID];
-numChannels = length(channelIDs);
-sf = NEV.MetaTags.TimeRes;
+numChannels = length([NEV.ElectrodesInfo.ElectrodeID]);
 %% 3. Parallel Processing Loop Over Channels
-% Initialize cell array structures to hold final outputs per channel
-spikes_cell = cell(1, numChannels);
-timestamps_cell = cell(1, numChannels);
-units_cell = cell(1, numChannels);
-fprintf('Processing %d channels in parallel...\n', numChannels);
-tic;
+fprintf('Processing %d channels in parallel...\n', numChannels); tic;
+wNEV = openNEV(nevFile, 'report','read', 'nosave', 'nomat');
+nsxFile = nevFile; nsxFile(end-3:end) = '.ns5';
+sf = wNEV.MetaTags.TimeRes;
+electrodes = wNEV.Data.Spikes.Electrode;
+wfs = wNEV.Data.Spikes.Waveform;
+%%
 parfor ch_idx = 1:numChannels
-    ch_id = channelIDs(ch_idx);
-    % Open a localized independent reader handle inside the worker thread
-    wNEV = openNEV(nevFile, ['c:',num2str(ch_id)], 'read', 'nosave', 'nomat');
-    % Check if any spikes exist on this channel
-    if isempty(wNEV.Data.Spikes.TimeStamp)
-        spikes_cell{ch_idx} = zeros(0, waveform_length, 'double');
-        timestamps_cell{ch_idx} = zeros(0, 1, 'double');
-        units_cell{ch_idx} = zeros(0, 1, 'int32');
-        continue;
-    end
-    % Get original timestamps and convert from digital ticks to Seconds
-    raw_ts = double(wNEV.Data.Spikes.TimeStamp(:));
-    sec_ts = raw_ts ./ sf;
-    % Get waveforms: shape is [Samples x Num_Spikes] from openNEV
-    raw_wf = double(wNEV.Data.Spikes.Waveform); 
-    % Transpose to [Num_Spikes x Samples] matching WaveClus/OFS expectations
-    wf_clean = raw_wf'; 
-    num_spikes = size(wf_clean, 1);
-    %% Run Core WaveClus Clustering Functions directly in RAM
-    try
-        par_struct = struct();
-        par_struct.w_before = nb_before;
-        par_struct.w_after = nb_after;
-        par_struct.inputs = 1;
-        par_struct.features = 'wav';  % Use Wavelet Transform features
-        par_struct.scales = 4;
-        
-        % Extract Wavelet Features Output shape: [Num_Spikes x Num_Features]
-        features = Get_features(wf_clean, par_struct);
-        % Run Superparamagnetic Clustering (SPC) 
-        [cluster_labels, ~] = Do_clustering(features, par_struct);        
-        % WaveClus outputs row configurations; transpose to [Num_Spikes x 1]
-        unit_assignments = int32(cluster_labels(:));
-        
-        spikes_cell{ch_idx} = wf_clean;
-        timestamps_cell{ch_idx} = sec_ts;
-        units_cell{ch_idx} = unit_assignments;
-        
-        fprintf('Channel %d complete: Sorted %d spikes cleanly.\n', ch_id, num_spikes);
+    ch_spks = electrodes==ch_idx;
+    ch_wfs = wfs(:,ch_spks)';
+    try 
+        [~, score, ~] = pca(double(ch_wfs));
+        features = score(:, 1:min(3, size(ch_wfs,1)))'; 
+        clusterRes = uint8(isosplit5(features));
+        units{ch_idx} = [find(ch_spks);clusterRes];
+        fprintf('Channel %d complete: Sorted.\n', ch_idx);
     catch ME
-        warning('Failed processing channel %d: %s', ch_id, ME.message);
-        spikes_cell{ch_idx} = zeros(0, waveform_length, 'double');
-        timestamps_cell{ch_idx} = zeros(0, 1, 'double');
-        units_cell{ch_idx} = zeros(0, 1, 'int32');
+        warning('Failed on channel %d: %s', ch_idx, ME.message);
     end
 end
-total_time = toc;
-spikes = spikes_cell';
-timestamps = timestamps_cell';
-units = units_cell';
-save(matOutputFile, 'spikes', 'timestamps', 'units', '-v7');
-fprintf('TOTAL PROCESSING TIME: %.2f seconds\n', total_time);
+for ch_idx = 1:numChannels
+    wNEV.Data.Spikes.Units(units{ch_idx}(1,:)) = units{ch_idx}(2,:);
+end
+[~, sortIdx] = sort(wNEV.Data.Spikes.TimeStamp);
+wNEV.Data.Spikes.Electrode = wNEV.Data.Spikes.Electrode(sortIdx);
+wNEV.Data.Spikes.TimeStamp = wNEV.Data.Spikes.TimeStamp(sortIdx);
+wNEV.Data.Spikes.Unit      = wNEV.Data.Spikes.Unit(sortIdx);
+wNEV.Data.Spikes.Waveform = wNEV.Data.Spikes.Waveform(:, sortIdx);
+
+saveNEV(wNEV,[nevFile(1:end-4),'-autosort.nev']);
+fprintf('TOTAL PROCESSING TIME: %.2f seconds\n', toc);

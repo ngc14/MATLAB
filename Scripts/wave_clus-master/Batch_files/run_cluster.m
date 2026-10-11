@@ -106,9 +106,9 @@ end
 
 
 if exist('multi_files','var') && multi_files==true
-	log_name = [par.filename 'spc_log.txt'];
+	log_name = [par.fname 'spc_log.txt'];
 	f = fopen(log_name,'w');
-	fprintf(f,'----------\nSPC result of file: %s\n', par.filename);
+	fprintf(f,'----------\nSPC result of file: %s\n', par.fname);
 	fprintf(f,result);
 	fclose(f);
 else

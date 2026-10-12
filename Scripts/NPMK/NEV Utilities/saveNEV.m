@@ -110,7 +110,7 @@ if exist(FilePath)
          
                 disp('File already exists!');
                 %OverwritePrompt = input('Would you like to overwrite? (Y/N)','s');
-                OverwritePrompt = 'n';
+                OverwritePrompt = 'y';
                 if strcmpi(OverwritePrompt,'y')
                     Overwrite = 1;
                     delete(FilePath);

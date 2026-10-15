@@ -1,5 +1,5 @@
 function done = labelSingleUnits(processDates,monkey)
-subDirName = '\Results_All';
+subDirName = '\Results';
 writeLabels = true;
 plotWaveforms = false;
 if(~exist('monkey','var'))
@@ -34,10 +34,6 @@ for d = 1:length(dateArray)
             ns5FilesInd = ns5FilesInd(end);
             rawFile = [currDir(ns5FilesInd).folder, '\', currDir(ns5FilesInd).name];
             [~, hFileRaw] = ns_OpenFile(rawFile);
-            rawSigInds = find([hFileRaw.Entity.FileType] == find(contains({hFileRaw.FileInfo.Type},["ns5","nf6"])) & ...
-                cellfun(@(s) strcmp(deblank(s),'uV'), {hFileRaw.Entity.Units}));
-            rawSigInds = rawSigInds(sort(cellfun(@(r) str2double(extract(...
-                extractAfter(r,characterListPattern('. ')+wildcardPattern),digitsPattern)),{hFileRaw.Entity(rawSigInds).Label})));
             if(any(sortedFile))
                 if(any(contains(names(sortedFile),'.plx')))
                     NEVFile = 0;
@@ -51,12 +47,21 @@ for d = 1:length(dateArray)
                     spkInds = find(cellfun(@(s,u) strcmp(string(s), "Segment") & strcmp(u,'uV'),...
                         {hFileRaw.Entity(:).EntityType},{hFileRaw.Entity(:).Units}, 'UniformOutput', true));
                 end
+                if(~isempty(dir([currName,'\Results*\'])))
+                    subDirName = dir([currName,'\Results*\']);
+                    subDirName = ['\',cell2mat(regexp(subDirName(1).folder,'[^\\]+$','match'))];
+                end
                 if(~isempty(dir([currName, subDirName,'\*.mat'])))
                     channelMats = dir([currName,subDirName,'\*.mat']);
                     [channelMats,~] = natsort({channelMats.name});
                     unlabeledChannels =cellfun(@(c) str2double(regexp(c,'(?<=\_)\d*(?=\.)',...
                         'match')), channelMats);
                     tic
+                    rawSigInds = find([hFileRaw.Entity.FileType] == find(contains({hFileRaw.FileInfo.Type},["ns5","nf6"])) & ...
+                        cellfun(@(s) strcmp(deblank(s),'uV'), {hFileRaw.Entity.Units}));
+                    rawSigInds = rawSigInds(ismember([hFileRaw.Entity(rawSigInds).ElectrodeID],[hFileRaw.Entity(spkInds).ElectrodeID]));
+                    rawSigInds = rawSigInds(sort(cellfun(@(r) str2double(extract(...
+                        extractAfter(r,characterListPattern('. ')+wildcardPattern),digitsPattern)),{hFileRaw.Entity(rawSigInds).Label})));
                     if(isempty(rawSigInds))
                         rawSigInds = find(cellfun(@(s) strcmp(string(s), "Analog"),...
                             {hFileRaw.Entity(:).EntityType}, 'UniformOutput', true) & ...
@@ -182,7 +187,7 @@ for d = 1:length(dateArray)
                         ns_CloseFile(spFile);
                     end
                 else
-                    disp(['No sorted file for: ', char(dateArray(d))]);
+                    disp(['Spike data not parsed: ', char(dateArray(d))]);
                 end
             end
             fclose('all');

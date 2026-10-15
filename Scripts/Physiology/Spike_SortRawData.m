@@ -33,19 +33,18 @@ if(~exist(fileDir,'dir'))
     return;
 end
 nFiles = dir(fileDir);
-nevFilesInd = cellfun(@(a) contains(a, '.nev'), {nFiles.name});
-nevFiles = nFiles(nevFilesInd);
-[~,mostRecentOrder] = sort(cellfun(@datenum,{nevFiles.date}),'descend');
-[~, nevInd] = find(contains({nevFiles(mostRecentOrder).name}, 'sort', 'IgnoreCase',true),1);
-filePath = ['S:\Lab\', monkey, '\All Data\', monkey,'_', sessionDate, '\Physiology\',nevFiles(mostRecentOrder(nevInd)).name];
-if(isempty(nevInd))
-    disp('Not sorted');
-    disp(sessionDate);
-    return;
+[~,mostRecentOrder] = sort(cellfun(@datenum,{nFiles.date}),'descend');
+nFiles = nFiles(mostRecentOrder);
+nevInd =find(contains({nFiles.name}, '.nev'));
+sortedInd = find((contains({nFiles.name}, '-sorted') | contains({nFiles.name}, 'RASort'))...
+    & ~contains({nFiles.name}, 'stim') &  (contains({nFiles.name}, '.nev') | contains({nFiles.name}, '.plx')));
+if(~isempty(sortedInd))
+    nevInd = sortedInd;
 end
-[ns_status, hFile] = ns_OpenFile(filePath);
-eventEntityID = find(cellfun(@strcmpi, {hFile.Entity.Reason}, repmat({eventChannel}, size({hFile.Entity.Reason}))));
-%% digital event timestamps
+filePath = ['S:\Lab\', monkey, '\All Data\', monkey,'_', sessionDate, '\Physiology\',nFiles(nevInd).name];
+if(isempty(nevInd))
+    disp(['Not sorted',sessionDate]);
+end
 GET_EVENTS = false;
 eventTimeStamps = [];
 if exist('eventChannel','var')
@@ -53,34 +52,36 @@ if exist('eventChannel','var')
         GET_EVENTS = true;
     end
 end
-
+%% digital event timestamps
 if GET_EVENTS
-    % Retrieve the ID number for the chosen event channel
-    eventEntityID = find(cellfun(@strcmpi, {hFile.Entity.Reason}, repmat({eventChannel}, size({hFile.Entity.Reason}))));
-    % get event entity information
-    [ns_RESULT, eventEntityInfo] = ns_GetEntityInfo(hFile, eventEntityID(end));
-    % event data
-    numCount = eventEntityInfo.ItemCount;
-    eventTimes = NaN(1, numCount);
-    eventTimeStamps = NaN(1, numCount);
-    dataSize = NaN(1, numCount);
-    
-    % get actual event time stamps
-    dispstat('','init');
-    for i = 1:numCount
-        [~, eventTimeStamps(i), eventTimes(i), dataSize(i)] = ns_GetEventData(hFile, eventEntityID, i);
-        %dispstat(['Loading Event Data... ',num2str(round(i/numCount*100)),'% Done.']);
+    if(strcmp(filePath(end-3:end),'.nev'))
+        NEVFile = 1;
+        [~, hFile] = ns_OpenFile(filePath);
+        % Retrieve the ID number for the chosen event channel
+        eventEntityID = find(cellfun(@strcmpi, {hFile.Entity.Reason}, repmat({eventChannel}, size({hFile.Entity.Reason}))));
+        [ns_RESULT, eventEntityInfo] = ns_GetEntityInfo(hFile, eventEntityID(end));
+        eventTimes = NaN(1, eventEntityInfo.ItemCount);
+        eventTimeStamps = NaN(1, eventEntityInfo.ItemCount);
+        % get actual event time stamps
+        dispstat('','init');
+        for i = 1:eventEntityInfo.ItemCount
+            [~, eventTimeStamps(i), eventTimes(i), ~] = ns_GetEventData(hFile, eventEntityID, i);
+        end
+        dispstat('Loading Event Data... 100% Done.');
+        % Only consider time stamps for rising edge (eventData = 0 on falling edge)
+        eventTimes_risingEdge = eventTimeStamps(eventTimes == 32767);
+        eventTimes_fallingEdge = eventTimeStamps(eventTimes == 0);
+        ns_status = ns_CloseFile(hFile);
+    else
+        NEVFile = 0;
+        [~,eventEntityID]=plx_event_chanmap(filePath);
+        if(any(eventEntityID==257))
+            [~,eventTimes,~] = plx_event_ts(filePath,257);
+            eventTimes_risingEdge = eventTimes(1:end-1);
+            eventTimes_fallingEdge = eventTimes(2:end);
+        end
     end
-    dispstat('Loading Event Data... 100% Done.');
-    
-    % Only consider time stamps for rising edge (eventData = 0 on falling edge)
-    % This may not work with parallel input
-    tempValidTimeStampInds = find(eventTimes == 32767);
-    eventTimes_risingEdge = eventTimeStamps(tempValidTimeStampInds);
-    tempValidTimeStampInds = find(eventTimes == 0);
-    eventTimes_fallingEdge = eventTimeStamps(tempValidTimeStampInds);
 end
-ns_status = ns_CloseFile(hFile);
 % Find start of trial
 pulseLength=eventTimes_fallingEdge-eventTimes_risingEdge;
 % corrections to specific recording sessions that output 
@@ -179,6 +180,25 @@ switch(char(datetime(sessionDate,'InputFormat',dateFormat,'Format',dateFormat)))
          pulseLength(962) = 0.01;
     case('09_17_2019')
         pulseLength(2558) = 0.01;
+    case('06_11_2020')
+        pulseLength(4) = 0.01;
+        pulseLength(115) = 0.01;
+        pulseLength(1804) = 0.01;
+    case('07_01_2020')
+        pulseLength(1) = 0.02;
+    case('07_02_2020')
+        pulseLength(4) = 0.01;
+        pulseLength(117) = 0.01;
+        pulseLength(212) = 0.01;
+        pulseLength(664) = 0.01;
+        pulseLength(668) = 0.01;
+        pulseLength(938) = 0.01;
+        pulseLength(997) = 0.01;
+        pulseLength(1038) = 0.01;
+        pulseLength(2564) = 0.01;
+        pulseLength(2742) = 0.019;
+    case('04_14_2020')
+        pulseLength(1:4) = 0.01;
 end
 startEventIdx=find(pulseLength>0.0175 & pulseLength<0.03);
 endEventIdx = find(pulseLength>0.030 & pulseLength<0.070);
@@ -394,12 +414,12 @@ for f = 1:sum(spikeChannels)
             sortedSpikeData.Locations= unique(successfulTrial(:,end));
         end
         if(~exist(['S:\Lab\', monkey, '\All Data\', monkey,'_', sessionDate,...
-                '\Physiology\Results_All\'], 'dir'))
+                '\Physiology\Results\'], 'dir'))
             mkdir(['S:\Lab\', monkey, '\All Data\', monkey,'_', sessionDate,...
-                '\Physiology\Results_All\']);
+                '\Physiology\Results\']);
         end
         fName = ['S:\Lab\', monkey, '\All Data\', monkey,'_', sessionDate,...
-            '\Physiology\Results_All\',fullName,'.mat'];
+            '\Physiology\Results\',fullName,'.mat'];
         if(exist(fName,'file'))
             m = matfile(fName,"Writable",true);
             save(fName,'sortedSpikeData','-append');%m.sortedSpikeData = sortedSpikeData;

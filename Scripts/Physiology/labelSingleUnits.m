@@ -34,6 +34,8 @@ for d = 1:length(dateArray)
             ns5FilesInd = ns5FilesInd(end);
             rawFile = [currDir(ns5FilesInd).folder, '\', currDir(ns5FilesInd).name];
             [~, hFileRaw] = ns_OpenFile(rawFile);
+            spkInds = find(cellfun(@(s,u) strcmp(string(s), "Segment") & strcmp(u,'uV'),...
+                {hFileRaw.Entity(:).EntityType},{hFileRaw.Entity(:).Units}, 'UniformOutput', true));
             if(any(sortedFile))
                 if(any(contains(names(sortedFile),'.plx')))
                     NEVFile = 0;
@@ -44,8 +46,6 @@ for d = 1:length(dateArray)
                     NEVFile = 1;
                     [~,mostRecent] = sort([currDir(sortedFile).datenum],'descend');
                     loadFile = currDir(sortedFile(mostRecent(1)));
-                    spkInds = find(cellfun(@(s,u) strcmp(string(s), "Segment") & strcmp(u,'uV'),...
-                        {hFileRaw.Entity(:).EntityType},{hFileRaw.Entity(:).Units}, 'UniformOutput', true));
                 end
                 if(~isempty(dir([currName,'\Results*\'])))
                     subDirName = dir([currName,'\Results*\']);

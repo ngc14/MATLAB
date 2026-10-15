@@ -41,10 +41,10 @@ sortedInd = find((contains({nFiles.name}, '-sorted') | contains({nFiles.name}, '
 if(~isempty(sortedInd))
     nevInd = sortedInd;
 end
-filePath = ['S:\Lab\', monkey, '\All Data\', monkey,'_', sessionDate, '\Physiology\',nFiles(nevInd).name];
 if(isempty(nevInd))
     disp(['Not sorted',sessionDate]);
 end
+filePath = ['S:\Lab\', monkey, '\All Data\', monkey,'_', sessionDate, '\Physiology\',nFiles(nevInd(1)).name];
 GET_EVENTS = false;
 eventTimeStamps = [];
 if exist('eventChannel','var')
@@ -81,7 +81,15 @@ if GET_EVENTS
         end
     end
 end
-% Find start of trial
+if(strcmp(sessionDate,'07_09_2020'))
+    eventTimes_fallingEdge(636) = [];
+    eventTimes_fallingEdge(689) = [];
+    eventTimes_fallingEdge(768) = [];
+    eventTimes_fallingEdge(1585) = [];
+    eventTimes_fallingEdge(2378) = [];
+    eventTimes_fallingEdge(2454) = [];
+end
+%Find start of trial
 pulseLength=eventTimes_fallingEdge-eventTimes_risingEdge;
 % corrections to specific recording sessions that output 
 % spurious errors of TTL pulse encoding of event times
@@ -356,7 +364,7 @@ for f = 1:sum(spikeChannels)
             for c = 1:length(conds)
                 arduinoPseudoTable(condInds{c},1) = conds(c);
                 segCondTimes = NaN(length(condInds{c}),length(maxSegConds));
-                matchedTrials = cellfun(@(t) [t(1:2), NaN(length(events{c})-length(t),1),t(3:end)], ...
+                matchedTrials = cellfun(@(t) [t(1:2), NaN(1,length(events{c})-length(t)),t(3:end)], ...
                     segmentTimes(condInds{c}),'UniformOutput',false);
                 segCondTimes(:,ismember(maxSegConds,events{c})) = round(1000*...
                     [zeros(length(condInds{c}),1),diff(cell2mat(matchedTrials'),1,2)],0);

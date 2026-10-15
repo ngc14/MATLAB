@@ -3,7 +3,7 @@ function [siteDateMap,siteSegs,siteTrialPSTHS,rawSpikes,siteChannels,channelMap,
 %  assign parameters
 drivePath = "S:\Lab\";
 monkeys = ["Gilligan", "Skipper"];
-badSession = ["04_05_2019","05_13_2019","11_11_2019","02_16_2021","03_11_2021","06_02_2022","06_03_2022","06_16_2022","06_27_2022",...
+badSession = ["07_09_2020","04_05_2019","05_13_2019","11_11_2019","02_16_2021","03_11_2021","06_02_2022","06_03_2022","06_16_2022","06_27_2022",...
     "2021_09_20","2022_06_22","2022_06_28","2022_07_11","2022_07_12"];
 % PSTH parameters: bin sizes, smoothing kernel, seconds prior to zero
 % alignment,seconds after zero alignment, alignment point(s) for each condition

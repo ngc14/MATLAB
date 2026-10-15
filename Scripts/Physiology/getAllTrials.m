@@ -17,7 +17,7 @@ else
             contains(s,["Gilligan","Skipper"]), {hFilePath.name}));
         dirPath = dir(hFilePath(1).folder);
         noteFiles = dirPath(find(cellfun(@(f) contains(f,extract(hFilePath.name,wildcardPattern+lookAheadBoundary(characterListPattern("_")+...
-            digitsPattern+characterListPattern(".")))+"_Note"),{dirPath.name}),1)).name;
+            digitsPattern+characterListPattern(".")))+"_Notes"),{dirPath.name}),1)).name;
         notesLines = readlines(hFilePath.folder+"\"+noteFiles);
         infoLines = notesLines(contains(notesLines,"Channel")|contains(notesLines,"Electrode"));
         [res,hFile] = ns_OpenFile([hFilePath.folder,'\',hFilePath.name],'single');

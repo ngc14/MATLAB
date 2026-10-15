@@ -1,5 +1,4 @@
 function varargout = openNEV(varargin)
-
 % openNEV
 %
 % Opens an .nev file for reading, returns all file information in a NEV

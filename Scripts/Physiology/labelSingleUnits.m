@@ -1,5 +1,5 @@
 function done = labelSingleUnits(processDates,monkey)
-subDirName = '\Results_All';
+subDirName = '\Results';
 writeLabels = true;
 plotWaveforms = false;
 if(~exist('monkey','var'))
@@ -51,6 +51,10 @@ for d = 1:length(dateArray)
                     spkInds = find(cellfun(@(s,u) strcmp(string(s), "Segment") & strcmp(u,'uV'),...
                         {hFileRaw.Entity(:).EntityType},{hFileRaw.Entity(:).Units}, 'UniformOutput', true));
                 end
+                if(~isempty(dir([currName,'\Results*\'])))
+                    subDirName = dir([currName,'\Results*\']);
+                    subDirName = ['\',cell2mat(regexp(subDirName(1).folder,'[^\\]+$','match'))];
+                end
                 if(~isempty(dir([currName, subDirName,'\*.mat'])))
                     channelMats = dir([currName,subDirName,'\*.mat']);
                     [channelMats,~] = natsort({channelMats.name});
@@ -85,7 +89,7 @@ for d = 1:length(dateArray)
                     end
                     %%
                     for e = 1:dirTotal
-                        sChInd = e;%channelMap(e);
+                        sChInd = channelMap(e);
                         savedStruct = matfile([currName, subDirName,'\', channelMats{e}], 'Writable', true);
                         savedFields = fieldnames(savedStruct);
                         if(~any(contains(savedFields, 'label')) | writeLabels | plotWaveforms)
@@ -182,7 +186,7 @@ for d = 1:length(dateArray)
                         ns_CloseFile(spFile);
                     end
                 else
-                    disp(['No sorted file for: ', char(dateArray(d))]);
+                    disp(['Spike data not parsed: ', char(dateArray(d))]);
                 end
             end
             fclose('all');

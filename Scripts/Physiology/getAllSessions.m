@@ -23,7 +23,7 @@ for m = 1:length(monkeys)
 end
 siteDateMap = siteDateMap(~cellfun(@isempty, siteDateMap.Date),:);
 if(strcmp(domain,"PMd"))
-    siteDateMap = siteDateMap([3,5:17,19,20,21,23,24,25,27,28,33,39,44,46,47,48,49,52,54,57],:);
+    siteDateMap = siteDateMap(strcmp(siteDateMap.Monkey,"Gilligan"),:);
 end
 % load info from all sites
 numSites = height(siteDateMap);
@@ -38,7 +38,7 @@ else
     hbar = parforProgress(numSites);
 end
 %%
-parfor  i = 1:numSites
+for  i = 1:numSites
     currSession = siteDateMap(i,:);
     if(strcmpi(currSession.Monkey,"Gilligan"))
         dateFormat = 'MM_dd_uuuu';
@@ -52,10 +52,14 @@ parfor  i = 1:numSites
         "_",string(currSession.Date),"\Physiology\");
     physDir = strcat(physDir,"Results\");
     if(isempty(dir(physDir+"*.mat")))
+        if(~isempty(dir(physDir{1}(1:end-1)+"_All\*.mat")))
+
+        elseif(~isempty(dir(physDir{1}(1:end-1)+"_New\*.mat")))
+        
+        end
         if(~ismember(currSession.Date,badSession))
-            disp(['Parsing and labeling session: ',currSession.Date,'...']);
+            disp(['Parsing session: ',currSession.Date,'...']);
             Spike_SortRawData(currSession.Date,char(currSession.Monkey));
-            labelSingleUnits(currSession.Date,char(currSession.Monkey));
         else
             disp(['Bad session: ', currSession.Date]);
         end

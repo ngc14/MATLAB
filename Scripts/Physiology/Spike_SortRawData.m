@@ -36,12 +36,10 @@ nFiles = dir(fileDir);
 nevFilesInd = cellfun(@(a) contains(a, '.nev'), {nFiles.name});
 nevFiles = nFiles(nevFilesInd);
 [~,mostRecentOrder] = sort(cellfun(@datenum,{nevFiles.date}),'descend');
-[~, nevInd] = find(contains({nevFiles(mostRecentOrder).name}, 'sort', 'IgnoreCase',true),1);
+nevInd =find(contains({nevFiles.name}, '.nev'));
 filePath = ['S:\Lab\', monkey, '\All Data\', monkey,'_', sessionDate, '\Physiology\',nevFiles(mostRecentOrder(nevInd)).name];
 if(isempty(nevInd))
-    disp('Not sorted');
-    disp(sessionDate);
-    return;
+    disp(['Not sorted',sessionDate]);
 end
 [ns_status, hFile] = ns_OpenFile(filePath);
 eventEntityID = find(cellfun(@strcmpi, {hFile.Entity.Reason}, repmat({eventChannel}, size({hFile.Entity.Reason}))));
@@ -394,12 +392,12 @@ for f = 1:sum(spikeChannels)
             sortedSpikeData.Locations= unique(successfulTrial(:,end));
         end
         if(~exist(['S:\Lab\', monkey, '\All Data\', monkey,'_', sessionDate,...
-                '\Physiology\Results_All\'], 'dir'))
+                '\Physiology\Results\'], 'dir'))
             mkdir(['S:\Lab\', monkey, '\All Data\', monkey,'_', sessionDate,...
-                '\Physiology\Results_All\']);
+                '\Physiology\Results\']);
         end
         fName = ['S:\Lab\', monkey, '\All Data\', monkey,'_', sessionDate,...
-            '\Physiology\Results_All\',fullName,'.mat'];
+            '\Physiology\Results\',fullName,'.mat'];
         if(exist(fName,'file'))
             m = matfile(fName,"Writable",true);
             save(fName,'sortedSpikeData','-append');%m.sortedSpikeData = sortedSpikeData;

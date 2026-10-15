@@ -471,7 +471,7 @@ if or(strcmpi(NEV.MetaTags.FileTypeID, 'NEURALEV'), strcmpi(NEV.MetaTags.FileTyp
             '. Subject and Experimenter data skipped in MetaTags']);
     end
 end
-if ~any(strcmpi(NEV.MetaTags.FileSpec, {'2.1', '2.2', '2.3', '3.0'}))
+if ~any(strcmpi(NEV.MetaTags.FileSpec, {'0.0','2.1', '2.2', '2.3', '3.0'}))
     disp('Unknown filespec. Cannot open file.');
     fclose FID;
     clear variables;

@@ -5,7 +5,7 @@ plotWaveforms = false;
 if(~exist('monkey','var'))
     monkey='Gilligan';
 end
-if(strcmp(monkey, 'Gilligan'))
+if(strcmp(monkey, 'Gilligan') & ~contains(processDates,'2022')
     dateFormat = 'MM_dd_uuuu';
 else
     dateFormat = 'uuuu_MM_dd';
@@ -60,8 +60,9 @@ for d = 1:length(dateArray)
                     rawSigInds = find([hFileRaw.Entity.FileType] == find(contains({hFileRaw.FileInfo.Type},["ns5","nf6"])) & ...
                         cellfun(@(s) strcmp(deblank(s),'uV'), {hFileRaw.Entity.Units}));
                     rawSigInds = rawSigInds(ismember([hFileRaw.Entity(rawSigInds).ElectrodeID],[hFileRaw.Entity(spkInds).ElectrodeID]));
-                    rawSigInds = rawSigInds(sort(cellfun(@(r) str2double(extract(...
-                        extractAfter(r,characterListPattern('. ')+wildcardPattern),digitsPattern)),{hFileRaw.Entity(rawSigInds).Label})));
+                    [~,rawSortInds] = sort(cellfun(@(r) str2double(extract(extractAfter(r,characterListPattern('. ')...
+                        +wildcardPattern),digitsPattern)),{hFileRaw.Entity(rawSigInds).Label}));
+                    rawSigInds = rawSigInds(rawSortInds);
                     if(isempty(rawSigInds))
                         rawSigInds = find(cellfun(@(s) strcmp(string(s), "Analog"),...
                             {hFileRaw.Entity(:).EntityType}, 'UniformOutput', true) & ...

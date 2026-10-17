@@ -105,7 +105,7 @@ dpca_plot(firingRatesAverage, W, V, @dpca_plot_default,'explainedVar', explVar, 
 mv = cellfun(@(m) sum(all(mean(m,3,'omitnan') > 1,2))>sTrials/2, num2cell(firingRates,[2 3 4])) | ...
     cellfun(@(m) sum(all(mean(m,3,'omitnan') <250,2))>sTrials/2, num2cell(firingRates,[2 3 4]));
 somaIndex = cell2mat(arrayfun(@(a) find(somatotopicID==a,min(groupcounts(somatotopicID))),unique(somatotopicID),'UniformOutput',false));
-somaIndex = mv & (somatotopicID=="Arm" | somatotopicID=="Hand") %| somatotopicID == "Face" | somatotopicID == "Trunk";
+somaIndex = mv %& (somatotopicID=="Arm" | somatotopicID=="Hand") %| somatotopicID == "Face" | somatotopicID == "Trunk";
 % goodUnits = all(cell2mat(cellfun(@(c) cellfun(@(s) size(s,3)>=sTrials, c),firingRates, 'UniformOutput',false)),2);
 optimalLambda = dpca_optimizeLambda(firingRatesAverage(somaIndex,:,plotTime,:),firingRates(somaIndex,:,plotTime,:,:),...
     trialNum(somaIndex,:,:),'combinedParams', combinedParams, 'simultaneous', false,'numRep', 10);

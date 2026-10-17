@@ -3,8 +3,9 @@ function [siteDateMap,siteSegs,siteTrialPSTHS,rawSpikes,siteChannels,channelMap,
 %  assign parameters
 drivePath = "S:\Lab\";
 monkeys = ["Gilligan", "Skipper"];
-badSession = ["07_09_2020","04_05_2019","05_13_2019","11_11_2019","02_16_2021","03_11_2021","06_02_2022","06_03_2022","06_16_2022","06_27_2022",...
-    "2021_09_20","2022_06_22","2022_06_28","2022_07_11","2022_07_12"];
+badSession = arrayfun(@(d) datetime(d,'InputFormat','uuuu_MM_dd'),...
+    ["2019_04_05","2019_05_13","2019_11_11","2020_07_09","2021_02_16","2021_03_11","2022_05_26","2022_06_13","2022_06_15","2022_06_16",...
+    "2021_09_20","2022_06_22","2022_06_28","2022_07_11","2022_07_12"]);
 % PSTH parameters: bin sizes, smoothing kernel, seconds prior to zero
 % alignment,seconds after zero alignment, alignment point(s) for each condition
 conditions = cellstr(params.condNames);
@@ -38,39 +39,39 @@ else
     hbar = parforProgress(numSites);
 end
 %%
-for  i = 1:numSites
+errors = {};
+parfor  i = 1:numSites
     currSession = siteDateMap(i,:);
-    if(strcmpi(currSession.Monkey,"Gilligan"))
+    du = [currSession.Date{:}];
+    if(strcmpi(currSession.Monkey,"Gilligan") & ~contains(char(du),'2022'))
         dateFormat = 'MM_dd_uuuu';
     else
         dateFormat = 'uuuu_MM_dd';
     end
-    du = [currSession.Date{:}];
     du.Format = dateFormat;
     currSession.Date = char(du);
     physDir = strcat(drivePath,currSession.Monkey,"\All Data\", currSession.Monkey,...
         "_",string(currSession.Date),"\Physiology\");
     physDir = strcat(physDir,"Results\");
     if(isempty(dir(physDir+"*.mat")))
-        if(~isempty(dir(physDir{1}(1:end-1)+"_All\*.mat")))
-
-        elseif(~isempty(dir(physDir{1}(1:end-1)+"_New\*.mat")))
-        
-        end
-        if(~ismember(currSession.Date,badSession))
-            disp(['Parsing session: ',currSession.Date,'...']);
-            Spike_SortRawData(currSession.Date,char(currSession.Monkey));
-        else
-            disp(['Bad session: ', currSession.Date]);
-        end
-    end
-    dirChannels = dir(physDir+"*.mat");%delete(fullfile(fullfile(physDir,'*.cache')));
-    if(~isempty(dirChannels))
-        firstChannel = load([strcat(dirChannels(1).folder,"\",dirChannels(1).name)]);
-        if(~isfield(firstChannel,'label') && ~contains(fieldnames(firstChannel,'-full'),'label') ...
-                && ~ismember(currSession.Date,badSession))
-            disp(['Labeling session: ',currSession.Date,'...']);
-            labelSingleUnits(currSession.Date,char(currSession.Monkey));
+        try
+            if(~ismember(du,badSession))
+                disp(['Parsing session: ',currSession.Date,'...']);
+                Spike_SortRawData(currSession.Date,char(currSession.Monkey));
+            else
+                disp(['Bad session: ', currSession.Date]);
+            end
+            dirChannels = dir(physDir+"*.mat");%delete(fullfile(fullfile(physDir,'*.cache')));
+            if(~isempty(dirChannels))
+                firstChannel = load([strcat(dirChannels(1).folder,"\",dirChannels(1).name)]);
+                if(~isfield(firstChannel,'label') && ~contains(fieldnames(firstChannel,'-full'),'label') ...
+                        && ~ismember(du,badSession))
+                    disp(['Labeling session: ',currSession.Date,'...']);
+                    labelSingleUnits(currSession.Date,char(currSession.Monkey));
+                end
+            end
+        catch ME
+            errors{i} = {ME,currSession.Date};
         end
     end
     [spikes,times,weights,currTrials,sessionConds,channels,eventNames,~,chMap] =...
@@ -158,6 +159,9 @@ if(~parRun)
     close(hbar);
 else
     delete(gcp('nocreate'));
+end
+if(~isempty(errors))
+    disp(length(errors))
 end
 %% remove sessions that had no trial information
 nonEmptyInd = find(~cellfun(@(r)  isempty(r) | all(ismember(string(r),excludeRep)), siteRep));

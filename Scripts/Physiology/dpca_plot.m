@@ -288,7 +288,7 @@ end
 if ~isempty(options.explainedVar)
     axBar = subplot(4,4,9);
     hold on
-    axis([0 numCompToShow+1 0 15.5])
+    axis([0 numCompToShow+1 0 Inf])
     ylabel('Component variance (%)')
     b = bar(options.explainedVar.margVar(:,1:numCompToShow)' , 'stacked', 'BarWidth', 0.75);
     

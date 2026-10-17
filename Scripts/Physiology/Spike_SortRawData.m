@@ -1,6 +1,6 @@
 function Spike_SortRawData(date, monkeyName)
-sessionDate = '2021_12_07';
-monkey = 'Skipper';
+sessionDate = '05_02_2019'; %30 01
+monkey = 'Gilligan';
 if(exist('date', 'var'))
     sessionDate = date;
 end
@@ -20,14 +20,14 @@ conds = {'Extra Small Sphere','Large Sphere','Photocell', 'Rest'};
 eventChannel = 'SMA 1';
 relevantTrials = [];
 
-if(strcmp(monkey, 'Gilligan'))
+if(strcmp(monkey, 'Gilligan') & ~contains(sessionDate,'2022'))
     dateFormat = 'MM_dd_uuuu';
 else
     dateFormat = 'uuuu_MM_dd';
 end
-sessionDate = char(datetime(sessionDate,"InputFormat",dateFormat,"Format",dateFormat));
+sessionDate = datetime(sessionDate,"Format",dateFormat);
 %% File info
-fileDir = ['S:\Lab\', monkey, '\All Data\', monkey,'_', sessionDate, '\Physiology\'];
+fileDir = ['S:\Lab\', monkey, '\All Data\', monkey,'_', char(sessionDate), '\Physiology\'];
 if(~exist(fileDir,'dir'))
     fprintf('%s not exist', datetime(date,dateFormat));
     return;
@@ -44,7 +44,7 @@ end
 if(isempty(nevInd))
     disp(['Not sorted',sessionDate]);
 end
-filePath = ['S:\Lab\', monkey, '\All Data\', monkey,'_', sessionDate, '\Physiology\',nFiles(nevInd(1)).name];
+filePath = ['S:\Lab\', monkey, '\All Data\', monkey,'_', char(sessionDate), '\Physiology\',nFiles(nevInd(1)).name];
 GET_EVENTS = false;
 eventTimeStamps = [];
 if exist('eventChannel','var')
@@ -81,19 +81,12 @@ if GET_EVENTS
         end
     end
 end
-if(strcmp(sessionDate,'07_09_2020'))
-    eventTimes_fallingEdge(636) = [];
-    eventTimes_fallingEdge(689) = [];
-    eventTimes_fallingEdge(768) = [];
-    eventTimes_fallingEdge(1585) = [];
-    eventTimes_fallingEdge(2378) = [];
-    eventTimes_fallingEdge(2454) = [];
-end
+
 %Find start of trial
 pulseLength=eventTimes_fallingEdge-eventTimes_risingEdge;
 % corrections to specific recording sessions that output 
 % spurious errors of TTL pulse encoding of event times
-switch(char(datetime(sessionDate,'InputFormat',dateFormat,'Format',dateFormat)))
+switch(char(sessionDate))
     case('2021_09_23')
         eventTimes_fallingEdge(629) = eventTimes_risingEdge(629)+0.02;
         pulseLength=eventTimes_fallingEdge-eventTimes_risingEdge;
@@ -206,6 +199,21 @@ switch(char(datetime(sessionDate,'InputFormat',dateFormat,'Format',dateFormat)))
         pulseLength(2742) = 0.019;
     case('04_14_2020')
         pulseLength(1:4) = 0.01;
+    case('03_01_2021')
+        pulseLength(1:10) = 0.01;
+    case('04_15_2021')
+        pulseLength(1) = 0.019;
+    case('2022_06_14')
+        pulseLength(1) = 0.019;
+        pulseLength(2742) = 0.01;
+    case('2022_06_17')
+        pulseLength(6) = 0.01;
+    case('2022_06_30')
+        pulseLength(1) = 0.019;
+        pulseLength(826) = 0.01;
+        pulseLength(2366) = 0.01;
+    case('2022_07_01')
+        pulseLength(1) = 0.019;
 end
 startEventIdx=find(pulseLength>0.0175 & pulseLength<0.03);
 endEventIdx = find(pulseLength>0.030 & pulseLength<0.070);
@@ -226,9 +234,12 @@ passed=false;
         end
     end
 end
-switch(datestr(sessionDate,'yyyy_mm_dd'))
+switch(char(sessionDate))
     case ('2021_09_22')
         startEventIdx(end) = [];
+    case('2021_03_04')
+        startEventIdx = startEventIdx(120:end);
+        endEventIdx = endEventIdx(120:end);
 end
 if(length(startEventIdx)==length(endEventIdx)+1)
     startEventIdx=startEventIdx(1:end-1);
@@ -241,7 +252,7 @@ end
 spikeChannels = cellfun(@(a) strcmp(a, 'Segment'), {hFile.Entity.EntityType});
 %% Process session
 for f = 1:sum(spikeChannels)
-    fullName = [monkey,'_', sessionDate,'_', num2str(f)];
+    fullName = [monkey,'_', char(sessionDate),'_', num2str(f)];
     [dataTime, ids] = loadSpikeData(hFile,f);
     if(~isempty(dataTime))
         sortedIDs = unique(ids);
@@ -266,22 +277,22 @@ for f = 1:sum(spikeChannels)
         end
         %% EXTRACT INFORMATION FROM ARDUINO OUTPUT FILE
         if(~exist(['S:\Lab\', monkey, '\All Data\', monkey,'_', ...
-                sessionDate,'\Arduino\', monkey,'_',sessionDate, '.txt'],'file'))
-            if(~exist(['S:\Lab\', monkey, '\All Data\', monkey, '_', sessionDate, '\Arduino\'], 'dir'))
-                mkdir(['S:\Lab\', monkey, '\All Data\', monkey, '_', sessionDate, '\Arduino\']);
+                char(sessionDate),'\Arduino\', monkey,'_',char(sessionDate), '.txt'],'file'))
+            if(~exist(['S:\Lab\', monkey, '\All Data\', monkey, '_', char(sessionDate), '\Arduino\'], 'dir'))
+                mkdir(['S:\Lab\', monkey, '\All Data\', monkey, '_', char(sessionDate), '\Arduino\']);
             end
             if(strcmp(monkey, 'Gilligan'))
                 copyfile(['S:\Lab\BehaveBackup\Monkey_Training\Gilligan_Macaque_110-16\Gilligan_',...
-                    sessionDate,'\Gilligan_',sessionDate,'.txt'],...
-                    ['S:\Lab\Gilligan\All Data\Gilligan_', sessionDate, '\Arduino\Gilligan_',sessionDate, '.txt']);
+                    datestr(sessionDate, 'mm_dd_yyyy'),'\Gilligan_',datestr(sessionDate, 'mm_dd_yyyy'),'.txt'],...
+                    ['S:\Lab\Gilligan\All Data\Gilligan_', char(sessionDate), '\Arduino\Gilligan_',char(sessionDate), '.txt']);
             else
                 copyfile(['S:\Lab\BehaveBackup\Monkey_Training\Skipper_Macaque_152_17\Skipper_',...
                     datestr(sessionDate, 'mm_dd_yyyy'),'\Skipper_',datestr(sessionDate, 'mm_dd_yyyy'),'.txt'],...
-                    ['S:\Lab\Skipper\All Data\Skipper_', sessionDate, '\Arduino\Skipper_',sessionDate, '.txt']);
+                    ['S:\Lab\Skipper\All Data\Skipper_', char(sessionDate), '\Arduino\Skipper_',char(sessionDate), '.txt']);
             end
         end
         arduinoFilename = ['S:\Lab\', monkey, '\All Data\', monkey,'_',...
-            sessionDate,'\Arduino\', monkey,'_',sessionDate, '.txt'];
+            char(sessionDate),'\Arduino\', monkey,'_',char(sessionDate), '.txt'];
         % Open the text file.
         fileID = fopen(arduinoFilename,'r');
         % Read columns of data according to the format.
@@ -420,12 +431,12 @@ for f = 1:sum(spikeChannels)
             sortedSpikeData.ConditionSegments= events;
             sortedSpikeData.Locations= unique(successfulTrial(:,end));
         end
-        if(~exist(['S:\Lab\', monkey, '\All Data\', monkey,'_', sessionDate,...
+        if(~exist(['S:\Lab\', monkey, '\All Data\', monkey,'_', char(sessionDate),...
                 '\Physiology\Results\'], 'dir'))
-            mkdir(['S:\Lab\', monkey, '\All Data\', monkey,'_', sessionDate,...
+            mkdir(['S:\Lab\', monkey, '\All Data\', monkey,'_', char(sessionDate),...
                 '\Physiology\Results\']);
         end
-        fName = ['S:\Lab\', monkey, '\All Data\', monkey,'_', sessionDate,...
+        fName = ['S:\Lab\', monkey, '\All Data\', monkey,'_', char(sessionDate),...
             '\Physiology\Results\',fullName,'.mat'];
         if(exist(fName,'file'))
             m = matfile(fName,"Writable",true);

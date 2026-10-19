@@ -1,4 +1,4 @@
-function tPhys = unitTable(conditions,params,unitType,domain)
+function [tPhys, errs] = unitTable(conditions,params,unitType,domain)
 if(~exist("conditions",'var'))
     conditions = params.condNames;
 end
@@ -6,7 +6,7 @@ allSegs = params.condSegMap.values;
 [~,maxSegL]= max(cellfun(@length,allSegs));
 maxSegL = allSegs{maxSegL};
 %% load all single units from M1 recordings that were not from the face zone
-[siteDateMap, siteSegs, siteTrialPSTHS,~, siteChannels,chMaps,~,~]=...
+[siteDateMap, siteSegs, siteTrialPSTHS,~, siteChannels,chMaps,~,~,errs]=...
     getAllSessions(params,unitType,domain,"");
 %%
 % unit somatotopy and channel number

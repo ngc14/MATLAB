@@ -5,7 +5,7 @@ plotWaveforms = false;
 if(~exist('monkey','var'))
     monkey='Gilligan';
 end
-if(strcmp(monkey, 'Gilligan') & ~contains(processDates,'2022')
+if(strcmp(monkey, 'Gilligan') & ~contains(processDates,'2022'))
     dateFormat = 'MM_dd_uuuu';
 else
     dateFormat = 'uuuu_MM_dd';

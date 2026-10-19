@@ -1,5 +1,5 @@
 function Spike_SortRawData(date, monkeyName)
-sessionDate = '05_02_2019'; %30 01
+sessionDate = '07_09_2020';
 monkey = 'Gilligan';
 if(exist('date', 'var'))
     sessionDate = date;
@@ -81,9 +81,6 @@ if GET_EVENTS
         end
     end
 end
-
-%Find start of trial
-pulseLength=eventTimes_fallingEdge-eventTimes_risingEdge;
 % corrections to specific recording sessions that output 
 % spurious errors of TTL pulse encoding of event times
 switch(char(sessionDate))
@@ -214,9 +211,19 @@ switch(char(sessionDate))
         pulseLength(2366) = 0.01;
     case('2022_07_01')
         pulseLength(1) = 0.019;
+    case('2022_06_24')
+        pulseLength(1:680) = 0.01;
+    case('07_09_2020')
+        eventTimes_fallingEdge(295:296) = [];
+        eventTimes_fallingEdge(687) = [];
+        eventTimes_fallingEdge(767) = [];
+        eventTimes_fallingEdge(1075) = [];
+        eventTimes_fallingEdge(2377) = [];
+        eventTimes_fallingEdge(2453) = [];
 end
-startEventIdx=find(pulseLength>0.0175 & pulseLength<0.03);
-endEventIdx = find(pulseLength>0.030 & pulseLength<0.070);
+pulseLength=eventTimes_fallingEdge-eventTimes_risingEdge;
+startEventIdx=find(pulseLength>=0.0175 & pulseLength<=0.03);
+endEventIdx = find(pulseLength>=0.030 & pulseLength<=0.070);
 
 passed=false;
  while(~passed)

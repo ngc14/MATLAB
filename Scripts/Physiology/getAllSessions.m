@@ -1,5 +1,5 @@
 function [siteDateMap,siteSegs,siteTrialPSTHS,rawSpikes,siteChannels,channelMap,...
-    siteMasks,vMask] = getAllSessions(params,singleOrAllUnits,domain,excludeRep)
+    siteMasks,vMask,errors] = getAllSessions(params,singleOrAllUnits,domain,excludeRep)
 %  assign parameters
 drivePath = "S:\Lab\";
 monkeys = ["Gilligan", "Skipper"];
@@ -159,9 +159,6 @@ if(~parRun)
     close(hbar);
 else
     delete(gcp('nocreate'));
-end
-if(~isempty(errors))
-    disp(length(errors))
 end
 %% remove sessions that had no trial information
 nonEmptyInd = find(~cellfun(@(r)  isempty(r) | all(ismember(string(r),excludeRep)), siteRep));

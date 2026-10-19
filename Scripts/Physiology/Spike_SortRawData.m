@@ -1,5 +1,5 @@
 function Spike_SortRawData(date, monkeyName)
-sessionDate = '07_09_2020';
+sessionDate = '2022_06_06';
 monkey = 'Gilligan';
 if(exist('date', 'var'))
     sessionDate = date;
@@ -35,16 +35,19 @@ end
 nFiles = dir(fileDir);
 [~,mostRecentOrder] = sort(cellfun(@datenum,{nFiles.date}),'descend');
 nFiles = nFiles(mostRecentOrder);
-nevInd =find(contains({nFiles.name}, '.nev'));
 sortedInd = find((contains({nFiles.name}, '-sorted') | contains({nFiles.name}, 'RASort'))...
     & ~contains({nFiles.name}, 'stim') &  (contains({nFiles.name}, '.nev') | contains({nFiles.name}, '.plx')));
-if(~isempty(sortedInd))
-    nevInd = sortedInd;
-end
-if(isempty(nevInd))
+if(isempty(sortedInd))
     disp(['Not sorted',sessionDate]);
+    return;
 end
-filePath = ['S:\Lab\', monkey, '\All Data\', monkey,'_', char(sessionDate), '\Physiology\',nFiles(nevInd(1)).name];
+filePath = ['S:\Lab\', monkey, '\All Data\', monkey,'_', char(sessionDate), '\Physiology\',nFiles(sortedInd(1)).name];
+fileType = regexp(filePath,"[.]\S*",'match');
+if(strcmp(fileType,'.nev'))
+    clear mex; ns_SetLibrary('C:\Users\ngc14\MATLAB Drive\Scripts\NPMK\LoadingEngines\Windows\nsNEVLibrary64.dll');
+elseif(strcmp(fileType,'.plx'))
+    clear mex; ns_SetLibrary('C:\Users\ngc14\MATLAB Drive\Scripts\NPMK\LoadingEngines\Windows\nsNEVLibrary64.dll');
+end
 GET_EVENTS = false;
 eventTimeStamps = [];
 if exist('eventChannel','var')
@@ -128,8 +131,6 @@ switch(char(sessionDate))
         pulseLength(2824) = 0.02;
         pulseLength(2866) = 0.02;
         pulseLength(3074) = 0.02;
-    case('2022_06_20')
-        pulseLength();
     case('2022_07_03')
         pulseLength(1) = 0;
         pulseLength(2) = 0.02;
@@ -214,16 +215,38 @@ switch(char(sessionDate))
     case('2022_06_24')
         pulseLength(1:680) = 0.01;
     case('07_09_2020')
-        eventTimes_fallingEdge(295:296) = [];
-        eventTimes_fallingEdge(687) = [];
-        eventTimes_fallingEdge(767) = [];
+        eventTimes(589:592) = [32767,0,32767,0];
+        eventTimes(599) = -5;
+        eventTimes_risingEdge = eventTimeStamps(eventTimes == 32767);
+        eventTimes_fallingEdge = eventTimeStamps(eventTimes == 0);
+        eventTimes_fallingEdge(636) = [];
+        eventTimes_fallingEdge(689) = [];
+        eventTimes_fallingEdge(768) = [];
+        eventTimes_fallingEdge(1026) = [];
         eventTimes_fallingEdge(1075) = [];
-        eventTimes_fallingEdge(2377) = [];
-        eventTimes_fallingEdge(2453) = [];
+        eventTimes_fallingEdge(1583) = [];
+        eventTimes_fallingEdge(2376) = [];
+        eventTimes_fallingEdge(2452) = [];
+        eventTimes_risingEdge(1026) = [];
+        eventTimes_risingEdge(1425) = [];
 end
 pulseLength=eventTimes_fallingEdge-eventTimes_risingEdge;
 startEventIdx=find(pulseLength>=0.0175 & pulseLength<=0.03);
-endEventIdx = find(pulseLength>=0.030 & pulseLength<=0.070);
+endEventIdx = find(pulseLength>0.030 & pulseLength<=0.070);
+
+switch(char(sessionDate))
+    case ('2021_09_22')
+        startEventIdx(end) = [];
+    case('2021_03_04')
+        startEventIdx = startEventIdx(120:end);
+        endEventIdx = endEventIdx(120:end);
+    case('07_09_2020')
+        pulseLength(986) = 0.01;
+        pulseLength(1424) = 0.04;
+        pulseLength(1451) = 0.01;
+        startEventIdx=find(pulseLength>=0.0175 & pulseLength<=0.03);
+        endEventIdx = find(pulseLength>0.030 & pulseLength<=0.070);
+end
 
 passed=false;
  while(~passed)
@@ -240,14 +263,8 @@ passed=false;
             passed = true;
         end
     end
-end
-switch(char(sessionDate))
-    case ('2021_09_22')
-        startEventIdx(end) = [];
-    case('2021_03_04')
-        startEventIdx = startEventIdx(120:end);
-        endEventIdx = endEventIdx(120:end);
-end
+ end
+
 if(length(startEventIdx)==length(endEventIdx)+1)
     startEventIdx=startEventIdx(1:end-1);
 end

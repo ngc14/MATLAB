@@ -4,7 +4,7 @@ function [siteDateMap,siteSegs,siteTrialPSTHS,rawSpikes,siteChannels,channelMap,
 drivePath = "S:\Lab\";
 monkeys = ["Gilligan", "Skipper"];
 badSession = arrayfun(@(d) datetime(d,'InputFormat','uuuu_MM_dd'),...
-    ["2019_04_05","2019_05_13","2019_11_11","2020_07_09","2021_02_16","2021_03_11","2022_05_26","2022_06_13","2022_06_15","2022_06_16",...
+    ["2019_04_05","2019_05_13","2019_11_11","2021_03_11","2022_05_26","2022_06_13","2022_06_15","2022_06_16",...
     "2021_09_20","2022_06_22","2022_06_28","2022_07_11","2022_07_12"]);
 % PSTH parameters: bin sizes, smoothing kernel, seconds prior to zero
 % alignment,seconds after zero alignment, alignment point(s) for each condition
@@ -50,104 +50,103 @@ parfor  i = 1:numSites
     end
     du.Format = dateFormat;
     currSession.Date = char(du);
-    physDir = strcat(drivePath,currSession.Monkey,"\All Data\", currSession.Monkey,...
-        "_",string(currSession.Date),"\Physiology\");
-    physDir = strcat(physDir,"Results\");
-    if(isempty(dir(physDir+"*.mat")))
-        try
+    physDir = strcat(drivePath,currSession.Monkey,"\All Data\", currSession.Monkey,"_",...
+        string(currSession.Date),"\Physiology\Results\");
+    try
+        if(isempty(dir(physDir+"*.mat")))
             if(~ismember(du,badSession))
                 disp(['Parsing session: ',currSession.Date,'...']);
                 Spike_SortRawData(currSession.Date,char(currSession.Monkey));
             else
                 disp(['Bad session: ', currSession.Date]);
             end
-            dirChannels = dir(physDir+"*.mat");%delete(fullfile(fullfile(physDir,'*.cache')));
-            if(~isempty(dirChannels))
-                firstChannel = load([strcat(dirChannels(1).folder,"\",dirChannels(1).name)]);
-                if(~isfield(firstChannel,'label') && ~contains(fieldnames(firstChannel,'-full'),'label') ...
-                        && ~ismember(du,badSession))
-                    disp(['Labeling session: ',currSession.Date,'...']);
-                    labelSingleUnits(currSession.Date,char(currSession.Monkey));
-                end
-            end
-        catch ME
-            errors{i} = {ME,currSession.Date};
         end
-    end
-    [spikes,times,weights,currTrials,sessionConds,channels,eventNames,~,chMap] =...
-        getAllTrials(physDir,singleOrAllUnits,true);
-    if(~isempty(spikes))
-        [currSeg,currTrialPSTHS,currActive,trialHists,alignedSpikes] = deal(repmat({[]},1,length(conditions)));
-        numUnits = size(spikes,2);
-        NaNGraspInd = repmat({false},size(currTrials,1),1);
-        NaNGraspInd(ismember(currTrials(:,1),conditions)) = cellfun(@(s,t) sum(isnan(t))==1 & isnan(t(strcmp(params.condSegMap(s),"StartGrasp"))), ...
-            currTrials(ismember(currTrials(:,1),conditions),1),times(ismember(currTrials(:,1),conditions))','UniformOutput',false);
-        successfulInds = cellfun(@(b) ~all(isnan(b)), times)';
-        NaNGraspInd(cellfun(@isempty,NaNGraspInd)) = {false};
-        successfulTrials = successfulInds | cell2mat(NaNGraspInd);
-        currTrials = currTrials(successfulTrials,:);
-        times = times(successfulTrials);
-        for c = 1:length(conditions)
-            currCond = conditions{c};
-            condParamInd = cellfun(@(a) contains(a,conditions{c}),sessionConds);
-            condInds = cellfun(@(a) contains(a,conditions{c}),currTrials(:,1));
-            condWeights = weights(:, condParamInd);
-            monkeyImFile = strcat(currSession.Monkey,...
-                string(values(params.condAbbrev,{currCond})));
-            if(allActivityMaps.isKey(monkeyImFile))
-                condImgMap = values(allActivityMaps,{monkeyImFile});
-                currActive{c} = condImgMap{1}(fix(currSession.y), fix(currSession.x));
-            else
-                currActive{c} = [NaN, NaN];
-            end
-            % generate and smooth PSTHS  from current session
-            if(any(condInds) && ~isempty(spikes))
-                condEvents = eventNames(currCond);
-                condAlign = cellfun(@(a) find(strcmp(condEvents,a)),...
-                    params.PSTHAlignments(currCond),'UniformOutput', false);
-                % {alignedPSTHS}{units,trials}
-                alignedSpikes{c} = cellfun(@(ap) cellfun(@(st) cellfun(@(s,t) ...
-                    s-t(ap),st(condInds),times(condInds),'UniformOutput',false),...
-                    spikes,'UniformOutput',false),condAlign,'UniformOutput',false);
-                alignedTimes = cellfun(@(ap) cell2mat(cellfun(@(t)[t(1:end-1)-t(ap), ...
-                    NaN(1,length(condEvents)-length(t)),t(end)-t(ap)], times(condInds),...
-                    'UniformOutput', false)'), condAlign, 'UniformOutput', false);
-                trialHists{c} = cellfun(@(l) cellfun(@(ac) cellfun(@(a) histcounts(vertcat(a(:)),...
-                    params.bins(1)-params.sigmaSize/2:params.binSize:params.bins(end)+params.sigmaSize/2),...
-                    ac,'UniformOutput',false),l,'UniformOutput',false),alignedSpikes{c},'UniformOutput', false);
-                %{alignedPSTHS}{units,trials}{bins}
-                smoothHists = cellfun(@(ac)  cellfun(@(a) cellfun(@(t) conv(t,gausswin(params.sigma)/...
-                    sum(gausswin(params.sigma)),'valid')./(params.binSize),a,'UniformOutput',false),ac,'UniformOutput',false),...
-                    trialHists{c},'UniformOutput',false);
-                %{alignedPSTHS}{units,bins,trials}
-                unitTrialPSTH = cellfun(@(s) ... %condWeights.*
-                    reshape(cat(1,s{:}),length(s),1,[]),smoothHists,'UniformOutput', false);
-                for l=1:length(alignedTimes)
-                    currAlignment = alignedTimes{l};
-                    alignedTimes{l} =  NaN(size(alignedTimes{l},1),length(maxSegL));
-                    alignedTimes{l}(:,cellfun(@(f) find(contains(maxSegL,f)), condEvents)) = currAlignment;
-                end
-                % aligned trial times for the session for each (1) PSTH
-                currSeg{c} = alignedTimes;
-                % PSTH(units X bins X trials) for each alignment
-                currTrialPSTHS{c} = cell2mat(cat(1,unitTrialPSTH{:}));
-            else
-                % pad stored info with empty arrays and NaN pad indicies for missing conditions
-                alignments = mode(cellfun(@length,params.PSTHAlignments.values));
-                currSeg{c} = repmat({NaN(size(params.condSegMap(currCond)))},1,alignments);
-                currTrialPSTHS{c} = repmat(NaN(numUnits,length(params.bins),1),1,alignments);
-                alignedSpikes{c} = repmat({NaN},numUnits,1,alignments);
+        dirChannels = dir(physDir+"*.mat");
+        if(~isempty(dirChannels))
+            firstChannel = load([strcat(dirChannels(1).folder,"\",dirChannels(1).name)]);
+            if(~isfield(firstChannel,'label') && ~contains(fieldnames(firstChannel,'-full'),'label') ...
+                    && ~ismember(du,badSession))
+                disp(['Labeling session: ',currSession.Date,'...']);
+                labelSingleUnits(currSession.Date,char(currSession.Monkey));
             end
         end
-        % get current session joint label
-        siteRep{i} = currSession.SiteRep{:};
-        siteChannels{i} = channels;
-        siteActiveInd{i} = currActive;
-        channelMap{i} = chMap;
-        trialInfo{i} = currTrials(cellfun(@(a) ismember(a,conditions),currTrials(:,1)),:);
-        siteSegs{i} = currSeg;
-        siteTrialPSTHS{i} = currTrialPSTHS;
-        rawSpikes{i} = alignedSpikes;
+        [spikes,times,weights,currTrials,sessionConds,channels,eventNames,~,chMap] =...
+            getAllTrials(physDir,singleOrAllUnits,true);
+        if(~isempty(spikes))
+            [currSeg,currTrialPSTHS,currActive,trialHists,alignedSpikes] = deal(repmat({[]},1,length(conditions)));
+            numUnits = size(spikes,2);
+            NaNGraspInd = repmat({false},size(currTrials,1),1);
+            NaNGraspInd(ismember(currTrials(:,1),conditions)) = cellfun(@(s,t) sum(isnan(t))==1 & isnan(t(strcmp(params.condSegMap(s),"StartGrasp"))), ...
+                currTrials(ismember(currTrials(:,1),conditions),1),times(ismember(currTrials(:,1),conditions))','UniformOutput',false);
+            successfulInds = cellfun(@(b) ~all(isnan(b)), times)';
+            NaNGraspInd(cellfun(@isempty,NaNGraspInd)) = {false};
+            successfulTrials = successfulInds | cell2mat(NaNGraspInd);
+            currTrials = currTrials(successfulTrials,:);
+            times = times(successfulTrials);
+            for c = 1:length(conditions)
+                currCond = conditions{c};
+                condParamInd = cellfun(@(a) contains(a,conditions{c}),sessionConds);
+                condInds = cellfun(@(a) contains(a,conditions{c}),currTrials(:,1));
+                condWeights = weights(:, condParamInd);
+                monkeyImFile = strcat(currSession.Monkey,...
+                    string(values(params.condAbbrev,{currCond})));
+                if(allActivityMaps.isKey(monkeyImFile))
+                    condImgMap = values(allActivityMaps,{monkeyImFile});
+                    currActive{c} = condImgMap{1}(fix(currSession.y), fix(currSession.x));
+                else
+                    currActive{c} = [NaN, NaN];
+                end
+                % generate and smooth PSTHS  from current session
+                if(any(condInds) && ~isempty(spikes))
+                    condEvents = eventNames(currCond);
+                    condAlign = cellfun(@(a) find(strcmp(condEvents,a)),...
+                        params.PSTHAlignments(currCond),'UniformOutput', false);
+                    % {alignedPSTHS}{units,trials}
+                    alignedSpikes{c} = cellfun(@(ap) cellfun(@(st) cellfun(@(s,t) ...
+                        s-t(ap),st(condInds),times(condInds),'UniformOutput',false),...
+                        spikes,'UniformOutput',false),condAlign,'UniformOutput',false);
+                    alignedTimes = cellfun(@(ap) cell2mat(cellfun(@(t)[t(1:end-1)-t(ap), ...
+                        NaN(1,length(condEvents)-length(t)),t(end)-t(ap)], times(condInds),...
+                        'UniformOutput', false)'), condAlign, 'UniformOutput', false);
+                    trialHists{c} = cellfun(@(l) cellfun(@(ac) cellfun(@(a) histcounts(vertcat(a(:)),...
+                        params.bins(1)-params.sigmaSize/2:params.binSize:params.bins(end)+params.sigmaSize/2),...
+                        ac,'UniformOutput',false),l,'UniformOutput',false),alignedSpikes{c},'UniformOutput', false);
+                    %{alignedPSTHS}{units,trials}{bins}
+                    smoothHists = cellfun(@(ac)  cellfun(@(a) cellfun(@(t) conv(t,gausswin(params.sigma)/...
+                        sum(gausswin(params.sigma)),'valid')./(params.binSize),a,'UniformOutput',false),ac,'UniformOutput',false),...
+                        trialHists{c},'UniformOutput',false);
+                    %{alignedPSTHS}{units,bins,trials}
+                    unitTrialPSTH = cellfun(@(s) ... %condWeights.*
+                        reshape(cat(1,s{:}),length(s),1,[]),smoothHists,'UniformOutput', false);
+                    for l=1:length(alignedTimes)
+                        currAlignment = alignedTimes{l};
+                        alignedTimes{l} =  NaN(size(alignedTimes{l},1),length(maxSegL));
+                        alignedTimes{l}(:,cellfun(@(f) find(contains(maxSegL,f)), condEvents)) = currAlignment;
+                    end
+                    % aligned trial times for the session for each (1) PSTH
+                    currSeg{c} = alignedTimes;
+                    % PSTH(units X bins X trials) for each alignment
+                    currTrialPSTHS{c} = cell2mat(cat(1,unitTrialPSTH{:}));
+                else
+                    % pad stored info with empty arrays and NaN pad indicies for missing conditions
+                    alignments = mode(cellfun(@length,params.PSTHAlignments.values));
+                    currSeg{c} = repmat({NaN(size(params.condSegMap(currCond)))},1,alignments);
+                    currTrialPSTHS{c} = repmat(NaN(numUnits,length(params.bins),1),1,alignments);
+                    alignedSpikes{c} = repmat({NaN},numUnits,1,alignments);
+                end
+            end
+            % get current session joint label
+            siteRep{i} = currSession.SiteRep{:};
+            siteChannels{i} = channels;
+            siteActiveInd{i} = currActive;
+            channelMap{i} = chMap;
+            trialInfo{i} = currTrials(cellfun(@(a) ismember(a,conditions),currTrials(:,1)),:);
+            siteSegs{i} = currSeg;
+            siteTrialPSTHS{i} = currTrialPSTHS;
+            rawSpikes{i} = alignedSpikes;
+        end
+    catch ME
+        errors{i} = {ME,currSession.Date};
     end
     if(parRun)
         send(hbar, i);

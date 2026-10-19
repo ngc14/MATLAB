@@ -33,6 +33,7 @@ for c = 1:length(conditions)
     mLabs = mapSites2Units(condUnitMapping,siteDateMap.Monkey);
     condTable.Unit = (1:length(mLabs))';
     condTable.SiteNum = cell2mat(arrayfun(@(s,c) repmat(s,c,1), 1:length(condUnitMapping),condUnitMapping','UniformOutput',false)');
+    condTable.Date = mapSites2Units(condUnitMapping,cell2mat(siteDateMap.Date));
     condTable.Monkey = categorical(mLabs);
     condTable.Somatotopy = categorical(mapSites2Units(condUnitMapping,siteRep));
     condTable.Channel =  [mappedChannels{:}]';

@@ -68,7 +68,7 @@ firingRates= cellfun(@(v) permute(cell2mat(reshape(cellfun(@(d) downsampleTrials
     'FillValue',NaN),sTrials)',v,'Uniformoutput',false),1,1,[])),[3 1 2]),num2cell(tablePSTHD,1), 'UniformOutput',false);
 firingRates = squeeze(cellfun(@squeeze,num2cell(cellfun(@squeeze,num2cell(cat(4,firingRates{:}),[2,3]),'UniformOutput',false),4),'UniformOutput',false));
 firingRates = permute(cell2mat(reshape(cat(4,firingRates{:}),1,1,[],length(firingRates))),[4 3 2 1]);
-clear tPhys tablePSTHD tempCircle mRefMask monkeyMask;
+clear tablePSTHD tempCircle mRefMask monkeyMask;
 %%
 %firingRates = cell2mat(cellfun(@(r) circshift(r,randi([2*binWidth,size(r,3)-2*binWidth],1),3), num2cell(firingRates,3),'UniformOutput',false));
 trialNum = ones(size(firingRates,1:length(size(firingRates))-2)).*size(firingRates,length(size(firingRates)));

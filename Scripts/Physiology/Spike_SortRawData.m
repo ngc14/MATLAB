@@ -1,5 +1,5 @@
 function Spike_SortRawData(date, monkeyName)
-sessionDate = '2022_06_06';
+sessionDate = '05_02_2019';
 monkey = 'Gilligan';
 if(exist('date', 'var'))
     sessionDate = date;
@@ -46,7 +46,7 @@ fileType = regexp(filePath,"[.]\S*",'match');
 if(strcmp(fileType,'.nev'))
     clear mex; ns_SetLibrary('C:\Users\ngc14\MATLAB Drive\Scripts\NPMK\LoadingEngines\Windows\nsNEVLibrary64.dll');
 elseif(strcmp(fileType,'.plx'))
-    clear mex; ns_SetLibrary('C:\Users\ngc14\MATLAB Drive\Scripts\NPMK\LoadingEngines\Windows\nsNEVLibrary64.dll');
+    clear mex; ns_SetLibrary('C:\Users\ngc14\MATLAB Drive\Scripts\NPMK\LoadingEngines\Windows\nsPlxLibrary64.dll');
 end
 GET_EVENTS = false;
 eventTimeStamps = [];
@@ -56,67 +56,68 @@ if exist('eventChannel','var')
     end
 end
 if GET_EVENTS
-    if(strcmp(filePath(end-3:end),'.nev'))
-        NEVFile = 1;
-        [~, hFile] = ns_OpenFile(filePath);
-        % Retrieve the ID number for the chosen event channel
-        eventEntityID = find(cellfun(@strcmpi, {hFile.Entity.Reason}, repmat({eventChannel}, size({hFile.Entity.Reason}))));
-        [ns_RESULT, eventEntityInfo] = ns_GetEntityInfo(hFile, eventEntityID(end));
-        eventTimes = NaN(1, eventEntityInfo.ItemCount);
-        eventTimeStamps = NaN(1, eventEntityInfo.ItemCount);
-        % get actual event time stamps
-        dispstat('','init');
-        for i = 1:eventEntityInfo.ItemCount
-            [~, eventTimeStamps(i), eventTimes(i), ~] = ns_GetEventData(hFile, eventEntityID, i);
-        end
-        dispstat('Loading Event Data... 100% Done.');
-        % Only consider time stamps for rising edge (eventData = 0 on falling edge)
-        eventTimes_risingEdge = eventTimeStamps(eventTimes == 32767);
-        eventTimes_fallingEdge = eventTimeStamps(eventTimes == 0);
-        ns_status = ns_CloseFile(hFile);
-    else
-        NEVFile = 0;
-        [~,eventEntityID]=plx_event_chanmap(filePath);
-        if(any(eventEntityID==257))
-            [~,eventTimes,~] = plx_event_ts(filePath,257);
-            eventTimes_risingEdge = eventTimes(1:end-1);
-            eventTimes_fallingEdge = eventTimes(2:end);
-        end
+    [~, hFile] = ns_OpenFile2(filePath);
+    % Retrieve the ID number for the chosen event channel
+    eventEntityID = find(cellfun(@strcmpi, {hFile.Entity.Reason}, repmat({eventChannel}, size({hFile.Entity.Reason}))));
+    [ns_RESULT, eventEntityInfo] = ns_GetEntityInfo(hFile, eventEntityID(end));
+    eventTimes = NaN(1, eventEntityInfo.ItemCount);
+    eventTimeStamps = NaN(1, eventEntityInfo.ItemCount);
+    % get actual event time stamps
+    dispstat('','init');
+    for i = 1:eventEntityInfo.ItemCount
+        [~, eventTimeStamps(i), eventTimes(i), ~] = ns_GetEventData(hFile, eventEntityID, i);
     end
+    dispstat('Loading Event Data... 100% Done.');
+    % Only consider time stamps for rising edge (eventData = 0 on falling edge)
+    eventTimes_risingEdge = eventTimeStamps(eventTimes == 32767);
+    eventTimes_fallingEdge = eventTimeStamps(eventTimes == 0);
+    ns_status = ns_CloseFile(hFile);
 end
-% corrections to specific recording sessions that output 
-% spurious errors of TTL pulse encoding of event times
 switch(char(sessionDate))
     case('2021_09_23')
         eventTimes_fallingEdge(629) = eventTimes_risingEdge(629)+0.02;
-        pulseLength=eventTimes_fallingEdge-eventTimes_risingEdge;
     case('2021_09_24')
         eventTimes_fallingEdge(713) = eventTimes_risingEdge(713)+0.02;
         eventTimes_fallingEdge(2425) = eventTimes_risingEdge(2425)+0.02;
-        pulseLength=eventTimes_fallingEdge-eventTimes_risingEdge;
     case('2021_09_27')
         eventTimes_fallingEdge(1121) = eventTimes_risingEdge(1121)+0.02;
-        pulseLength=eventTimes_fallingEdge-eventTimes_risingEdge;
     case('2021_09_28')
         eventTimes_fallingEdge(1613) = eventTimes_risingEdge(1613)+0.02;
-        pulseLength=eventTimes_fallingEdge-eventTimes_risingEdge;
     case('2021_09_29')
         eventTimes_fallingEdge(382) = eventTimes_risingEdge(382)+0.02;
-        pulseLength=eventTimes_fallingEdge-eventTimes_risingEdge;
     case('2021_09_30')
         eventTimes_fallingEdge(1405) = eventTimes_risingEdge(1405)+0.02;
         eventTimes_fallingEdge(1731) = eventTimes_risingEdge(1731)+0.02;
         eventTimes_fallingEdge(1754) = eventTimes_risingEdge(1754)+0.02;
-        pulseLength=eventTimes_fallingEdge-eventTimes_risingEdge;
     case('2021_10_01')
         eventTimes_fallingEdge(660) = eventTimes_risingEdge(660)+0.02;
         eventTimes_fallingEdge(701) = eventTimes_risingEdge(701)+0.02;
         eventTimes_fallingEdge(1124) = eventTimes_risingEdge(1124)+0.02;
-        pulseLength=eventTimes_fallingEdge-eventTimes_risingEdge;
     case('2021_10_04')
         eventTimes_fallingEdge(928) = eventTimes_risingEdge(928)+0.02;
         eventTimes_fallingEdge(1148) = eventTimes_risingEdge(1148)+0.02;
-        pulseLength=eventTimes_fallingEdge-eventTimes_risingEdge;
+    case('07_09_2020')
+        eventTimes(589:592) = [32767,0,32767,0];
+        eventTimes(599) = -5;
+        eventTimes_risingEdge = eventTimeStamps(eventTimes == 32767);
+        eventTimes_fallingEdge = eventTimeStamps(eventTimes == 0);
+        eventTimes_risingEdge(1026) = [];
+        eventTimes_risingEdge(1425) = [];
+        eventTimes_fallingEdge(636) = [];
+        eventTimes_fallingEdge(689) = [];
+        eventTimes_fallingEdge(768) = [];
+        eventTimes_fallingEdge(1026) = [];
+        eventTimes_fallingEdge(1075) = [];
+        eventTimes_fallingEdge(1583) = [];
+        eventTimes_fallingEdge(2376) = [];
+        eventTimes_fallingEdge(2452) = [];
+    case('05_02_2019')
+
+end
+pulseLength=eventTimes_fallingEdge-eventTimes_risingEdge;
+% corrections to specific recording sessions that output
+% spurious errors of TTL pulse encoding of event times
+switch(char(sessionDate))
     case('2021_10_13')
         pulseLength(1172) = 0.02;
     case('2021_11_09')
@@ -215,38 +216,15 @@ switch(char(sessionDate))
     case('2022_06_24')
         pulseLength(1:680) = 0.01;
     case('07_09_2020')
-        eventTimes(589:592) = [32767,0,32767,0];
-        eventTimes(599) = -5;
-        eventTimes_risingEdge = eventTimeStamps(eventTimes == 32767);
-        eventTimes_fallingEdge = eventTimeStamps(eventTimes == 0);
-        eventTimes_fallingEdge(636) = [];
-        eventTimes_fallingEdge(689) = [];
-        eventTimes_fallingEdge(768) = [];
-        eventTimes_fallingEdge(1026) = [];
-        eventTimes_fallingEdge(1075) = [];
-        eventTimes_fallingEdge(1583) = [];
-        eventTimes_fallingEdge(2376) = [];
-        eventTimes_fallingEdge(2452) = [];
-        eventTimes_risingEdge(1026) = [];
-        eventTimes_risingEdge(1425) = [];
-end
-pulseLength=eventTimes_fallingEdge-eventTimes_risingEdge;
-startEventIdx=find(pulseLength>=0.0175 & pulseLength<=0.03);
-endEventIdx = find(pulseLength>0.030 & pulseLength<=0.070);
-
-switch(char(sessionDate))
-    case ('2021_09_22')
-        startEventIdx(end) = [];
-    case('2021_03_04')
-        startEventIdx = startEventIdx(120:end);
-        endEventIdx = endEventIdx(120:end);
-    case('07_09_2020')
         pulseLength(986) = 0.01;
         pulseLength(1424) = 0.04;
         pulseLength(1451) = 0.01;
-        startEventIdx=find(pulseLength>=0.0175 & pulseLength<=0.03);
-        endEventIdx = find(pulseLength>0.030 & pulseLength<=0.070);
+    case('2021_03_04')
+        %startEventIdx = startEventIdx(120:end);
+        %endEventIdx = endEventIdx(120:end);
 end
+startEventIdx=find(pulseLength>=0.0175 & pulseLength<=0.03);
+endEventIdx = find(pulseLength>0.030 & pulseLength<=0.070);
 
 passed=false;
  while(~passed)
@@ -264,10 +242,10 @@ passed=false;
         end
     end
  end
-
 if(length(startEventIdx)==length(endEventIdx)+1)
     startEventIdx=startEventIdx(1:end-1);
 end
+
 if(length(startEventIdx)~=length(endEventIdx))
     disp('Mistmatch lengths');
     disp(sessionDate)

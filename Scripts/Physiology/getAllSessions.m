@@ -62,7 +62,7 @@ parfor  i = 1:numSites
             end
         end
         dirChannels = dir(physDir+"*.mat");
-        if(~isempty(dirChannels))
+        if(~isempty(dirChannels) & any(cellfun(@(n) contains(n,wildcardPattern+("S"|"s")+"ort"), {dir(cell2mat(regexp(physDir,'^(.+)\\[^\\]+\\?$','tokens'))).name})))
             firstChannel = load([strcat(dirChannels(1).folder,"\",dirChannels(1).name)]);
             if(~isfield(firstChannel,'label') && ~contains(fieldnames(firstChannel,'-full'),'label') ...
                     && ~ismember(du,badSession))

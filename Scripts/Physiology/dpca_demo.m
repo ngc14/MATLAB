@@ -22,7 +22,12 @@ savePath = "S:\Lab\ngc14\Working\dPCA\PMd\";
 [tPhys, errs] = unitTable(conditions,params,"Single","PMd");
 %%
 plotTime = findBins(plotTime(1):params.binSize:plotTime(end),params.bins);
-tablePSTHD= tPhys{:,contains(tPhys.Properties.VariableNames,"PSTH_"+params.condAbbrev.values)};
+forwardTimes = cellfun(@(t) t(:,contains(maxSegL,["GoSignal","StartReplaceHold"])),...
+    tPhys{:,contains(tPhys.Properties.VariableNames,"Segs_")}, 'UniformOutput',false);
+goodTrialInds = cellfun(@(p,t) cellfun(@(a,b) mean(a(b(1):b(end)),'omitnan') > range(b)*params.binSize &  ...
+    mean(a(b(1):b(end)),'omitnan') < 200 * range(b) *params.binSize,num2cell(p,1)',...
+    num2cell(findBins(t,params.bins),2)),tPhys{:,contains(tPhys.Properties.VariableNames,"PSTH_")},forwardTimes,'UniformOutput',false);
+
 tableInds = all(cell2mat(cellfun(@(s) size(s,2), tablePSTHD,'UniformOutput',false))>=sTrials,2);
 allSegs= tPhys{tableInds,contains(tPhys.Properties.VariableNames,"Segs_"+params.condAbbrev.values)};
 tablePSTHD = tablePSTHD(tableInds,:);

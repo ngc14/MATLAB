@@ -44,9 +44,9 @@ end
 filePath = ['S:\Lab\', monkey, '\All Data\', monkey,'_', char(sessionDate), '\Physiology\',nFiles(sortedInd(1)).name];
 fileType = regexp(filePath,"[.]\S*",'match');
 if(strcmp(fileType,'.nev'))
-    clear mex; ns_SetLibrary('C:\Users\ngc14\MATLAB Drive\Scripts\NPMK\LoadingEngines\Windows\nsNEVLibrary64.dll');
+    NEVFile = 1;clear mex; ns_SetLibrary('C:\Users\ngc14\MATLAB Drive\Scripts\neuroshare\nsNEVLibrary64.dll');
 elseif(strcmp(fileType,'.plx'))
-    clear mex; ns_SetLibrary('C:\Users\ngc14\MATLAB Drive\Scripts\NPMK\LoadingEngines\Windows\nsPlxLibrary64.dll');
+    NEVFile = 0;clear mex; ns_SetLibrary('C:\Users\ngc14\MATLAB Drive\Scripts\neuroshare\nsPlxLibrary64.dll');
 end
 GET_EVENTS = false;
 eventTimeStamps = [];
@@ -56,22 +56,31 @@ if exist('eventChannel','var')
     end
 end
 if GET_EVENTS
-    [~, hFile] = ns_OpenFile2(filePath);
-    % Retrieve the ID number for the chosen event channel
-    eventEntityID = find(cellfun(@strcmpi, {hFile.Entity.Reason}, repmat({eventChannel}, size({hFile.Entity.Reason}))));
-    [ns_RESULT, eventEntityInfo] = ns_GetEntityInfo(hFile, eventEntityID(end));
-    eventTimes = NaN(1, eventEntityInfo.ItemCount);
-    eventTimeStamps = NaN(1, eventEntityInfo.ItemCount);
-    % get actual event time stamps
-    dispstat('','init');
-    for i = 1:eventEntityInfo.ItemCount
-        [~, eventTimeStamps(i), eventTimes(i), ~] = ns_GetEventData(hFile, eventEntityID, i);
+    if(NEVFile)
+        [~, hFile] = ns_OpenFile(filePath);
+        % Retrieve the ID number for the chosen event channel
+        eventEntityID = find(cellfun(@strcmpi, {hFile.Entity.Reason}, repmat({eventChannel}, size({hFile.Entity.Reason}))));
+        [ns_RESULT, eventEntityInfo] = ns_GetEntityInfo(hFile, eventEntityID(end));
+        eventTimes = NaN(1, eventEntityInfo.ItemCount);
+        eventTimeStamps = NaN(1, eventEntityInfo.ItemCount);
+        % get actual event time stamps
+        dispstat('','init');
+        for i = 1:eventEntityInfo.ItemCount
+            [~, eventTimeStamps(i), eventTimes(i), ~] = ns_GetEventData(hFile, eventEntityID, i);
+        end
+        dispstat('Loading Event Data... 100% Done.');
+        % Only consider time stamps for rising edge (eventData = 0 on falling edge)
+        eventTimes_risingEdge = eventTimeStamps(eventTimes == 32767);
+        eventTimes_fallingEdge = eventTimeStamps(eventTimes == 0);
+        ns_status = ns_CloseFile(hFile);
+    else
+        [~,eventEntityID]=plx_event_chanmap(filePath);
+        if(any(eventEntityID==257))
+            [~,eventTimes,~] = plx_event_ts(filePath,257);
+            eventTimes_risingEdge = eventTimes(1:end-1);
+            eventTimes_fallingEdge = eventTimes(2:end);
+        end
     end
-    dispstat('Loading Event Data... 100% Done.');
-    % Only consider time stamps for rising edge (eventData = 0 on falling edge)
-    eventTimes_risingEdge = eventTimeStamps(eventTimes == 32767);
-    eventTimes_fallingEdge = eventTimeStamps(eventTimes == 0);
-    ns_status = ns_CloseFile(hFile);
 end
 switch(char(sessionDate))
     case('2021_09_23')

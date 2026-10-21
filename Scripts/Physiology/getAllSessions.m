@@ -83,6 +83,7 @@ parfor  i = 1:numSites
             successfulTrials = successfulInds | cell2mat(NaNGraspInd);
             currTrials = currTrials(successfulTrials,:);
             times = times(successfulTrials);
+            spikes = cellfun(@(s) s(successfulTrials), spikes, 'UniformOutput', false);
             for c = 1:length(conditions)
                 currCond = conditions{c};
                 condParamInd = cellfun(@(a) contains(a,conditions{c}),sessionConds);

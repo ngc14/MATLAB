@@ -19,18 +19,18 @@ allSegsL = params.condSegMap.values;
 [~,maxSegL]= max(cellfun(@length,allSegsL));
 maxSegL = allSegsL{maxSegL};
 savePath = "S:\Lab\ngc14\Working\dPCA\PMd\";
+plotTime = findBins(plotTime(1):params.binSize:plotTime(end),params.bins);
 [tPhys, errs] = unitTable(conditions,params,"Single","PMd");
 %%
-plotTime = findBins(plotTime(1):params.binSize:plotTime(end),params.bins);
-forwardTimes = cellfun(@(t) t(:,contains(maxSegL,["GoSignal","StartReplaceHold"])),...
+forwardTimes = cellfun(@(t) t(:,contains(maxSegL,["GoSignal","StartHold"])),...
     tPhys{:,contains(tPhys.Properties.VariableNames,"Segs_")}, 'UniformOutput',false);
 goodTrialInds = cellfun(@(p,t) cellfun(@(a,b) mean(a(b(1):b(end)),'omitnan') > range(b)*params.binSize &  ...
     mean(a(b(1):b(end)),'omitnan') < 200 * range(b) *params.binSize,num2cell(p,1)',...
     num2cell(findBins(t,params.bins),2)),tPhys{:,contains(tPhys.Properties.VariableNames,"PSTH_")},forwardTimes,'UniformOutput',false);
 
-tableInds = all(cell2mat(cellfun(@(s) size(s,2), tablePSTHD,'UniformOutput',false))>=sTrials,2);
+tableInds = all(cellfun(@sum,goodTrialInds)>=sTrials,2);
 allSegs= tPhys{tableInds,contains(tPhys.Properties.VariableNames,"Segs_"+params.condAbbrev.values)};
-tablePSTHD = tablePSTHD(tableInds,:);
+tablePSTHD = tPhys{tableInds,contains(tPhys.Properties.VariableNames,"PSTH_"+params.condAbbrev.values)};
 somatotopicID = tPhys{tableInds,"Somatotopy"};
 monkeyInd = tPhys{tableInds,"Monkey"};
 allLocations = tPhys{tableInds,["X","Y"]};
@@ -69,8 +69,8 @@ end
 %%
 segInds = cellfun(@(n) n(:,arrayfun(@(c)find(strcmp(maxSegL,c)),["GoSignal","StartReach","StartHold","StartWithdraw"])),cellfun(@cell2mat,...
     num2cell(cellfun(@(aa) findBins(mean(aa,1,'omitnan'),params.bins),allSegs,'UniformOutput',false),1),'Uniformoutput',false),'UniformOutput',false);
-firingRates= cellfun(@(v) permute(cell2mat(reshape(cellfun(@(d) downsampleTrials(resize(max(0,d),[size(d,1),max(sTrials*2,size(d,2))],...
-    'FillValue',NaN),sTrials)',v,'Uniformoutput',false),1,1,[])),[3 1 2]),num2cell(tablePSTHD,1), 'UniformOutput',false);
+firingRates= cellfun(@(v,g) permute(cell2mat(reshape(cellfun(@(d,i) downsampleTrials(resize(max(0,d(:,:)),[size(d,1),max(sTrials*2,sum(i))],...
+    'FillValue',NaN),sTrials)',v,g,'Uniformoutput',false),1,1,[])),[3 1 2]),num2cell(tablePSTHD,1), num2cell(goodTrialInds(tableInds,:),1),'UniformOutput',false);
 firingRates = squeeze(cellfun(@squeeze,num2cell(cellfun(@squeeze,num2cell(cat(4,firingRates{:}),[2,3]),'UniformOutput',false),4),'UniformOutput',false));
 firingRates = permute(cell2mat(reshape(cat(4,firingRates{:}),1,1,[],length(firingRates))),[4 3 2 1]);
 clear tablePSTHD tempCircle mRefMask monkeyMask;
@@ -110,7 +110,7 @@ dpca_plot(firingRatesAverage, W, V, @dpca_plot_default,'explainedVar', explVar, 
 mv = cellfun(@(m) sum(all(mean(m,3,'omitnan') > 1,2))>sTrials/2, num2cell(firingRates,[2 3 4])) | ...
     cellfun(@(m) sum(all(mean(m,3,'omitnan') <250,2))>sTrials/2, num2cell(firingRates,[2 3 4]));
 somaIndex = cell2mat(arrayfun(@(a) find(somatotopicID==a,min(groupcounts(somatotopicID))),unique(somatotopicID),'UniformOutput',false));
-somaIndex = mv %& (somatotopicID=="Arm" | somatotopicID=="Hand") %| somatotopicID == "Face" | somatotopicID == "Trunk";
+somaIndex = mv & nLocations(:,1)*ImagingParameters.px2mm < 4 & nLocations(:,1)*ImagingParameters.px2mm >2 ;%somaIndex = (somatotopicID=="Arm" | somatotopicID=="Hand" | somatotopicID == "Trunk");% | somatotopicID == "Face"); %true(size(somatotopicID));
 % goodUnits = all(cell2mat(cellfun(@(c) cellfun(@(s) size(s,3)>=sTrials, c),firingRates, 'UniformOutput',false)),2);
 optimalLambda = dpca_optimizeLambda(firingRatesAverage(somaIndex,:,plotTime,:),firingRates(somaIndex,:,plotTime,:,:),...
     trialNum(somaIndex,:,:),'combinedParams', combinedParams, 'simultaneous', false,'numRep', 10);

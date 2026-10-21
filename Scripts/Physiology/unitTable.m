@@ -18,12 +18,6 @@ mappedChannels = cellfun(@(ch,l) ch{2}(l(~isnan(l))), chMaps,siteChannels, 'Unif
 sumSegs = cellfun(@(c) cellfun(@(n) [n{:}], c, 'UniformOutput',false), siteSegs,'UniformOutput',false);
 goSegs = cellfun(@(c) cellfun(@(a) cell2mat(cellfun(@(t) findBins(t(:,strcmp(maxSegL,"GoSignal"))-3,...
     params.bins),a,'UniformOutput',false)),c,'UniformOutput',false),siteSegs,'UniformOutput',false);
-normBaseline = cellfun(@(p,t)cellfun(@(a,n) [max(1,median(cell2mat(reshape(cellfun(@(s) ...
-    permute(mean(a(:,max(1,s):max(1,s)+(1/params.binSize),:),[2],'omitnan'),[1 3 2]),...
-    num2cell(n),'UniformOutput',false),[1,1,length(n)])),3,'omitnan'))],p,t,'UniformOutput',false),siteTrialPSTHS,goSegs,"UniformOutput",false);
-normPSTH = cellfun(@(cp,nb) num2cell(cellfun(@(p,b)permute(permute(p,[1 3 2])./repmat(b,1,1,size(p,2)),[1 3 2]),...
-    vertcat(cp(:)),repmat(nb,1,size(vertcat(cp(:)),2)),'UniformOutput',false),2),siteTrialPSTHS,normBaseline,'Uniformoutput', false);
-clear normBaseline;
 %% get unit information by condition
 tPhys = [];
 g = @(x,y,c)GetPointLineDistance(x,y,c(1),c(2),c(3),c(4));
@@ -50,7 +44,7 @@ for c = 1:length(conditions)
     condTable.YT(mInds) = cellfun(@(x) x(end), unitLocation(mInds)) - min(cellfun(@(x) x(end), unitLocation(mInds)));
     condTable.YT(~mInds) = cellfun(@(x) x(end), unitLocation(~mInds)) - min(cellfun(@(x) x(end), unitLocation(~mInds)));
     condTable.Condition = categorical(repmat({params.condAbbrev(conditions{c})},length(mLabs),1));
-    PSTH = cellfun(@(m) num2cell(m{1},[2 3]), normPSTH{c},'UniformOutput',false);
+    PSTH = cellfun(@(m) num2cell(m,[2 3]), siteTrialPSTHS{c},'UniformOutput',false);
     % handle unreliable behavioral markers for segment time calculations
     nanSegs = find(sum(isnan(cell2mat(sumSegs{c}(~cellfun(@(a) all(isnan(a),'all'),sumSegs{c})))),1)>=...
         sum(cellfun(@(z) size(z,1),sumSegs{c}(~cellfun(@(a) all(isnan(a),'all'),sumSegs{c}))))/2);

@@ -58,7 +58,8 @@ end
 
 cfg = applyDefaults(cfg);
 chMap = loadChannelMap(nsxFile);
-cfg.deviceChannelIndices = chMap{2}-1;
+[~,cfg.deviceChannelIndices] = sort(chMap{2});
+cfg.deviceChannelIndices = cfg.deviceChannelIndices-1;
 if ~isfile(nsxFile), error('autoSpikeSort:noFile', 'File not found: %s', nsxFile); end
 [folder, base] = fileparts(nsxFile);
 outDir = cfg.outDir;
@@ -101,7 +102,9 @@ if nSeg > 1
 end
 
 %% 2. Preprocess (per recording, no chronic assumptions) -------------------------
-rec = si.bandpass_filter(rec, pyargs('freq_min', cfg.freqMin, 'freq_max', cfg.freqMax));
+rec_filt = si.scale_to_uV(rec);
+rec_filt = si.bandpass_filter(rec, pyargs('freq_min', cfg.freqMin, 'freq_max', cfg.freqMax));
+rec = si.whiten(rec_filt, pyargs('mode', 'local', 'radius_um',2*cfg.contactPitchUm,'dtype', 'float32'));
 [rec, badIds] = handleBadChannels(si, rec, cfg);
 rec = applyReference(si, rec, cfg);
 if ~isempty(cfg.motionPreset)
@@ -112,11 +115,18 @@ end
 binDir = fullfile(outDir, 'preprocessed');
 if isfolder(binDir), rmdir(binDir, 's'); end
 say('Caching preprocessed recording...');
-rec = rec.save(pyargs('folder', binDir, 'format', 'binary'));
+%rec = rec.save(pyargs('folder', binDir, 'format', 'binary'));
 usedIds = cellfun(@pyStr, cell(py.list(rec.get_channel_ids().tolist())), 'UniformOutput', false);
-
 %% 3. Sort the whole probe jointly -----------------------------------------------
 sortDir = fullfile(outDir, 'sorter');
+cfg.sorterParams = si.get_default_sorter_params('spykingcircus');
+sp = cfg.sorterParams.dictionary;
+sp{"filter"} = false;
+sp{"whiten"} = false;
+sp{"detect_sign"} = py.int(0);
+sp{"detect_threshold"} = 5.5;
+sp{"max_threads_per_worker"} = py.int(8);
+cfg.sorterParams = py.dict(sp);
 kw = buildSorterKwargs(si, cfg.sorter, cfg.sorterParams);
 args = [{'folder', sortDir, 'remove_existing_folder', true, 'verbose', true}, kw];
 say('Running %s...', cfg.sorter);
@@ -137,12 +147,12 @@ end
 %% 4. Per-unit analysis: waveforms, locations, quality metrics -------------------
 anDir = fullfile(outDir, 'analyzer');
 if isfolder(anDir), rmdir(anDir, 's'); end
-an = si.create_sorting_analyzer(sorting, rec, pyargs('format', 'binary_folder', ...
+an = si.create_sorting_analyzer(sorting, rec_filt, pyargs('format', 'binary_folder', ...
     'folder', anDir, 'sparse', true, 'method', 'radius', 'radius_um', cfg.sparsityRadiusUm));
 
 tryCompute(an, 'random_spikes', 'method', 'uniform', 'max_spikes_per_unit', int64(cfg.maxSpikesPerUnit));
 tryCompute(an, 'noise_levels');
-tryCompute(an, 'waveforms', 'ms_before', 1.0, 'ms_after', 2.0);
+tryCompute(an, 'waveforms', 'ms_before', .5, 'ms_after', 1.2);
 tryCompute(an, 'templates');
 tryCompute(an, 'spike_amplitudes');
 tryCompute(an, 'unit_locations', 'method', 'center_of_mass');
@@ -228,17 +238,17 @@ d = struct( ...
     'channelIdx', [], ...
     'deviceChannelIndices', [], ...
     'contactPitchUm', 100, ...          % CHECK against your probe's datasheet
-    'contactRadiusUm', 5, ...
+    'contactRadiusUm', 15, ...
     'streamId', '5', ...               % '5' = NS5 (30 kHz)
     'freqMin', 300, 'freqMax', 6000, ...
     'badChannelMethod', 'std', 'badChannelThreshold', 5, ...
-    'badChannelAction', 'remove', ...  % 'remove' | 'interpolate' | 'none'
+    'badChannelAction', 'none', ...  % 'remove' | 'interpolate' | 'none'
     'reference', 'global', ...         % 'global' | 'local'
     'motionPreset', '', ...
-    'sorter', 'mountainsort5', ...
+    'sorter', 'spykingcircus', ...
     'sorterParams', struct(), ...
     'sparsityRadiusUm', 150, ...
-    'maxSpikesPerUnit', 500, ...
+    'maxSpikesPerUnit', 150, ...
     'snrMin', 4, 'isiViolMax', 0.5, 'ampCutoffMax', 0.2, 'minSpikes', 50, 'noiseSnr', 2.5, ...
     'nJobs', 1, ...                    % >1 is safest with pyenv ExecutionMode OutOfProcess
     'outDir', '', ...
@@ -338,6 +348,7 @@ switch lower(name)
     case 'spykingcircus2'
         p.apply_preprocessing = false;  % already preprocessed
 end
+user = user.struct;
 f = fieldnames(user);
 for i = 1:numel(f), p.(f{i}) = user.(f{i}); end
 f = fieldnames(p);

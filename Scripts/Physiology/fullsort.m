@@ -69,42 +69,49 @@ if ~isfolder(outDir), mkdir(outDir); end
 si = loadSpikeInterface();
 siVersion = pyStr(py.getattr(si, '__version__'));
 si.set_global_job_kwargs(pyargs('n_jobs', int64(cfg.nJobs), ...
-    'chunk_duration', '1s', 'progress_bar', false));
+    'chunk_duration', '1s', 'progress_bar', false,'pool_engine', 'loop'));
 say('SpikeInterface %s | sorter: %s', siVersion, cfg.sorter);
 
 %% 1. Read the recording and attach the probe ------------------------------------
-rec = readBlackrock(si, nsxFile, cfg.streamId);
-fs = rec.get_sampling_frequency();
+rec_Raw = readBlackrock(si, nsxFile, cfg.streamId);
+fs = rec_Raw.get_sampling_frequency();
 if abs(fs - 30000) > 1
     warning('autoSpikeSort:fs', 'Sampling rate is %.1f Hz (expected 30000 for NS5).', fs);
 end
 
-allIds = cellfun(@pyStr, cell(py.list(rec.get_channel_ids().tolist())), 'UniformOutput', false);
+allIds = cellfun(@pyStr, cell(py.list(rec_Raw.get_channel_ids().tolist())), 'UniformOutput', false);
 sel = cfg.channelIdx;
 if isempty(sel), sel = 1:cfg.nChannels; end
 if numel(sel) ~= cfg.nChannels || max(sel) > numel(allIds)
     error('autoSpikeSort:channels', ...
         'Need %d channels; stream has %d. Set cfg.channelIdx.', cfg.nChannels, numel(allIds));
 end
-rec = rec.select_channels(py.list(allIds(sel)));
-rec = attachLinearProbe(rec, cfg);
+rec_Raw = rec_Raw.select_channels(py.list(allIds(sel)));
+pif = py.importlib.import_module('probeinterface');
+probe = pif.generate_linear_probe(pyargs('num_elec', int64(cfg.nChannels), ...
+    'ypitch', cfg.contactPitchUm, 'contact_shapes', 'circle', ...
+    'contact_shape_params', py.dict(pyargs('radius', cfg.contactRadiusUm))));
+idx = cfg.deviceChannelIndices;
+if isempty(idx), idx = 0:nCh-1; end
+probe.set_device_channel_indices(py.numpy.array(int64(idx(:)')));
+rec_Raw = rec_Raw.set_probe(probe);
 
 % Paused NS5 recordings come in as several segments: concatenate for sorting.
-nSeg = double(rec.get_num_segments());
+nSeg = double(rec_Raw.get_num_segments());
 segLens = zeros(1, nSeg);
 for s = 1:nSeg
-    segLens(s) = double(rec.get_num_samples(pyargs('segment_index', int64(s-1))));
+    segLens(s) = double(rec_Raw.get_num_samples(pyargs('segment_index', int64(s-1))));
 end
 segStarts = [0, cumsum(segLens(1:end-1))];
 if nSeg > 1
     say('%d segments found; concatenating for sorting.', nSeg);
-    rec = si.concatenate_recordings(si.split_recording(rec));
+    rec_Raw = si.concatenate_recordings(si.split_recording(rec_Raw));
 end
 
 %% 2. Preprocess (per recording, no chronic assumptions) -------------------------
-rec_filt = si.scale_to_uV(rec);
-rec_filt = si.bandpass_filter(rec, pyargs('freq_min', cfg.freqMin, 'freq_max', cfg.freqMax));
-rec = si.whiten(rec_filt, pyargs('mode', 'local', 'radius_um',2*cfg.contactPitchUm,'dtype', 'float32'));
+rec_filt = si.scale_to_uV(rec_Raw);
+rec_filt = si.bandpass_filter(rec_filt, pyargs('freq_min', cfg.freqMin, 'freq_max', cfg.freqMax));
+rec = rec_filt;%si.whiten(rec_filt, pyargs('mode', 'local', 'radius_um',2*cfg.contactPitchUm,'dtype', 'float32'));
 [rec, badIds] = handleBadChannels(si, rec, cfg);
 rec = applyReference(si, rec, cfg);
 if ~isempty(cfg.motionPreset)
@@ -122,16 +129,74 @@ sortDir = fullfile(outDir, 'sorter');
 cfg.sorterParams = si.get_default_sorter_params('spykingcircus');
 sp = cfg.sorterParams.dictionary;
 sp{"filter"} = false;
-sp{"whiten"} = false;
 sp{"detect_sign"} = py.int(0);
 sp{"detect_threshold"} = 5.5;
-sp{"max_threads_per_worker"} = py.int(8);
+%sp{"whiten"} = false;
+%sp{"max_threads_per_worker"} = py.int(8);
 cfg.sorterParams = py.dict(sp);
 kw = buildSorterKwargs(si, cfg.sorter, cfg.sorterParams);
+%dkwargs = struct('installation_mode', 'dev','spikeinterface_folder_source','C:\ProgramData\anaconda3\envs\si\Lib\site-packages\spikeinterface');
 args = [{'folder', sortDir, 'remove_existing_folder', true, 'verbose', true}, kw];
 say('Running %s...', cfg.sorter);
-sorting = si.run_sorter(cfg.sorter, rec, pyargs(args{:}));
-nUnits = double(sorting.get_num_units());
+fprintf('Step 1: Extracting and writing raw data payload natively via MATLAB...\n');
+
+% Extract the raw matrix using the original file reader before any filters were applied
+% (Replace 'si' with the variable name of your raw loaded dataset if different)
+py_raw_traces = rec_Raw.get_traces(); 
+mat_traces = int16(py.numpy.array(py_raw_traces));
+
+% Save the raw binary file out to disk safely
+binary_file_path = fullfile(outDir, 'raw_recording.dat');
+fid = fopen(binary_file_path, 'wb');
+fwrite(fid, mat_traces', 'int16'); 
+fclose(fid);
+
+fprintf('Step 2: Generating a standalone Python pipeline script...\n');
+
+% 2. Write a Python script that applies filters AND runs the sorter inside the container environment
+script_path = fullfile(outDir, 'run_pipeline.py');
+fid = fopen(script_path, 'w');
+fprintf(fid, 'import spikeinterface.core as si\n');
+fprintf(fid, 'import spikeinterface.preprocessing as spr\n');
+fprintf(fid, 'import spikeinterface.sorters as ss\n');
+fprintf(fid, 'import probeinterface as pif\n');
+fprintf(fid, 'if __name__ == "__main__":\n');
+% Load raw binary file
+fprintf(fid, '    rec = si.read_binary(r"/data/raw_recording.dat", sampling_frequency=%f, dtype="int16", num_channels=%d)\n',...
+    fs,cfg.nChannels);
+% Safely apply filtering/common reference inside the Linux container space
+fprintf(fid, '    rec_filtered = spr.bandpass_filter(rec, freq_min=%f, freq_max=%f)\n',...
+    cfg.freqMin, cfg.freqMax);
+fprintf(fid, '    rec_cmr = spr.common_reference(rec_filtered, reference="global", operator="median")\n');
+fprintf(fid, '    probe = pif.generate_linear_probe(num_elec=%d,ypitch=%d,contact_shapes="circle",contact_shape_params={"radius":%d})\n',...
+    cfg.nChannels,cfg.contactPitchUm,cfg.contactRadiusUm);
+fprintf(fid, '    probe.set_device_channel_indices([%d])\n',...
+    cfg.deviceChannelIndices);
+fprintf(fid, '    rec_cmr = rec_cmr.set_probe(probe)\n');
+fprintf(fid, '    print("Running complete processing pipeline inside the container environment...")\n');
+fprintf(fid, '    sorting = ss.run_sorter("spykingcircus", rec_cmr, output_folder="/data/spykingcircus_output", verbose=True, remove_existing_folder=True)\n');
+fclose(fid);
+
+fprintf('Step 3: Launching Docker container outside of MATLAB...\n');
+
+% 3. Build a Docker command to run everything safely inside a SpikeInterface Linux environment
+% This mounts your local output directory to the /data directory inside the container
+docker_cmd = sprintf('docker run --rm -v "%s:/data" spikeinterface/spyking-circus-base:1.0.7 /bin/bash -c "pip install spikeinterface && python /data/run_pipeline.py"', outDir);
+% Execute via native Windows terminal (Zero MATLAB-Python thread crash exposure)
+[status, cmdout] = system(docker_cmd, '-echo');
+
+% 4. Load the results back cleanly into MATLAB upon completion
+if status == 0
+    fprintf('Pipeline completed successfully! Reading sorting data back...\n');
+    si_sorters = py.importlib.import_module('spikeinterface.sorters');
+    sorting = si_sorters.read_sorter_folder(fullfile(outDir, 'spykingcircus_output'));
+else
+    error('Pipeline failed inside Docker container with error:\n%s', cmdout);
+end
+
+
+
+
 say('%d units found.', nUnits);
 
 result = struct('file', nsxFile, 'fs', fs, 'siVersion', siVersion, 'sorter', cfg.sorter, ...
@@ -287,18 +352,6 @@ for k = 1:numel(attempts)
     end
 end
 rethrow(err);
-end
-
-function rec = attachLinearProbe(rec, cfg)
-nCh = cfg.nChannels;
-pif = py.importlib.import_module('probeinterface');
-probe = pif.generate_linear_probe(pyargs('num_elec', int64(nCh), ...
-    'ypitch', cfg.contactPitchUm, 'contact_shapes', 'circle', ...
-    'contact_shape_params', py.dict(pyargs('radius', cfg.contactRadiusUm))));
-idx = cfg.deviceChannelIndices;
-if isempty(idx), idx = 0:nCh-1; end
-probe.set_device_channel_indices(py.numpy.array(int64(idx(:)')));
-rec.set_probe(probe);
 end
 
 function [rec, badIds] = handleBadChannels(si, rec, cfg)

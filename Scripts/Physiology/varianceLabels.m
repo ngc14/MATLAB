@@ -2,7 +2,7 @@ phaseWindowSz = 0.2;
 phaseNames = ["GoSignal","StartReach","StartHold","StartWithdraw"];
 eventAlign = {"StartReach"};
 margNames = {'Condition-Invariant','Condition','Noise'};
-savePath = "S:\Lab\ngc14\Working\Revisions\Demixed\";
+savePath = "S:\Lab\ngc14\Working\dPCA\PMd\";
 
 params = PhysRecording(["Extra Small Sphere","Large Sphere", "Photocell"],.01,.15,-6,5,...
     containers.Map(["Extra Small Sphere","Large Sphere", "Photocell"],repmat(eventAlign,1,3)));
@@ -13,7 +13,7 @@ phaseAlign = containers.Map(params.condNames,cellfun(@(c) num2cell(cell2mat(c)),
 phaseWin = repmat({{[0, phaseWindowSz],[-phaseWindowSz*(3/4),phaseWindowSz*(1/4)],[-phaseWindowSz*(5/4), -phaseWindowSz*(1/4)],[-phaseWindowSz*(3/4),phaseWindowSz*(1/4)]}},1,length(params.condNames));
 phaseWin{strcmp(params.condNames,"Photocell")}{contains(phaseNames,"Hold")} = [-phaseWindowSz/2 0];
 [siteDateMap,siteSegs,siteTrialPSTHS,~,siteChannels,chMaps,~,~] = ...
-    getAllSessions(params,"Single","M1","");
+    getAllSessions(params,"Single","PMd","");
 simpRep =  cellfun(@(r,t) r(find(t==min(t),1)),siteDateMap.SiteRep,siteDateMap.Thresh,'UniformOutput', true)';
 mappedChannels =  cell2mat(cellfun(@(ch,l) ch{end}(l(~isnan(l)))', chMaps,siteChannels, 'Uniformoutput', false)');
 unitSomatotopy = cellstr(mapSites2Units(cellfun(@length, siteChannels), simpRep));
@@ -29,6 +29,7 @@ goSegs = cellfun(@(c,p) cellfun(@(a) cell2mat(cellfun(@(t) findBins(t(:,strcmp(p
 normBaseline = cellfun(@(p,t)cellfun(@(a,n) [max(1,median(cell2mat(reshape(cellfun(@(s) ...
     permute(mean(a(:,max(1,s):max(1,s)+(3.5/params.binSize),:),[2],'omitnan'),[1 3 2]),...
     num2cell(n),'UniformOutput',false),[1,1,length(n)])),3,'omitnan'))],p,t,'UniformOutput',false),siteTrialPSTHS,goSegs,"UniformOutput",false);
+siteSegs = cellfun(@(s) cellfun(@(ss) ss{1}, s, 'UniformOutput',false), siteSegs, 'UniformOutput',false);
 %%
 normPSTH = cellfun(@(s,b)cellfun(@(t,n) permute(permute(sqrt(t),[1 3 2])-sqrt(n),[1 3 2]), s, b, 'Uniformoutput', false), siteTrialPSTHS, normBaseline, 'UniformOutput',false);
 %normPSTH = cellfun(@(s) cellfun(@(t) zscore(t,0,2), s, 'UniformOutput',false), siteTrialPSTHS, 'UniformOutput',false);
@@ -39,9 +40,9 @@ normPSTH = cellfun(@(c) num2cell(cat(1,c{:}),[2 3]), normPSTH, 'UniformOutput',f
 LO = cellfun(@(c) cellfun(@(g,a) mean(g-a,3,'omitnan'), c, GT, 'UniformOutput',false), normPSTH,'UniformOutput',false);
 NO = cellfun(@(c,l) cellfun(@(t,g,n) t-(g+n), c,l,GT, 'UniformOutput',false), normPSTH, LO, 'UniformOutput',false);
 %%
-plotReps = ["Hand","Arm","Hand Arm"];
+plotReps = "Arm Trunk Face";%["Arm","Trunk","Face"];
 plotCombs = nchoosek( plotReps,2);
-winRed = [-.5, 1.5];
+winRed = [-2 2];
 fi = figure();
 nt = tiledlayout(3,4,'TileIndexing','columnmajor');
 timePeriod = winRed(1):params.binSize:winRed(end);
@@ -71,8 +72,12 @@ for nc = 1:4
             if(isscalar(sp))
                 if(strcmp(sp,"Arm"))
                     colors = [0 .85 .4];
-                else
+                elseif(strcmp(sp,"Trunk"))
+                    colors = [1 .9 .2];
+                elseif(strcmp(sp,"Hand"))
                     colors = [1 0 .8];
+                elseif(strcmp(sp,"Face"))
+                    colors = [0 1 1];
                 end
             else
                 colors = [.7 .7 .7];
@@ -98,7 +103,11 @@ for nc = 1:4
 end
 for f = length(plotReps):-1:1
 fi = figure();
-currComb = plotCombs(f,:);
+if(isempty(plotCombs))
+    currComb = plotReps;
+else
+    currComb = plotCombs(f,:);
+end
 nt = tiledlayout(3,4,'TileIndexing','columnmajor');
 for nc = 1:4
     if(nc==1)
@@ -127,7 +136,7 @@ for nc = 1:4
             view(90,0);
         end
         xlim([-20 30]); ylim([-20 30]); zlim([-20 20]);
-        for s = 2:-1:1
+        for s = min(length(currComb),2):-1:1
             sp = strsplit(currComb(s), " ");
             if(isscalar(sp))
                 if(strcmp(sp,"Arm"))
@@ -160,7 +169,7 @@ end
 %%
 figure
 nt = tiledlayout(2,3);
-plotSegs = cellfun(@(s) mean(cell2mat([s{:}]'),1,'omitnan'), siteSegs, 'UniformOutput',false);
+plotSegs = cellfun(@(s) mean(vertcat(s{:}),1,'omitnan'), siteSegs, 'UniformOutput',false);
 plotSegs = cellfun(@(c,s) c(contains(cell2mat(params.condSegMap.values({s})),phaseNames)), plotSegs, num2cell(params.condNames),'UniformOutput',false);
 for m = 1:length(margNames)
     nexttile(); hold on; title(margNames{m});

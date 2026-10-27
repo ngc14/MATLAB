@@ -9,12 +9,12 @@
 % firingRates -- all single-trial data together, massive array.
 sTrials = 20;
 dims = 20;
-plotTime= [-.5,1.5];
+plotTime= [-2,2];
 combinedParams = {{1,[1 2]},{2}};%{{1,[1 3]},{2,[2,3]},{3},{[1,2],[1,2,3]}};
 margNames = {'Condition','Condition-Invariant'};%{'Condition','Somatotopy','Movement-Invariant','Cond/Soma Interaction'};
 margColours = [23 100 171; 200 160 43; 150 150 150; 180 25 180]/256;
 conditions = ["Extra Small Sphere","Large Sphere","Photocell"];
-params = PhysRecording(conditions,.01,.15,-5,3,containers.Map(conditions,repmat({"StartReach"},1,length(conditions))));
+params = PhysRecording(conditions,.01,.15,-7,11,containers.Map(conditions,repmat({"StartReach"},1,length(conditions))));
 allSegsL = params.condSegMap.values;
 [~,maxSegL]= max(cellfun(@length,allSegsL));
 maxSegL = allSegsL{maxSegL};
@@ -73,8 +73,6 @@ firingRates= cellfun(@(v,g) permute(cell2mat(reshape(cellfun(@(d,i) downsampleTr
     'FillValue',NaN),sTrials)',v,g,'Uniformoutput',false),1,1,[])),[3 1 2]),num2cell(tablePSTHD,1), num2cell(goodTrialInds(tableInds,:),1),'UniformOutput',false);
 firingRates = squeeze(cellfun(@squeeze,num2cell(cellfun(@squeeze,num2cell(cat(4,firingRates{:}),[2,3]),'UniformOutput',false),4),'UniformOutput',false));
 firingRates = permute(cell2mat(reshape(cat(4,firingRates{:}),1,1,[],length(firingRates))),[4 3 2 1]);
-clear tablePSTHD tempCircle mRefMask monkeyMask;
-%%
 %firingRates = cell2mat(cellfun(@(r) circshift(r,randi([2*binWidth,size(r,3)-2*binWidth],1),3), num2cell(firingRates,3),'UniformOutput',false));
 trialNum = ones(size(firingRates,1:length(size(firingRates))-2)).*size(firingRates,length(size(firingRates)));
 for n = 1:size(firingRates,1)
@@ -89,6 +87,7 @@ firingRatesAverage = mean(firingRates, length(size(firingRates)),'omitnan');
 timeEventConds = cell2mat(cellfun(@(i) mean(params.bins(i),1,'omitnan'),...
     cellfun(@(s) fix(s(:,~all(isnan(s),1))),segInds,'UniformOutput',false)','UniformOutput',false));
 timeEvents = [mean(timeEventConds(:,1:2),1,'omitnan'),median(timeEventConds(:,3:4),1,'omitnan')];
+clear tablePSTHD tempCircle mRefMask monkeyMask;
 %% Step 1: PCA of the dataset
 [W,~,~] = svd(firingRatesAverage(:,:), 'econ');
 dpca_plot(firingRatesAverage, W, W, @dpca_plot_default);
@@ -107,10 +106,10 @@ dpca_plot(firingRatesAverage, W, V, @dpca_plot_default,'explainedVar', explVar, 
 %% Step 4: dPCA with regularization
 %load('optimalLambda'). Note that it includes noise covariance matrix Cnoise
 % which provides substantial regularization itself (even with lambda=0).
-mv = cellfun(@(m) sum(all(mean(m,3,'omitnan') > 1,2))>sTrials/2, num2cell(firingRates,[2 3 4])) | ...
-    cellfun(@(m) sum(all(mean(m,3,'omitnan') <250,2))>sTrials/2, num2cell(firingRates,[2 3 4]));
+mv = cellfun(@(m) sum(all(mean(m(:,:,plotTime,:),3,'omitnan') > 1,2))>sTrials/2, num2cell(firingRates,[2 3 4])) | ...
+    cellfun(@(m) sum(all(mean(m(:,:,plotTime,:),3,'omitnan') <250,2))>sTrials/2, num2cell(firingRates,[2 3 4]));
 somaIndex = cell2mat(arrayfun(@(a) find(somatotopicID==a,min(groupcounts(somatotopicID))),unique(somatotopicID),'UniformOutput',false));
-somaIndex = mv & nLocations(:,1)*ImagingParameters.px2mm < 4 & nLocations(:,1)*ImagingParameters.px2mm >2 ;%somaIndex = (somatotopicID=="Arm" | somatotopicID=="Hand" | somatotopicID == "Trunk");% | somatotopicID == "Face"); %true(size(somatotopicID));
+somaIndex = mv;%nLocations(:,1)*ImagingParameters.px2mm < 4 & nLocations(:,1)*ImagingParameters.px2mm >2 ;%somaIndex = (somatotopicID=="Arm" | somatotopicID=="Hand" | somatotopicID == "Trunk");% | somatotopicID == "Face"); %true(size(somatotopicID));
 % goodUnits = all(cell2mat(cellfun(@(c) cellfun(@(s) size(s,3)>=sTrials, c),firingRates, 'UniformOutput',false)),2);
 optimalLambda = dpca_optimizeLambda(firingRatesAverage(somaIndex,:,plotTime,:),firingRates(somaIndex,:,plotTime,:,:),...
     trialNum(somaIndex,:,:),'combinedParams', combinedParams, 'simultaneous', false,'numRep', 10);

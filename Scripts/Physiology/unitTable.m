@@ -8,8 +8,7 @@ maxSegL = allSegs{maxSegL};
 %% load all single units from M1 recordings that were not from the face zone
 [siteDateMap, siteSegs, siteTrialPSTHS,~, siteChannels,chMaps,~,~,errs]=...
     getAllSessions(params,unitType,domain,"");
-%%
-% unit somatotopy and channel number
+%% unit somatotopy and channel number
 siteRep =cellfun(@(r,t) r(find(t==min(t+(double(ismember(r,"Face"))*100)),1)),siteDateMap.SiteRep,siteDateMap.Thresh,'UniformOutput', false);
 siteRep(cellfun(@isempty,siteRep)) = {"Face"};
 siteRep = cell2mat(siteRep);

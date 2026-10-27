@@ -9,7 +9,7 @@
 % firingRates -- all single-trial data together, massive array.
 sTrials = 20;
 dims = 20;
-plotTime= [-2,2];
+plotTime= [-1,2];
 combinedParams = {{1,[1 2]},{2}};%{{1,[1 3]},{2,[2,3]},{3},{[1,2],[1,2,3]}};
 margNames = {'Condition','Condition-Invariant'};%{'Condition','Somatotopy','Movement-Invariant','Cond/Soma Interaction'};
 margColours = [23 100 171; 200 160 43; 150 150 150; 180 25 180]/256;

@@ -9,12 +9,12 @@
 % firingRates -- all single-trial data together, massive array.
 sTrials = 20;
 dims = 20;
-plotTime= [-1,2];
+plotTime= [-.75,.75];
 combinedParams = {{1,[1 2]},{2}};%{{1,[1 3]},{2,[2,3]},{3},{[1,2],[1,2,3]}};
 margNames = {'Condition','Condition-Invariant'};%{'Condition','Somatotopy','Movement-Invariant','Cond/Soma Interaction'};
 margColours = [23 100 171; 200 160 43; 150 150 150; 180 25 180]/256;
 conditions = ["Extra Small Sphere","Large Sphere","Photocell"];
-params = PhysRecording(conditions,.01,.15,-7,11,containers.Map(conditions,repmat({"StartReach"},1,length(conditions))));
+params = PhysRecording(conditions,.01,.15,-6,6,containers.Map(conditions,repmat({"StartReach"},1,length(conditions))));
 allSegsL = params.condSegMap.values;
 [~,maxSegL]= max(cellfun(@length,allSegsL));
 maxSegL = allSegsL{maxSegL};
@@ -24,8 +24,8 @@ plotTime = findBins(plotTime(1):params.binSize:plotTime(end),params.bins);
 %%
 forwardTimes = cellfun(@(t) t(:,contains(maxSegL,["GoSignal","StartHold"])),...
     tPhys{:,contains(tPhys.Properties.VariableNames,"Segs_")}, 'UniformOutput',false);
-goodTrialInds = cellfun(@(p,t) cellfun(@(a,b) mean(a(b(1):b(end)),'omitnan') > range(b)*params.binSize &  ...
-    mean(a(b(1):b(end)),'omitnan') < 200 * range(b) *params.binSize,num2cell(p,1)',...
+goodTrialInds = cellfun(@(p,t) cellfun(@(a,b) mean(a(max(1,b(1)):b(end)),'omitnan') > range(b)*params.binSize &  ...
+    mean(a(max(1,b(1)):b(end)),'omitnan') < 200 * range(b) *params.binSize,num2cell(p,1)',...
     num2cell(findBins(t,params.bins),2)),tPhys{:,contains(tPhys.Properties.VariableNames,"PSTH_")},forwardTimes,'UniformOutput',false);
 
 tableInds = all(cellfun(@sum,goodTrialInds)>=sTrials,2);
@@ -187,25 +187,57 @@ for d = 1:2
     end
 end
 %% spatial maps of demixed decoder weights
-monkey = "Skipper";
+monkey = "Gilligan";
 cLim = [-.1 .1];
 cSteps = 256;
 cMap = [flipud([repmat(linspace(.9,0,cSteps/2)',1,2), ones(cSteps/2,1)]);[ones(cSteps/2,1), repmat(linspace(.9,0,cSteps/2)',1,2)]];
+%cMap = colormap('parula'); cMap = cMap(1:cSteps,:);
+
 cMap = [.85,.85,.85;cMap; 1,1,1; .3,.3,.3];
 uv= unique(siteInd(monkeyInd==monkey));
 ui = ismember(uv,unique(siteInd(somaIndex).*double(monkeyInd(somaIndex)==monkey)));
 wVals = NaN(length(somaIndex),size(W,2));
 wVals(somaIndex,:) = W(:,:);
-figure(); tiledlayout(1,4);
+figure(); tiledlayout(2,2,'TileIndexing','columnmajor','TileSpacing','tight');
 FRMapFig = cell(2,2);
 for m = 1:length(margNames)
     wInd = find(whichMarg==m,2);
+    %avgPhase = num2cell(tPhys{:,contains(tPhys.Properties.VariableNames,string(phaseNames(m)))},1);
     for n = 1:length(wInd)
         nexttile(); hold on;
+        %wVals = avgPhase{n}.*(tPhys.("TaskUnits_"+params.condAbbrev(params.condNames(n)))./tPhys.("TaskUnits_"+params.condAbbrev(params.condNames(n))));
+        spVals = groupsummary(wVals(monkeyInd==monkey,wInd(n)),siteInd(monkeyInd==monkey),'mean');
+        z = spVals - mean(spVals);          % Deviations from the mean
+        S0 = sum(W_normalized, 'all');
+        Morans_I = (length(uv) * (z.' * W_normalized * z) )/ (S0 * sum(z.^2));
+        E_I = -1 / (length(uv) - 1);
+        S1 = 0.5 * sum((W_normalized + W_normalized.').^2, 'all');
+        S2 = sum((sum(W_normalized, 1) + sum(W_normalized, 2).').^2);
+        A = length(uv) * ((length(uv)^2 - 3*length(uv) + 3)*S1 - length(uv)*S2 + 3*S0^2);
+        B = sum(z.^4) / (sum(z.^2)^2); % Kurtosis term
+        C = (length(uv) - 1) * (length(uv) - 2) * (length(uv) - 3) * S0^2;
+        Var_I = (length(uv) * ((length(uv)^2 - 3*length(uv) + 3)*S1 - length(uv)*S2 + 3*S0^2) - ...
+            B * ((length(uv)^2 - length(uv))*S1 - 2*length(uv)*S2 + 6*S0^2)) / C - E_I^2;
+        Z_Score = (Morans_I - E_I) / sqrt(Var_I);
+        P_Value = 2 * (1 - normcdf(abs(Z_Score)));
+        fprintf('--- Standalone Spatial Autocorrelation ---\n');
+        fprintf('Observed Moran''s I:  %6.4f\n', Morans_I);
+        fprintf('Expected Moran''s I:  %6.4f\n', E_I);
+        fprintf('Z-Score:             %6.4f\n', Z_Score);
+        fprintf('P-Value:             %6.4e\n', P_Value);        
+        alpha = 0.05;
+        if P_Value < alpha
+            if Morans_I > E_I
+                fprintf('Conclusion: Significant CLUSTERING (Values are geographically clustered)\n');
+            else
+                fprintf('Conclusion: Significant UNIFORMITY (Values are dispersed/checkerboard)\n');
+            end
+        else
+            fprintf('Conclusion: Complete Spatial Randomness (No significant pattern)\n');
+        end
         title(margNames(m));
-        xlabel("Component "+num2str(n));
         [FRMapFig{m,n},ogCM] = mapUnitVals(vMask{monkey}{1},siteMasks(uv),...
-            groupsummary(wVals(monkeyInd==monkey,wInd(n)),siteInd(monkeyInd==monkey),'mean'),false(1,length(uv)),false,cSteps,cLim);
+            spVals,false(1,length(uv)),false,cSteps,cLim);
         beginCrop = find(any(~all(FRMapFig{m,n}==ones(1,1,3)*.3,3),1),1,'first');
         FRMapFig{m,n} = FRMapFig{m,n}(:,beginCrop:find(any(~all(FRMapFig{m,n}==ones(1,1,3),3),1),1,'last'),:);
         FRMapFig{m,n} = rgb2ind(FRMapFig{m,n},ogCM);
@@ -356,15 +388,15 @@ if(0)
     end
 end
 
-Z =  bsxfun(@minus, reshape(firingRatesAverage(:,:),length(somatotopicID),[])', ...
+Z =  bsxfun(@minus, reshape(firingRatesAverage(:,:,plotTime),length(somatotopicID),[])', ...
     mean(firingRatesAverage(:,:)',1,'omitnan'))* W;
 
 projT = Z(:,cell2mat(arrayfun(@(f) find(whichMarg==f,dims),unique(whichMarg),'UniformOutput',false)));
 %somaDist = reshape(transpose((projTArm - projTHand).^2),length(time),length(conditions),dims,[]);sqrt(sum(somaDist(:,c,:,nc),'all'))
 projT = reshape(projT',dims,length(unique(whichMarg)),length(conditions),[],length(plotTime));
 plotSeg = findBins(mean(cell2mat(reshape(cellfun(@(m) mean(m(:,contains(maxSegL,...
-    ["GoSignal","StartReach","StartHold"])),1,'omitnan'), allSegs, 'UniformOutput',false),[],1)),1,'omitnan'),plotTime);
-for t = 2:length(plotSeg)
+    ["GoSignal","StartReach","StartHold"])),1,'omitnan'), allSegs, 'UniformOutput',false),[],1)),1,'omitnan'),params.bins(plotTime));
+for t = 1:length(plotSeg)
     figure();
     tiledlayout(3,length(combinedParams),'TileIndexing','columnmajor');
     for nc = 1:length(combinedParams)
@@ -403,12 +435,13 @@ for t = 2:length(plotSeg)
             zlabel('Z');
             splitProj = squeeze(cellfun(@(s) squeeze(s),num2cell(squeeze(projT(1:3,nc,:,:,:)),[1 3 4]),'UniformOutput',false));
             for c = 1:length(splitProj)
-                plot3(squeeze(splitProj{c}(1,1,1:plotSeg(t))),squeeze(splitProj{c}(2,1,1:plotSeg(t))),squeeze(splitProj{c}(3,1,1:plotSeg(t))),'Color',colors(c,:),'LineStyle','-','LineWidth',1.5);
-                plot3(squeeze(splitProj{c}(1,2,1:plotSeg(t))),squeeze(splitProj{c}(2,2,1:plotSeg(t))),squeeze(splitProj{c}(3,2,1:plotSeg(t))),'Color',colors(c,:),'LineStyle','--','LineWidth',1.5);
+                plot3(squeeze(splitProj{c}(1,1:plotSeg(t))),squeeze(splitProj{c}(2,1:plotSeg(t))),squeeze(splitProj{c}(3,1:plotSeg(t))),'Color',colors(c,:),'LineStyle','-','LineWidth',1.5);
+%               plot3(squeeze(splitProj{c}(1,2,1:plotSeg(t))),squeeze(splitProj{c}(2,2,1:plotSeg(t))),squeeze(splitProj{c}(3,2,1:plotSeg(t))),'Color',colors(c,:),'LineStyle','--','LineWidth',1.5);
             end
             for c = 1:length(splitProj)
-                scatter3(squeeze(splitProj{c}(1,1,1)),squeeze(splitProj{c}(2,1,1)),squeeze(splitProj{c}(3,1,1)),'black','o','sizeData',150,'MarkerFaceColor','k');
-                scatter3(squeeze(splitProj{c}(1,2,1)),squeeze(splitProj{c}(2,2,1)),squeeze(splitProj{c}(3,2,1)),'black','sq','sizeData',150,'MarkerFaceColor','k');
+                scatter3(squeeze(splitProj{c}(1,1)),squeeze(splitProj{c}(2,1)),squeeze(splitProj{c}(3,1)),'black','o','sizeData',150,'MarkerFaceColor','k');
+                scatter3(squeeze(splitProj{c}(1,plotSeg(1:t))),squeeze(splitProj{c}(2,plotSeg(1:t))),squeeze(splitProj{c}(3,plotSeg(1:t))),'black','x','sizeData',150,'MarkerFaceColor','k');
+                %               scatter3(squeeze(splitProj{c}(1,2,1)),squeeze(splitProj{c}(2,2,1)),squeeze(splitProj{c}(3,2,1)),'black','sq','sizeData',150,'MarkerFaceColor','k');
             end
         end
     end

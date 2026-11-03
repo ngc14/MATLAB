@@ -1,30 +1,28 @@
 conditions = ["Extra Small Sphere", "Large Sphere", "Photocell"];
-params = PhysRecording(string(conditions),.01,.15,-6,5,containers.Map(conditions,...
+params = PhysRecording(string(conditions),.01,.15,-10,5,containers.Map(conditions,...
     {"StartReach","StartReach","StartReach"}));
 winSz = .2; pVal=0.05;
 savePath = "S:\Lab\ngc14\Working\Revisions\PSTHS_ESS\";
-phaseNames = categorical([ "Go", "Reach", "Hold","Withdraw"],'Ordinal',true);
+phaseNames = categorical(["StartTrial","Go", "Reach", "Hold","Withdraw"],'Ordinal',true);
 taskAlign = containers.Map(conditions,{{["GoSignal" "StartHold"]},{["GoSignal","StartHold"]},...
     {["GoSignal","StartHold"]}});
 taskWindow =repmat({{[winSz, 0]}},1,length(conditions));
-phaseWindows = repmat({{[0, winSz],[-winSz*(3/4),winSz*(1/4)],...
+phaseWindows = repmat({{[1,1+winSz],[0, winSz],[-winSz*(3/4),winSz*(1/4)],...
     [-winSz*(5/4), -winSz*(1/4)],[-winSz*(1/4),winSz*(3/4)]}},1,length(conditions));
 phaseWindows{end}{3} = [-winSz/2 0];
 allSegs = params.condSegMap.values;
 [~,maxSegL]= max(cellfun(@length,allSegs));
 maxSegL = allSegs{maxSegL};
 condPhaseAlign = containers.Map(conditions,cellfun(@(s) arrayfun(@(p) s(~contains(s,"Replace") & contains(s,string(p))), phaseNames,'Uniformoutput',false),allSegs,'UniformOutput',false));
-%
-condPhaseAlign = containers.Map(conditions,cellfun(@(c) cellfun(@string,c,'UniformOutput',false),repmat({{"GoSignal","StartReach",{"StartReach","StartHold"},"StartWithdraw"}},...
-    1,length(conditions)),'UniformOutput',false));
-phaseWindows = repmat({{[0, winSz],[-winSz*(3/4),winSz*(1/4)],[-winSz*(1/2), -winSz*(1/2)],[-winSz*(1/4),winSz*(3/4)]}},1,length(conditions));
 taskAlign = containers.Map(conditions,{{"GoSignal"},{"GoSignal"},{"GoSignal"}});
 taskWindow =repmat({{[winSz, 1]}},1,length(conditions));
 %%
 [siteDateMap, siteSegs, siteTrialPSTHS, ~, siteChannels, chMaps,~,~]=...
-    getAllSessions(params,"Single","M1","Face");
-%%
-siteRep =cell2mat(cellfun(@(r,t) r(find(t+(1000*contains(r,"Face"))==min(t),1)),siteDateMap.SiteRep,siteDateMap.Thresh,'UniformOutput', false))';
+    getAllSessions(params,"Single","PMd","");
+%% unit somatotopy and channel number
+siteRep =cellfun(@(r,t) r(find(t==min(t+(double(ismember(r,"Face"))*100)),1)),siteDateMap.SiteRep,siteDateMap.Thresh,'UniformOutput', false);
+siteRep(cellfun(@isempty,siteRep)) = {"Face"};
+siteRep = cell2mat(siteRep);
 allCondCue = cellfun(@(c) cellfun(@(a) cellfun(@(t) findBins(mean(t(:,contains(maxSegL,"Go"))-4,'omitnan'),params.bins),a),...
     c,'UniformOutput',false),siteSegs,'UniformOutput',false);
 normBaseline = cellfun(@(p,t) cellfun(@(a,n) max(1,mean(a(:,n(find(~isnan(n),1)):n(find(~isnan(n),1))+(3/params.binSize),:),2,'omitnan')),...
@@ -69,7 +67,7 @@ unitLocation = cell2mat(arrayfun(@(x,y,c) [g(x,y,OrthogonalLines(c).RCLine), g(x
     siteDateMap.x,siteDateMap.y,siteDateMap.Monkey,'UniformOutput',false));
 condUnitMapping = cellfun(@(si) size(si,2),siteChannels)';
 unitLocation = mapSites2Units(condUnitMapping,num2cell([unitLocation(:,1),unitLocation(:,2)],2));
-allReps =  mapSites2Units(condUnitMapping,siteRep');
+allReps =  mapSites2Units(condUnitMapping,siteRep);
 for c = 1:length(conditions)
     condTable = table();
     AUCVals = condXphase{c};

@@ -9,7 +9,7 @@
 % firingRates -- all single-trial data together, massive array.
 sTrials = 20;
 dims = 20;
-plotTime= [-.75,.75];
+plotTime= [-.75,1];
 combinedParams = {{1,[1 2]},{2}};%{{1,[1 3]},{2,[2,3]},{3},{[1,2],[1,2,3]}};
 margNames = {'Condition','Condition-Invariant'};%{'Condition','Somatotopy','Movement-Invariant','Cond/Soma Interaction'};
 margColours = [23 100 171; 200 160 43; 150 150 150; 180 25 180]/256;
@@ -20,7 +20,7 @@ allSegsL = params.condSegMap.values;
 maxSegL = allSegsL{maxSegL};
 savePath = "S:\Lab\ngc14\Working\dPCA\PMd\";
 plotTime = findBins(plotTime(1):params.binSize:plotTime(end),params.bins);
-[tPhys, errs] = unitTable(conditions,params,"Single","PMd");
+[tPhys, errs] = PSTH_Table(conditions,params,"Single","PMd");
 %%
 forwardTimes = cellfun(@(t) t(:,contains(maxSegL,["GoSignal","StartHold"])),...
     tPhys{:,contains(tPhys.Properties.VariableNames,"Segs_")}, 'UniformOutput',false);
@@ -36,6 +36,10 @@ monkeyInd = tPhys{tableInds,"Monkey"};
 allLocations = tPhys{tableInds,["X","Y"]};
 nLocations = tPhys{tableInds,["XT","YT"]};
 siteInd = tPhys{tableInds,"SiteNum"};
+
+tablePSTHD = cellfun(@(s,b) s./max(1,mean(s(sub2ind(size(s),cell2mat(arrayfun(@(i) findBins(i-4:params.binSize:i-1,params.bins),...
+    b(:,contains(maxSegL,"Go")),'UniformOutput',false))',repelem(1:size(s,2),301,1))),1,'omitnan')),tablePSTHD,allSegs ,'UniformOutput',false);
+
 [sn,ui,~] = unique(siteInd);
 siteMasks = dictionary;
 monkeys = unique(monkeyInd);
@@ -69,7 +73,7 @@ end
 %%
 segInds = cellfun(@(n) n(:,arrayfun(@(c)find(strcmp(maxSegL,c)),["GoSignal","StartReach","StartHold","StartWithdraw"])),cellfun(@cell2mat,...
     num2cell(cellfun(@(aa) findBins(mean(aa,1,'omitnan'),params.bins),allSegs,'UniformOutput',false),1),'Uniformoutput',false),'UniformOutput',false);
-firingRates= cellfun(@(v,g) permute(cell2mat(reshape(cellfun(@(d,i) downsampleTrials(resize(max(0,d(:,:)),[size(d,1),max(sTrials*2,sum(i))],...
+firingRates= cellfun(@(v,g) permute(cell2mat(reshape(cellfun(@(d,i) downsampleTrials(resize(max(0,sqrt(d(:,:))),[size(d,1),max(sTrials*2,sum(i))],...
     'FillValue',NaN),sTrials)',v,g,'Uniformoutput',false),1,1,[])),[3 1 2]),num2cell(tablePSTHD,1), num2cell(goodTrialInds(tableInds,:),1),'UniformOutput',false);
 firingRates = squeeze(cellfun(@squeeze,num2cell(cellfun(@squeeze,num2cell(cat(4,firingRates{:}),[2,3]),'UniformOutput',false),4),'UniformOutput',false));
 firingRates = permute(cell2mat(reshape(cat(4,firingRates{:}),1,1,[],length(firingRates))),[4 3 2 1]);
@@ -104,13 +108,8 @@ dpca_plot(firingRatesAverage, W, V, @dpca_plot_default,'explainedVar', explVar, 
     'marginalizationNames', margNames,'marginalizationColours', margColours, 'whichMarg', whichMarg,...
     'time', params.bins(plotTime),'timeEvents', timeEvents,'timeMarginalization', 2,'legendSubplot', 16);
 %% Step 4: dPCA with regularization
-%load('optimalLambda'). Note that it includes noise covariance matrix Cnoise
-% which provides substantial regularization itself (even with lambda=0).
-mv = cellfun(@(m) sum(all(mean(m(:,:,plotTime,:),3,'omitnan') > 1,2))>sTrials/2, num2cell(firingRates,[2 3 4])) | ...
-    cellfun(@(m) sum(all(mean(m(:,:,plotTime,:),3,'omitnan') <250,2))>sTrials/2, num2cell(firingRates,[2 3 4]));
-somaIndex = cell2mat(arrayfun(@(a) find(somatotopicID==a,min(groupcounts(somatotopicID))),unique(somatotopicID),'UniformOutput',false));
-somaIndex = mv;%nLocations(:,1)*ImagingParameters.px2mm < 4 & nLocations(:,1)*ImagingParameters.px2mm >2 ;%somaIndex = (somatotopicID=="Arm" | somatotopicID=="Hand" | somatotopicID == "Trunk");% | somatotopicID == "Face"); %true(size(somatotopicID));
-% goodUnits = all(cell2mat(cellfun(@(c) cellfun(@(s) size(s,3)>=sTrials, c),firingRates, 'UniformOutput',false)),2);
+%load('optimalLambda'), noise covariance matrix Cnoise provides substantial regularization itself (even with lambda=0).
+somaIndex = true(length(somatotopicID),1);%nLocations(:,1)*ImagingParameters.px2mm < 4 & nLocations(:,1)*ImagingParameters.px2mm >2 ;%somaIndex = (somatotopicID=="Arm" | somatotopicID=="Hand" | somatotopicID == "Trunk");% | somatotopicID == "Face"); %true(size(somatotopicID));
 optimalLambda = dpca_optimizeLambda(firingRatesAverage(somaIndex,:,plotTime,:),firingRates(somaIndex,:,plotTime,:,:),...
     trialNum(somaIndex,:,:),'combinedParams', combinedParams, 'simultaneous', false,'numRep', 10);
 Cnoise = dpca_getNoiseCovariance(firingRatesAverage(somaIndex,:,plotTime,:), ...

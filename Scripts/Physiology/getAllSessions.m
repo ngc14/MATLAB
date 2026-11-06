@@ -62,15 +62,19 @@ parfor  i = 1:numSites
             end
         end
         dirChannels = dir(physDir+"*.mat");
-        if(~isempty(dirChannels) & any(cellfun(@(n) contains(n,wildcardPattern+("S"|"s")+"ort"), {dir(cell2mat(regexp(physDir,'^(.+)\\[^\\]+\\?$','tokens'))).name})))
+        if(~isempty(dirChannels))
             firstChannel = load([strcat(dirChannels(1).folder,"\",dirChannels(1).name)]);
-            if(~isfield(firstChannel,'label') && ~contains(fieldnames(firstChannel,'-full'),'label') ...
-                    && ~ismember(du,badSession))
+            if(~isfield(firstChannel,'allUnits'))
+                saveAllSpikes(dir(physDir{1}(1:end-8)));
+            end
+            if(any(cellfun(@(n) contains(n,wildcardPattern+("S"|"s")+"ort"),...
+                    {dir(physDir{1}(1:end-8)).name})) && ~isfield(firstChannel,'label') && ...
+                    ~contains(fieldnames(firstChannel,'-full'),'label') && ~ismember(du,badSession))
                 disp(['Labeling session: ',currSession.Date,'...']);
                 labelSingleUnits(currSession.Date,char(currSession.Monkey));
             end
         end
-        [spikes,times,weights,currTrials,sessionConds,channels,eventNames,~,chMap] =...
+        [spikes,times,weights,currTrials,sessionConds,channels,eventNames,~,chMap,allUnits] =...
             getAllTrials(physDir,singleOrAllUnits,true);
         if(~isempty(spikes))
             [currSeg,currTrialPSTHS,currActive,trialHists,alignedSpikes] = deal(repmat({[]},1,length(conditions)));
@@ -84,6 +88,7 @@ parfor  i = 1:numSites
             currTrials = currTrials(successfulTrials,:);
             times = times(successfulTrials);
             spikes = cellfun(@(s) s(successfulTrials), spikes, 'UniformOutput', false);
+            allSpikes = allUnits;
             for c = 1:length(conditions)
                 currCond = conditions{c};
                 condParamInd = cellfun(@(a) contains(a,conditions{c}),sessionConds);
@@ -103,9 +108,9 @@ parfor  i = 1:numSites
                     condAlign = cellfun(@(a) find(strcmp(condEvents,a)),...
                         params.PSTHAlignments(currCond),'UniformOutput', false);
                     % {alignedPSTHS}{units,trials}
-                    alignedSpikes{c} = cellfun(@(ap) cellfun(@(st) cellfun(@(s,t) ...
-                        s-t(ap),st(condInds),times(condInds),'UniformOutput',false),...
-                        spikes,'UniformOutput',false),condAlign,'UniformOutput',false);
+                    alignedSpikes{c} = cellfun(@(ap) cellfun(@(st) cellfun(@(t) ...
+                        st-t(ap),times(condInds),'UniformOutput',false),...
+                        allSpikes,'UniformOutput',false),condAlign,'UniformOutput',false);
                     alignedTimes = cellfun(@(ap) cell2mat(cellfun(@(t)[t(1:end-1)-t(ap), ...
                         NaN(1,length(condEvents)-length(t)),t(end)-t(ap)], times(condInds),...
                         'UniformOutput', false)'), condAlign, 'UniformOutput', false);
@@ -200,4 +205,32 @@ for m = 1:length(monkeys)
         end
     end
 end
+end
+function saveAllSpikes(sortedDir)
+    chMap = loadChannelMap([sortedDir(1).folder,'\']);
+    [~,mostRecentSort] = max(cellfun(@(n,d) datenum(d)+(contains(n,wildcardPattern+("S"|"s")+"ort")./contains(n,wildcardPattern+("S"|"s")+"ort")),{sortedDir.name},{sortedDir.date}));
+    sortedFile = [sortedDir(1).folder,'\',sortedDir(mostRecentSort).name];
+    resDir = dir([sortedDir(1).folder,'\Results\*.mat']);
+    [~,sortRes]= natsort({resDir.name});
+    resDir = resDir(sortRes);
+    if(~isempty(resDir))
+        [~,hFile] = ns_OpenFile(sortedFile);
+        for r = 1:length(resDir)
+            mFile = matfile([resDir(r).folder,'\',resDir(r).name],'Writable',true);
+            [dataTime, ids] = loadSpikeData(hFile,r);
+            if(~isempty(dataTime))
+                sortedIDs = unique(ids);
+                sortedIDs = sortedIDs(sortedIDs>0 & sortedIDs<255);
+                allUnits = cell(1,length(sortedIDs));
+                for u = 1:length(sortedIDs)
+                    allUnits{u} = dataTime(ids==sortedIDs(u));
+                end
+            else
+                allUnits = {};
+            end
+            mFile.allUnits = allUnits;
+        end
+        ns_CloseFile(hFile);
+        clear mFile;
+    end
 end

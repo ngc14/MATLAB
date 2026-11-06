@@ -1,15 +1,15 @@
-function [spikes,times,unitTrials,trials,conds,channel,eventNames,labels,chMap] = getAllTrials(folderName, singleOrAll,loadChannelMap)
+function [spikes,times,unitTrials,trials,conds,channel,eventNames,labels,chMap,allChSpikes] = getAllTrials(folderName, singleOrAll,chMapLoad)
 folderName = char(folderName);
 sessionDir = dir(folderName+"*.mat");
-if(~exist('loadChannelMap','var'))
-    loadChannelMap = false;
+if(~exist('chMapLoad','var'))
+    chMapLoad = false;
 end
 if(isempty(sessionDir))
     [spikes,times,unitTrials,trials,conds,channel,eventNames,labels,chMap] = deal([]);
 else
     chMap{1} = {};
     chMap{2} = {};
-    if(loadChannelMap)
+    if(chMapLoad)
         pathInds = regexp(folderName,'\');
         hFilePath = dir([folderName(1:pathInds(end-1)),'*.nev']);
         hFilePath = hFilePath(cellfun(@(s) ~contains(s,"withdraw",'IgnoreCase',true) & ...
@@ -75,13 +75,13 @@ else
     events = containers.Map(conds, sessionCondSegs);
     eventNames = events;
     trials = firstChannel.sortedSpikeData.ArduinoData;
-    [allTimes, spikes] = deal({});
+    [allTimes, spikes,allChSpikes] = deal({});
     channel = [];
     labels = string([]);
     unitTrials = {};
     for f = 1:length(sessionDir)
         l = load([sessionDir(f).folder, '\', sessionDir(f).name]);
-        labeledData = isfield(l, 'label') || contains(fieldnames(l, '-full'),'label');
+        labeledData = isfield(l, 'label') || any(contains(fieldnames(l, '-full'),'label'));
         if(labeledData)
             if(~isfield(l.sortedSpikeData, 'label'))
                 labs = l.label;
@@ -106,6 +106,11 @@ else
                     goodUnits = goodUnitsOnChannel & arrayfun(@(a) strcmp(a,'s'), labs);
                 else
                     goodUnits = goodUnitsOnChannel;
+                end
+                if(isfield(l,'allUnits'))
+                    allUnits = l.allUnits;
+                    allChSpikes(1,end+1:end+sum(goodUnits)) = allUnits(goodUnits);
+                    clear l;
                 end
                 trialSegs = cellfun(@(e) values(events,{e}),trials(:,1)', 'UniformOutput', false);
                 labs = labs(goodUnits);

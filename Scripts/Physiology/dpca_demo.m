@@ -37,8 +37,8 @@ allLocations = tPhys{tableInds,["X","Y"]};
 nLocations = tPhys{tableInds,["XT","YT"]};
 siteInd = tPhys{tableInds,"SiteNum"};
 
-tablePSTHD = cellfun(@(s,b) s./max(1,mean(s(sub2ind(size(s),cell2mat(arrayfun(@(i) findBins(i-4:params.binSize:i-1,params.bins),...
-    b(:,contains(maxSegL,"Go")),'UniformOutput',false))',repelem(1:size(s,2),301,1))),1,'omitnan')),tablePSTHD,allSegs ,'UniformOutput',false);
+%tablePSTHD = cellfun(@(s,b) s./max(1,mean(s(sub2ind(size(s),cell2mat(arrayfun(@(i) findBins(i-4:params.binSize:i-1,params.bins),...
+%    b(:,contains(maxSegL,"Go")),'UniformOutput',false))',repelem(1:size(s,2),301,1))),1,'omitnan')),tablePSTHD,allSegs,'UniformOutput',false);
 
 [sn,ui,~] = unique(siteInd);
 siteMasks = dictionary;
@@ -70,11 +70,10 @@ for m = 1:length(monkeys)
             verticies(vCells{i},1),size(tempCircle,1),size(tempCircle,2));
     end
 end
-%%
 segInds = cellfun(@(n) n(:,arrayfun(@(c)find(strcmp(maxSegL,c)),["GoSignal","StartReach","StartHold","StartWithdraw"])),cellfun(@cell2mat,...
     num2cell(cellfun(@(aa) findBins(mean(aa,1,'omitnan'),params.bins),allSegs,'UniformOutput',false),1),'Uniformoutput',false),'UniformOutput',false);
-firingRates= cellfun(@(v,g) permute(cell2mat(reshape(cellfun(@(d,i) downsampleTrials(resize(max(0,sqrt(d(:,:))),[size(d,1),max(sTrials*2,sum(i))],...
-    'FillValue',NaN),sTrials)',v,g,'Uniformoutput',false),1,1,[])),[3 1 2]),num2cell(tablePSTHD,1), num2cell(goodTrialInds(tableInds,:),1),'UniformOutput',false);
+firingRates= cellfun(@(v,g) permute(cell2mat(reshape(cellfun(@(d,i) downsampleTrials(resize(sqrt(d(:,:)),[size(d,1),max(sTrials*2,sum(i))],...
+    'FillValue',0),sTrials)',v,g,'Uniformoutput',false),1,1,[])),[3 1 2]),num2cell(tablePSTHD,1), num2cell(goodTrialInds(tableInds,:),1),'UniformOutput',false);
 firingRates = squeeze(cellfun(@squeeze,num2cell(cellfun(@squeeze,num2cell(cat(4,firingRates{:}),[2,3]),'UniformOutput',false),4),'UniformOutput',false));
 firingRates = permute(cell2mat(reshape(cat(4,firingRates{:}),1,1,[],length(firingRates))),[4 3 2 1]);
 %firingRates = cell2mat(cellfun(@(r) circshift(r,randi([2*binWidth,size(r,3)-2*binWidth],1),3), num2cell(firingRates,3),'UniformOutput',false));
@@ -207,33 +206,6 @@ for m = 1:length(margNames)
         %wVals = avgPhase{n}.*(tPhys.("TaskUnits_"+params.condAbbrev(params.condNames(n)))./tPhys.("TaskUnits_"+params.condAbbrev(params.condNames(n))));
         spVals = groupsummary(wVals(monkeyInd==monkey,wInd(n)),siteInd(monkeyInd==monkey),'mean');
         z = spVals - mean(spVals);          % Deviations from the mean
-        S0 = sum(W_normalized, 'all');
-        Morans_I = (length(uv) * (z.' * W_normalized * z) )/ (S0 * sum(z.^2));
-        E_I = -1 / (length(uv) - 1);
-        S1 = 0.5 * sum((W_normalized + W_normalized.').^2, 'all');
-        S2 = sum((sum(W_normalized, 1) + sum(W_normalized, 2).').^2);
-        A = length(uv) * ((length(uv)^2 - 3*length(uv) + 3)*S1 - length(uv)*S2 + 3*S0^2);
-        B = sum(z.^4) / (sum(z.^2)^2); % Kurtosis term
-        C = (length(uv) - 1) * (length(uv) - 2) * (length(uv) - 3) * S0^2;
-        Var_I = (length(uv) * ((length(uv)^2 - 3*length(uv) + 3)*S1 - length(uv)*S2 + 3*S0^2) - ...
-            B * ((length(uv)^2 - length(uv))*S1 - 2*length(uv)*S2 + 6*S0^2)) / C - E_I^2;
-        Z_Score = (Morans_I - E_I) / sqrt(Var_I);
-        P_Value = 2 * (1 - normcdf(abs(Z_Score)));
-        fprintf('--- Standalone Spatial Autocorrelation ---\n');
-        fprintf('Observed Moran''s I:  %6.4f\n', Morans_I);
-        fprintf('Expected Moran''s I:  %6.4f\n', E_I);
-        fprintf('Z-Score:             %6.4f\n', Z_Score);
-        fprintf('P-Value:             %6.4e\n', P_Value);        
-        alpha = 0.05;
-        if P_Value < alpha
-            if Morans_I > E_I
-                fprintf('Conclusion: Significant CLUSTERING (Values are geographically clustered)\n');
-            else
-                fprintf('Conclusion: Significant UNIFORMITY (Values are dispersed/checkerboard)\n');
-            end
-        else
-            fprintf('Conclusion: Complete Spatial Randomness (No significant pattern)\n');
-        end
         title(margNames(m));
         [FRMapFig{m,n},ogCM] = mapUnitVals(vMask{monkey}{1},siteMasks(uv),...
             spVals,false(1,length(uv)),false,cSteps,cLim);

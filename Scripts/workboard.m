@@ -834,16 +834,72 @@ for u = 1:size(PSTH{1},1)
 
 end
 
+%%
+conditions = ["Extra Small Sphere", "Large Sphere", "Photocell"];
+params = PhysRecording(conditions,.01,.15,-6,6,containers.Map(conditions,repmat({"StartReach"},1,length(conditions))));
+winSz = .2; pVal=0.05;
+savePath = "S:\Lab\ngc14\Working\dPCA\PMd\PSTHS\";
+phaseNames = categorical(["Go","Go", "Reach", "Hold","Withdraw"],'Ordinal',true);
+taskAlign = containers.Map(conditions,{{["GoSignal" "StartHold"]},{["GoSignal","StartHold"]},...
+    {["GoSignal","StartHold"]}});
+taskWindow =repmat({{[winSz, 0]}},1,length(conditions));
+phaseWindows = repmat({{[-.5,-.5+winSz],[0, winSz],[-winSz*(3/4),winSz*(1/4)],...
+    [-winSz*(5/4), -winSz*(1/4)],[-winSz*(1/4),winSz*(3/4)]}},1,length(conditions));
+phaseWindows{end}{3} = [-winSz/2 0];
+allSegs = params.condSegMap.values;
 
+condPhaseAlign = containers.Map(conditions,cellfun(@(s) arrayfun(@(p) s(~contains(s,"Replace") & contains(s,string(p))), ...
+    phaseNames,'Uniformoutput',false),allSegs,'UniformOutput',false));
+taskAlign = containers.Map(conditions,{{"GoSignal"},{"GoSignal"},{"GoSignal"}});
+taskWindow =repmat({{[-winSz, 1]}},1,length(conditions));
 
+[~,maxSegL]= max(cellfun(@length,allSegs));
+maxSegL = allSegs{maxSegL};
+[siteDateMap, siteSegs, siteTrialPSTHS, ~, siteChannels, chMaps,~,~]=...
+    getAllSessions(params,"Single","M1","Face");
+%% unit somatotopy and channel number
+siteRep =cellfun(@(r,t) r(find(t==min(t+(double(ismember(r,"Face"))*100)),1)),siteDateMap.SiteRep,siteDateMap.Thresh,'UniformOutput', false);
+siteRep(cellfun(@isempty,siteRep)) = {"Face"};
+siteRep = cell2mat(siteRep);
+allCondCue = cellfun(@(c) cellfun(@(a) cellfun(@(t) findBins(mean(t(:,contains(maxSegL,"Go"))-4,'omitnan'),params.bins),a),...
+    c,'UniformOutput',false),siteSegs,'UniformOutput',false);
+normBaseline = cellfun(@(p,t) cellfun(@(a,n) mean(a(:,n(find(~isnan(n),1)):n(find(~isnan(n),1))+(3/params.binSize),:),2,'omitnan'),...
+    p,t,'UniformOutput',false),num2cell([siteTrialPSTHS{:}],2),num2cell([allCondCue{:}],2),"UniformOutput",false);
+normPSTH = cellfun(@(cp,nb) cellfun(@(p,b)mean(p,3,'omitnan')./max(1,mean(b,3,'omitnan')),cp,nb,'UniformOutput',false),num2cell([siteTrialPSTHS{:}],2),...
+    normBaseline,'Uniformoutput', false);
+normPSTH = num2cell(vertcat(normPSTH{:}),1);
+avgPSTH = cellfun(@cell2mat, normPSTH,'UniformOutput',false);
+chUnitMap = cellfun(@(m) m{end},chMaps,'UniformOutput',false);
+%%
+sumSegs = cellfun(@(c) cellfun(@(n) cat(3,n{:}), c, 'UniformOutput',false), siteSegs,'UniformOutput',false);
+for c = 1:length(conditions)
+    nanSegs = find(sum(isnan(cell2mat(sumSegs{c})),[1,3])-(length(size(sumSegs{c}{1})) * sum(all(isnan(cell2mat(sumSegs{c})),[2 3])))...
+        >prod(size(cell2mat(sumSegs{c}),[1,3]))/2 & [true(1,length(maxSegL)-1) 0]);
+    for a = 1:length(nanSegs)
+        for n = 1:length(sumSegs{c})
+            nextSeg = intersect(setdiff(1:size(sumSegs{c}{n},2),nanSegs),nanSegs(a)+1:size(sumSegs{c}{n},2));
+            sumSegs{c}{n}(:,nanSegs(a)) = sumSegs{c}{n}(:,nextSeg(1));
+        end
+    end
+end
+sSegs = cellfun(@(c)cellfun(@(s) {s},c,'UniformOutput',false),sumSegs,'UniformOutput',false);
+[taskBaseline,taskFR] = calculatePhases(params,taskAlign,taskWindow,sSegs,siteTrialPSTHS,false,true);
+[~,tUnit] = cellfun(@(tb,tc) cellfun(@(b,cn) ttestTrials(b,cn,1,true,pVal),tb,tc,'UniformOutput',false),taskBaseline,taskFR,'UniformOutput', false);
+[~,phaseFR] = calculatePhases(params,condPhaseAlign,phaseWindows,sSegs,siteTrialPSTHS,false,true);
+[~,avgPhase] =  calculatePhases(params,condPhaseAlign,phaseWindows,sSegs,normPSTH,false,false);
+tUnit = cellfun(@cell2mat,tUnit,'UniformOutput',false);
 
-
-
-
-
-
-
-
+figure()
+tiledlayout(1,3)
+nexttile(); hold on
+arrayfun(@(p) plot([p,p],[0 5], 'k--'),mean(cell2mat(sumSegs{1}),1,'omitnan')); title("ESS"); xlim([min(params.bins),max(params.bins)]);
+shadedErrorBar(params.bins,avgPSTH{1}(tUnit{1}>0,:),{@(m) mean(m,1,'omitnan'), @(s) std(s,0,1,'omitnan')/sqrt(size(s,1))},'lineProps',{'Color',[1 0 0],'LineWidth',2})
+nexttile(); hold on
+arrayfun(@(p) plot([p,p],[0 5], 'k--'),mean(cell2mat(sumSegs{2}),1,'omitnan')); title("LS"); xlim([min(params.bins),max(params.bins)]);
+shadedErrorBar(params.bins,avgPSTH{2}(tUnit{2}>0,:),{@(m) mean(m,1,'omitnan'), @(s) std(s,0,1,'omitnan')/sqrt(size(s,1))},'lineProps',{'Color',[1 .7 0],'LineWidth',2})
+nexttile(); hold on
+arrayfun(@(p) plot([p,p],[0 5], 'k--'),mean(cell2mat(sumSegs{3}),1,'omitnan')); title("P"); xlim([min(params.bins),max(params.bins)]);
+shadedErrorBar(params.bins,avgPSTH{3}(tUnit{3}>0,:),{@(m) mean(m,1,'omitnan'), @(s) std(s,0,1,'omitnan')/sqrt(size(s,1))},'lineProps',{'Color',[0 0 1],'LineWidth',2})
 %% PERMUTATION TESTING UNIT BY UNIT
 trialCondTable = getTrialPhaseTable(phaseFR(1:length(conditions)),phaseNames,arrayfun(@(a) a{1}(1),conditions,'UniformOutput',false),sdm);
 trialConds = arrayfun(@(t) table2cell(trialConds(trialCondTable.Unit==t & ~all(isnan(trialCondTable{:,contains(trialCondTable.Properties.VariableNames,phaseNames)}),2),:)),unique(trialCondTable.Unit),'UniformOutput',false);
@@ -862,6 +918,113 @@ for i = 1:permutations
     iterAcc = shufflePermTest(shuffledPop,fStart,fStop,nUnits,dsr,fp);
     shuffleUnits{i} = cellfun(@(r) mean(cell2mat(r'),1,'omitnan'),num2cell([iterAcc{:}],2),'UniformOutput',false);
 end
+%%
+plotTime = findBins(-.75:params.binSize:1,params.bins);
+Z =  bsxfun(@minus, reshape(firingRatesAverage(:,:,plotTime),size(firingRatesAverage,1),[])', ...
+    mean(firingRatesAverage(:,:)',1,'omitnan'))* W;
+colors = [1 0 0; 1 .7 0; 0 0 1;];
+projT = Z(:,cell2mat(arrayfun(@(f) find(whichMarg==f,dims),unique(whichMarg),'UniformOutput',false)));
+%somaDist = reshape(transpose((projTArm - projTHand).^2),length(time),length(conditions),dims,[]);sqrt(sum(somaDist(:,c,:,nc),'all'))
+projT = reshape(projT',dims,length(unique(whichMarg)),length(conditions),[],length(plotTime));
+figure();
+tiledlayout(1,length(margNames),'TileIndexing','columnmajor');
+for nc = 1:length(margNames)
+    for i = 1:1
+        nexttile();
+        hold on;
+        title(margNames{nc});
+        if(i==1)
+            view(0,90);
+        elseif(i==2)
+            view(0,0);
+        elseif(i==3)
+            view(90,0);
+        end
+        xlabel('X');ylabel('Y');zlabel('Z');
+        splitProj = squeeze(cellfun(@(s) squeeze(s),num2cell(squeeze(projT(1:3,nc,:,:,:)),[1 3 4]),'UniformOutput',false));
+        for c = 1:length(splitProj)
+            if(nc==1)
+                plotSeg = findBins(mean(cell2mat(reshape(cellfun(@(m) mean(m(:,contains(maxSegL,...
+                    ["GoSignal","StartReach","StartHold"])),1,'omitnan'), allSegs, 'UniformOutput',false),[],1)),1,'omitnan'),params.bins(plotTime));
+            else
+                plotSeg = findBins(mean(cell2mat(reshape(cellfun(@(m) mean(m(:,contains(maxSegL,...
+                    ["GoSignal","StartReach","StartHold"])),1,'omitnan'), allSegs(:,c), 'UniformOutput',false),[],1)),1,'omitnan'),params.bins(plotTime));
+            end
+            plot3(squeeze(splitProj{c}(1,:)),squeeze(splitProj{c}(2,:)),squeeze(splitProj{c}(3,:)),...
+                'Color',colors(c,:),'LineStyle','-','LineWidth',1.5);
+            scatter3(squeeze(splitProj{c}(1,1)),squeeze(splitProj{c}(2,1)),squeeze(splitProj{c}(3,1)),...
+                'black','o','sizeData',150,'MarkerFaceColor','k');
+            scatter3(squeeze(splitProj{c}(1,plotSeg)),squeeze(splitProj{c}(2,plotSeg)),squeeze(splitProj{c}(3,plotSeg)),...
+                'black','x','sizeData',150,'MarkerFaceColor','k');
+        end
+    end
+end
+
+
+%%
+conditions = ["Extra Small Sphere", "Large Sphere", "Photocell"];
+params = PhysRecording(conditions,.01,.15,-6,6,containers.Map(conditions,repmat({"StartReach"},1,length(conditions))));
+winSz = .2; pVal=0.05;
+savePath = "S:\Lab\ngc14\Working\dPCA\PMd\PSTHS\";
+phaseNames = categorical(["Go","Go", "Reach", "Hold","Withdraw"],'Ordinal',true);
+taskAlign = containers.Map(conditions,{{["GoSignal" "StartHold"]},{["GoSignal","StartHold"]},...
+    {["GoSignal","StartHold"]}});
+taskWindow =repmat({{[winSz, 0]}},1,length(conditions));
+phaseWindows = repmat({{[-.5,-.5+winSz],[0, winSz],[-winSz*(3/4),winSz*(1/4)],...
+    [-winSz*(5/4), -winSz*(1/4)],[-winSz*(1/4),winSz*(3/4)]}},1,length(conditions));
+phaseWindows{end}{3} = [-winSz/2 0];
+allSegs = params.condSegMap.values;
+
+condPhaseAlign = containers.Map(conditions,cellfun(@(s) arrayfun(@(p) s(~contains(s,"Replace") & contains(s,string(p))), ...
+    phaseNames,'Uniformoutput',false),allSegs,'UniformOutput',false));
+taskAlign = containers.Map(conditions,{{"GoSignal"},{"GoSignal"},{"GoSignal"}});
+taskWindow =repmat({{[-winSz, 1]}},1,length(conditions));
+
+[~,maxSegL]= max(cellfun(@length,allSegs));
+maxSegL = allSegs{maxSegL};
+[siteDateMap, siteSegs, siteTrialPSTHS, ~, siteChannels, chMaps,~,~,errs]=...
+    getAllSessions(params,"Single","PMd","");
+%% unit somatotopy and channel number
+siteRep =cellfun(@(r,t) r(find(t==min(t+(double(ismember(r,"Face"))*100)),1)),siteDateMap.SiteRep,siteDateMap.Thresh,'UniformOutput', false);
+siteRep(cellfun(@isempty,siteRep)) = {"Face"};
+siteRep = cell2mat(siteRep);
+allCondCue = cellfun(@(c) cellfun(@(a) cellfun(@(t) findBins(t(:,contains(maxSegL,"Go"))-5,params.bins),a,'UniformOutput',false),...
+    c),siteSegs,'UniformOutput',false);
+normBaseline = cellfun(@(p,t) cellfun(@(a,n) permute(cell2mat(cellfun(@(o,m) mean(o(:,max(1,m):(max(1,m)+(1/params.binSize))),2,'omitnan'),...
+    squeeze(num2cell(a,[1,2])),num2cell(n),'UniformOutput',false)'),[1 3 2]),p,t,'UniformOutput',false),siteTrialPSTHS,allCondCue,"UniformOutput",false);
+normPSTH = cellfun(@(cp,nb) cellfun(@(p,b) mean(p./max(1,b),3,'omitnan'),cp,nb,'UniformOutput',false),siteTrialPSTHS,normBaseline,'Uniformoutput', false);
+avgPSTH = cellfun(@cell2mat, normPSTH,'UniformOutput',false);
+chUnitMap = cellfun(@(m) m{end},chMaps,'UniformOutput',false);
+%%
+sumSegs = cellfun(@(c) cellfun(@(n) cat(3,n{:}), c, 'UniformOutput',false), siteSegs,'UniformOutput',false);
+for c = 1:length(conditions)
+    nanSegs = find(sum(isnan(cell2mat(sumSegs{c})),[1,3])-(length(size(sumSegs{c}{1})) * sum(all(isnan(cell2mat(sumSegs{c})),[2 3])))...
+        >prod(size(cell2mat(sumSegs{c}),[1,3]))/2 & [true(1,length(maxSegL)-1) 0]);
+    for a = 1:length(nanSegs)
+        for n = 1:length(sumSegs{c})
+            nextSeg = intersect(setdiff(1:size(sumSegs{c}{n},2),nanSegs),nanSegs(a)+1:size(sumSegs{c}{n},2));
+            sumSegs{c}{n}(:,nanSegs(a)) = sumSegs{c}{n}(:,nextSeg(1));
+        end
+    end
+end
+sSegs = cellfun(@(c)cellfun(@(s) {s},c,'UniformOutput',false),sumSegs,'UniformOutput',false);
+[taskBaseline,taskFR] = calculatePhases(params,taskAlign,taskWindow,sSegs,siteTrialPSTHS,false,true);
+[~,tUnit] = cellfun(@(tb,tc) cellfun(@(b,cn) ttestTrials(b,cn,1,true,pVal),tb,tc,'UniformOutput',false),taskBaseline,taskFR,'UniformOutput', false);
+[~,phaseFR] = calculatePhases(params,condPhaseAlign,phaseWindows,sSegs,siteTrialPSTHS,false,true);
+[~,avgPhase] = calculatePhases(params,condPhaseAlign,phaseWindows,sSegs,normPSTH,false,false);
+tUnit = cellfun(@(t) true(length(t),1),tUnit,'UniformOutput',false);
+%%
+figure()
+tiledlayout(1,3)
+nexttile(); hold on
+arrayfun(@(p) plot([p,p],[0 5], 'k--'),mean(cell2mat(sumSegs{1}),1,'omitnan')); title("ESS"); xlim([min(params.bins),max(params.bins)]);
+shadedErrorBar(params.bins,avgPSTH{1}(tUnit{1}>0,:),{@(m) mean(m,1,'omitnan'), @(s) std(s,0,1,'omitnan')/sqrt(size(s,1))},'lineProps',{'Color',[1 0 0],'LineWidth',2})
+nexttile(); hold on
+arrayfun(@(p) plot([p,p],[0 5], 'k--'),mean(cell2mat(sumSegs{2}),1,'omitnan')); title("LS"); xlim([min(params.bins),max(params.bins)]);
+shadedErrorBar(params.bins,avgPSTH{2}(tUnit{2}>0,:),{@(m) mean(m,1,'omitnan'), @(s) std(s,0,1,'omitnan')/sqrt(size(s,1))},'lineProps',{'Color',[1 .7 0],'LineWidth',2})
+nexttile(); hold on
+arrayfun(@(p) plot([p,p],[0 5], 'k--'),mean(cell2mat(sumSegs{3}),1,'omitnan')); title("P"); xlim([min(params.bins),max(params.bins)]);
+shadedErrorBar(params.bins,avgPSTH{3}(tUnit{3}>0,:),{@(m) mean(m,1,'omitnan'), @(s) std(s,0,1,'omitnan')/sqrt(size(s,1))},'lineProps',{'Color',[0 0 1],'LineWidth',2})
 %%
 function iterAcc = shufflePermTest(shuffledPop,fStart,fStop,nUnits,dsr,fp)
 permInd = cellfun(@(s) randperm(length(s),length(s)), shuffledPop,'UniformOutput',false);
@@ -1079,14 +1242,13 @@ close all;
 %         ~isnan(permute(repmat(i,[1,1,size(p,1)]),[3 2 1])),2),[1 3 2]),ps,'UniformOutput', false),up,ua,'UniformOutput',...
 %         false),psthPhases,masterTrialPSTH{c},'UniformOutput', false);
 %%
-function bin = findBins(allBins, timePoint)
-binSize = mode(diff(allBins));
-if(isempty(timePoint))
-    bin = NaN;
+function bins = findBins(timesT,allBins)
+if(~any(~isnan(timesT)))
+    bins =NaN(size(timesT));
 else
-    bin = find(isalmost(allBins,timePoint,binSize/1.99),1);
-end
-if(isempty(bin))
-    bin = NaN;
+    if(any(timesT<min(allBins)))
+        timesT(timesT<min(allBins)) = min(allBins);
+    end
+    bins = discretize(timesT,allBins);
 end
 end

@@ -963,7 +963,7 @@ end
 
 %%
 conditions = ["Extra Small Sphere", "Large Sphere", "Photocell"];
-params = PhysRecording(conditions,.01,.15,-6,6,containers.Map(conditions,repmat({"StartReach"},1,length(conditions))));
+params = PhysRecording(conditions,.01,.15,-10,6,containers.Map(conditions,repmat({"StartReach"},1,length(conditions))));
 winSz = .2; pVal=0.05;
 savePath = "S:\Lab\ngc14\Working\dPCA\PMd\PSTHS\";
 phaseNames = categorical(["Go","Go", "Reach", "Hold","Withdraw"],'Ordinal',true);
@@ -988,14 +988,7 @@ maxSegL = allSegs{maxSegL};
 siteRep =cellfun(@(r,t) r(find(t==min(t+(double(ismember(r,"Face"))*100)),1)),siteDateMap.SiteRep,siteDateMap.Thresh,'UniformOutput', false);
 siteRep(cellfun(@isempty,siteRep)) = {"Face"};
 siteRep = cell2mat(siteRep);
-allCondCue = cellfun(@(c) cellfun(@(a) cellfun(@(t) findBins(t(:,contains(maxSegL,"Go"))-5,params.bins),a,'UniformOutput',false),...
-    c),siteSegs,'UniformOutput',false);
-normBaseline = cellfun(@(p,t) cellfun(@(a,n) permute(cell2mat(cellfun(@(o,m) mean(o(:,max(1,m):(max(1,m)+(1/params.binSize))),2,'omitnan'),...
-    squeeze(num2cell(a,[1,2])),num2cell(n),'UniformOutput',false)'),[1 3 2]),p,t,'UniformOutput',false),siteTrialPSTHS,allCondCue,"UniformOutput",false);
-normPSTH = cellfun(@(cp,nb) cellfun(@(p,b) mean(p./max(1,b),3,'omitnan'),cp,nb,'UniformOutput',false),siteTrialPSTHS,normBaseline,'Uniformoutput', false);
-avgPSTH = cellfun(@cell2mat, normPSTH,'UniformOutput',false);
 chUnitMap = cellfun(@(m) m{end},chMaps,'UniformOutput',false);
-%%
 sumSegs = cellfun(@(c) cellfun(@(n) cat(3,n{:}), c, 'UniformOutput',false), siteSegs,'UniformOutput',false);
 for c = 1:length(conditions)
     nanSegs = find(sum(isnan(cell2mat(sumSegs{c})),[1,3])-(length(size(sumSegs{c}{1})) * sum(all(isnan(cell2mat(sumSegs{c})),[2 3])))...
@@ -1007,12 +1000,18 @@ for c = 1:length(conditions)
         end
     end
 end
+allCondCue = cellfun(@(c) cellfun(@(a) cellfun(@(t) findBins(t(:,contains(maxSegL,"Go"))-10,params.bins),a,'UniformOutput',false),...
+    c),siteSegs,'UniformOutput',false);
+normBaseline = cellfun(@(p,t) cellfun(@(a,n) permute(cell2mat(cellfun(@(o,m) mean(o(:,max(1,m):(max(1,m)+(4/params.binSize))),2,'omitnan'),...
+    squeeze(num2cell(a,[1,2])),num2cell(n),'UniformOutput',false)'),[1 3 2]),p,t,'UniformOutput',false),siteTrialPSTHS,allCondCue,"UniformOutput",false);
+normPSTH = cellfun(@(cp,nb) cellfun(@(p,b) mean(p./max(1,b),3,'omitnan'),cp,nb,'UniformOutput',false),siteTrialPSTHS,normBaseline,'Uniformoutput', false);
+avgPSTH = cellfun(@cell2mat, normPSTH,'UniformOutput',false);
 sSegs = cellfun(@(c)cellfun(@(s) {s},c,'UniformOutput',false),sumSegs,'UniformOutput',false);
 [taskBaseline,taskFR] = calculatePhases(params,taskAlign,taskWindow,sSegs,siteTrialPSTHS,false,true);
 [~,tUnit] = cellfun(@(tb,tc) cellfun(@(b,cn) ttestTrials(b,cn,1,true,pVal),tb,tc,'UniformOutput',false),taskBaseline,taskFR,'UniformOutput', false);
 [~,phaseFR] = calculatePhases(params,condPhaseAlign,phaseWindows,sSegs,siteTrialPSTHS,false,true);
 [~,avgPhase] = calculatePhases(params,condPhaseAlign,phaseWindows,sSegs,normPSTH,false,false);
-tUnit = cellfun(@(t) true(length(t),1),tUnit,'UniformOutput',false);
+tUnit = cellfun(@(t) cell2mat(t),tUnit,'UniformOutput',false);
 %%
 figure()
 tiledlayout(1,3)

@@ -868,7 +868,6 @@ normBaseline = cellfun(@(p,t) cellfun(@(a,n) mean(a(:,n(find(~isnan(n),1)):n(fin
 normPSTH = cellfun(@(cp,nb) cellfun(@(p,b)mean(p,3,'omitnan')./max(1,mean(b,3,'omitnan')),cp,nb,'UniformOutput',false),num2cell([siteTrialPSTHS{:}],2),...
     normBaseline,'Uniformoutput', false);
 normPSTH = num2cell(vertcat(normPSTH{:}),1);
-avgPSTH = cellfun(@cell2mat, normPSTH,'UniformOutput',false);
 chUnitMap = cellfun(@(m) m{end},chMaps,'UniformOutput',false);
 %%
 sumSegs = cellfun(@(c) cellfun(@(n) cat(3,n{:}), c, 'UniformOutput',false), siteSegs,'UniformOutput',false);
@@ -1000,30 +999,43 @@ for c = 1:length(conditions)
         end
     end
 end
-allCondCue = cellfun(@(c) cellfun(@(a) cellfun(@(t) findBins(t(:,contains(maxSegL,"Go"))-10,params.bins),a,'UniformOutput',false),...
+allCondCue = cellfun(@(c) cellfun(@(a) cellfun(@(t) findBins(t(:,contains(maxSegL,"StartTrial")),params.bins),a,'UniformOutput',false),...
     c),siteSegs,'UniformOutput',false);
-normBaseline = cellfun(@(p,t) cellfun(@(a,n) permute(cell2mat(cellfun(@(o,m) mean(o(:,max(1,m):(max(1,m)+(4/params.binSize))),2,'omitnan'),...
+normBaseline = cellfun(@(p,t) cellfun(@(a,n) permute(cell2mat(cellfun(@(o,m) mean(o(:,max(1,m):(max(1,m)+(2/params.binSize))),2,'omitnan'),...
     squeeze(num2cell(a,[1,2])),num2cell(n),'UniformOutput',false)'),[1 3 2]),p,t,'UniformOutput',false),siteTrialPSTHS,allCondCue,"UniformOutput",false);
 normPSTH = cellfun(@(cp,nb) cellfun(@(p,b) mean(p./max(1,b),3,'omitnan'),cp,nb,'UniformOutput',false),siteTrialPSTHS,normBaseline,'Uniformoutput', false);
-avgPSTH = cellfun(@cell2mat, normPSTH,'UniformOutput',false);
 sSegs = cellfun(@(c)cellfun(@(s) {s},c,'UniformOutput',false),sumSegs,'UniformOutput',false);
 [taskBaseline,taskFR] = calculatePhases(params,taskAlign,taskWindow,sSegs,siteTrialPSTHS,false,true);
-[~,tUnit] = cellfun(@(tb,tc) cellfun(@(b,cn) ttestTrials(b,cn,1,true,pVal),tb,tc,'UniformOutput',false),taskBaseline,taskFR,'UniformOutput', false);
+[~,tUnits] = cellfun(@(tb,tc) cellfun(@(b,cn) ttestTrials(b,cn,1,true,pVal),tb,tc,'UniformOutput',false),taskBaseline,taskFR,'UniformOutput', false);
 [~,phaseFR] = calculatePhases(params,condPhaseAlign,phaseWindows,sSegs,siteTrialPSTHS,false,true);
 [~,avgPhase] = calculatePhases(params,condPhaseAlign,phaseWindows,sSegs,normPSTH,false,false);
-tUnit = cellfun(@(t) cell2mat(t),tUnit,'UniformOutput',false);
 %%
+tUnit = cellfun(@(t) true(size(cell2mat(t),1),1),tUnits,'UniformOutput',false);
+mapSites2Units( ,
 figure()
-tiledlayout(1,3)
-nexttile(); hold on
-arrayfun(@(p) plot([p,p],[0 5], 'k--'),mean(cell2mat(sumSegs{1}),1,'omitnan')); title("ESS"); xlim([min(params.bins),max(params.bins)]);
-shadedErrorBar(params.bins,avgPSTH{1}(tUnit{1}>0,:),{@(m) mean(m,1,'omitnan'), @(s) std(s,0,1,'omitnan')/sqrt(size(s,1))},'lineProps',{'Color',[1 0 0],'LineWidth',2})
-nexttile(); hold on
-arrayfun(@(p) plot([p,p],[0 5], 'k--'),mean(cell2mat(sumSegs{2}),1,'omitnan')); title("LS"); xlim([min(params.bins),max(params.bins)]);
-shadedErrorBar(params.bins,avgPSTH{2}(tUnit{2}>0,:),{@(m) mean(m,1,'omitnan'), @(s) std(s,0,1,'omitnan')/sqrt(size(s,1))},'lineProps',{'Color',[1 .7 0],'LineWidth',2})
-nexttile(); hold on
-arrayfun(@(p) plot([p,p],[0 5], 'k--'),mean(cell2mat(sumSegs{3}),1,'omitnan')); title("P"); xlim([min(params.bins),max(params.bins)]);
-shadedErrorBar(params.bins,avgPSTH{3}(tUnit{3}>0,:),{@(m) mean(m,1,'omitnan'), @(s) std(s,0,1,'omitnan')/sqrt(size(s,1))},'lineProps',{'Color',[0 0 1],'LineWidth',2})
+tiledlayout(1,2)
+clrs = [1 0 0; .8 .5 0; 0 0 .8];
+for t = 1:2
+    if(t==1)
+        plotPSTH = cellfun(@cell2mat, normPSTH,'UniformOutput',false);
+        titleName = "Baseline Normalized: [TrialInitiate to +2s]";
+    elseif(t==2)
+        plotPSTH = cellfun(@(c) cell2mat(cellfun(@(s) mean(s,3,'omitnan'), c, 'UniformOutput',false)),siteTrialPSTHS, 'UniformOutput',false);
+        titleName = "Non-normalized";
+    elseif(t==3)
+
+    end
+    nexttile(); hold on;  yL = 0;
+    for c = 1:3
+        shadedErrorBar(params.bins,plotPSTH{c}(tUnit{c}>0,:),{@(m) mean(m,1,'omitnan'), @(s) std(s,0,1,'omitnan')/sqrt(size(s,1))},'lineProps',{'Color',clrs(c,:),'LineWidth',2})
+        title(titleName);xlim([min(params.bins),max(params.bins)]);yL = max(yL,1+max(mean(plotPSTH{c},1,'omitnan')+3*(...
+            std(plotPSTH{c},0,1,'omitnan')/sqrt(size(plotPSTH{c},1))),[],'all'));
+    end
+    l = get(gca,'Children'); ylim([0 yL]);
+    legend(l(strcmp(get(l,'Type'),'line')),params.condNames,'AutoUpdate','off');
+    arrayfun(@(p) plot([p,p],[0 yL], 'k--'),mean(cell2mat(vertcat(sumSegs{:})),1,'omitnan'));
+end
+
 %%
 function iterAcc = shufflePermTest(shuffledPop,fStart,fStop,nUnits,dsr,fp)
 permInd = cellfun(@(s) randperm(length(s),length(s)), shuffledPop,'UniformOutput',false);

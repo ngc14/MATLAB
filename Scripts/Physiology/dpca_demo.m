@@ -282,7 +282,7 @@ ylabel(["Z-score"]);
 title(['Single-Trial Trajectories for ' margNames{targMarg}, ' Component ',  num2str(targNum)]);
 legendEntries = cellfun(@(c) arrayfun(@(s) plot([NaN,NaN],[NaN,NaN],'LineWidth',3,'LineStyle',s,'Color',c),["-","--"]),num2cell(colors,2),'UniformOutput',false);
 legend([legendEntries{:}], reshape(["Arm","Hand"]'+"="+params.condAbbrev.values,[],1), 'Location', 'best');
-%%
+%% plot weights by location
 figure();
 tiledlayout(3,3);
 gcounts = {};
@@ -317,7 +317,7 @@ for c = 1:length(combinedParams)+1
     end
 end
 %saveFigures(gcf,"S:\Lab\ngc14\Working\DataHigh\Centered\Demixed\Weights\","Hand-Laminar",[]);
-%%
+%% project data into PC space with weights swapped by somatotopy
 [~,peakTimes] = max(firingRatesAverage(somaIndex,1,:),[],3);
 [~,sI] = sort(allLocations(somaIndex,1)*ImagingParameters.px2mm);
 somatotopicID = somatotopicID(somaIndex);
@@ -334,7 +334,7 @@ dpca_plot(firingRatesAverage(somaIndex,:,:,:), WS, VS, @dpca_plot_default, ...
     'legendSubplot', {16,params.condNames},'ylims',[]);
 Xcen = bsxfun(@minus, firingRatesAverage(somaIndex,:)', mean(firingRatesAverage(somaIndex,:)'));
 corr( Xcen * W, Xcen*WS);
-%%
+%% plot 2d trajectories first first 3 components
 saveFig = false;
 somaColors = containers.Map(["Arm","Hand"],{[0 1 .2],[.8 0 1]});
 savePath = "S:\Lab\ngc14\Working\DataHigh\Centered\Demixed\";
@@ -417,7 +417,7 @@ for t = 1:length(plotSeg)
         end
     end
 end
-%%
+%% canonical correlations ?
 a = corr(Z);b = V'*V;[~, psp] = corr(V(:,1:20), 'type', 'Kendall');
 map = tril(a,-1)+triu(b);
 r = [5 48 97]/256;w = [.95 .95 .95];b = [103 0 31]/256;c1 = zeros(128,3);c2 = zeros(128,3);

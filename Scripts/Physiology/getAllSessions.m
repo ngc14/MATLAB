@@ -62,6 +62,7 @@ parfor  i = 1:numSites
             if(~isempty(dirChannels))
                 firstChannel = load([strcat(dirChannels(1).folder,"\",dirChannels(1).name)]);
                 if(~isfield(firstChannel,'allUnits'))
+                    disp(['Appending allUnits to saved session: ', currSession.Date,'...']);
                     saveAllSpikes(dir(physDir{1}(1:end-8)));
                 end
                 if(any(cellfun(@(n) contains(n,wildcardPattern+("S"|"s")+"ort"),{dir(physDir{1}(1:end-8)).name})) && ...
@@ -145,7 +146,7 @@ parfor  i = 1:numSites
                 trialInfo{i} = currTrials(cellfun(@(a) ismember(a,conditions),currTrials(:,1)),:);
                 siteSegs{i} = currSeg;
                 siteTrialPSTHS{i} = currTrialPSTHS;
-                rawSpikes{i} = alignedSpikes;
+                rawSpikes{i} = allSpikes;
             end
         catch ME
             errors{i} = {ME,currSession.Date};
@@ -175,7 +176,7 @@ siteTrialPSTHS = num2cell(vertcat(siteTrialPSTHS{nonEmptyInd}),1);
 siteActiveInd = num2cell(vertcat(siteActiveInd{nonEmptyInd}),1);
 channelMap = channelMap(nonEmptyInd);
 trialInfo = vertcat(trialInfo(nonEmptyInd));
-rawSpikes = num2cell(vertcat(rawSpikes{nonEmptyInd}),1);
+rawSpikes = vertcat(rawSpikes(nonEmptyInd))';
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% voronoi tiles for each monkey
 siteMasks = repmat({},1,height(siteDateMap));
@@ -212,24 +213,22 @@ function saveAllSpikes(sortedDir)
     resDir = dir([sortedDir(1).folder,'\Results\*.mat']);
     [~,sortRes]= natsort({resDir.name});
     resDir = resDir(sortRes);
-    if(~isempty(resDir))
-        [~,hFile] = ns_OpenFile(sortedFile);
-        for r = 1:length(resDir)
-            mFile = matfile([resDir(r).folder,'\',resDir(r).name],'Writable',true);
-            [dataTime, ids] = loadSpikeData(hFile,r);
-            if(~isempty(dataTime))
-                sortedIDs = unique(ids);
-                sortedIDs = sortedIDs(sortedIDs>0 & sortedIDs<255);
-                allUnits = cell(1,length(sortedIDs));
-                for u = 1:length(sortedIDs)
-                    allUnits{u} = dataTime(ids==sortedIDs(u));
-                end
-            else
-                allUnits = {};
+    [~,hFile] = ns_OpenFile(sortedFile);
+    for r = 1:length(resDir)
+        mFile = matfile([resDir(r).folder,'\',resDir(r).name],'Writable',true);
+        [dataTime, ids] = loadSpikeData(hFile,r);
+        if(~isempty(dataTime))
+            sortedIDs = unique(ids);
+            sortedIDs = sortedIDs(sortedIDs>0 & sortedIDs<255);
+            allUnits = cell(1,length(sortedIDs));
+            for u = 1:length(sortedIDs)
+                allUnits{u} = dataTime(ids==sortedIDs(u));
             end
-            mFile.allUnits = allUnits;
+        else
+            allUnits = {};
         end
-        ns_CloseFile(hFile);
-        clear mFile;
+        mFile.allUnits = allUnits;
     end
+    ns_CloseFile(hFile);
+    clear mFile;
 end

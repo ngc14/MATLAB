@@ -109,6 +109,7 @@ dpca_plot(firingRatesAverage, W, V, @dpca_plot_default,'explainedVar', explVar, 
 %% Step 4: dPCA with regularization
 %load('optimalLambda'), noise covariance matrix Cnoise provides substantial regularization itself (even with lambda=0).
 somaIndex = true(length(somatotopicID),1);%nLocations(:,1)*ImagingParameters.px2mm < 4 & nLocations(:,1)*ImagingParameters.px2mm >2 ;%somaIndex = (somatotopicID=="Arm" | somatotopicID=="Hand" | somatotopicID == "Trunk");% | somatotopicID == "Face"); %true(size(somatotopicID));
+somaIndex = allLocations(:,1).*ImagingParameters.px2mm >10.5;% & allLocations(:,1).*ImagingParameters.px2mm <=10.5;
 optimalLambda = dpca_optimizeLambda(firingRatesAverage(somaIndex,:,plotTime,:),firingRates(somaIndex,:,plotTime,:,:),...
     trialNum(somaIndex,:,:),'combinedParams', combinedParams, 'simultaneous', false,'numRep', 10);
 Cnoise = dpca_getNoiseCovariance(firingRatesAverage(somaIndex,:,plotTime,:), ...

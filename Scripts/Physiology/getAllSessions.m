@@ -213,16 +213,29 @@ function saveAllSpikes(sortedDir)
     resDir = dir([sortedDir(1).folder,'\Results\*.mat']);
     [~,sortRes]= natsort({resDir.name});
     resDir = resDir(sortRes);
-    [~,hFile] = ns_OpenFile(sortedFile);
+    if(strcmp(sortedFile(end-3:end),'.plx'))
+        hFile = plx_info(sortedFile,1);
+    elseif(strcmp(sortedFile(end-3:end),'.nev'))
+        [~,hFile] = ns_OpenFile(sortedFile);
+    end
     for r = 1:length(resDir)
         mFile = matfile([resDir(r).folder,'\',resDir(r).name],'Writable',true);
-        [dataTime, ids] = loadSpikeData(hFile,r);
+        if(strcmp(sortedFile(end-3:end),'.plx'))
+            dataTime = nonzeros(hFile(2:end,r+1));
+            ids = find(hFile(2:end,r+1));
+        elseif(strcmp(sortedFile(end-3:end),'.nev'))
+            [dataTime, ids] = loadSpikeData(hFile,r);
+        end
         if(~isempty(dataTime))
             sortedIDs = unique(ids);
             sortedIDs = sortedIDs(sortedIDs>0 & sortedIDs<255);
             allUnits = cell(1,length(sortedIDs));
             for u = 1:length(sortedIDs)
-                allUnits{u} = dataTime(ids==sortedIDs(u));
+                if(strcmp(sortedFile(end-3:end),'.nev'))
+                    allUnits{u} = dataTime(ids==sortedIDs(u));
+                elseif(strcmp(sortedFile(end-3:end),'.plx'))
+                    [~,allUnits{u}] = plx_ts(sortedFile,r, sortedIDs(u));
+                end
             end
         else
             allUnits = {};

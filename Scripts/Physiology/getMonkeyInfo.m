@@ -61,6 +61,7 @@ allLocs = [cellfun(@double, rawRef(mappedSiteInds,xInd), 'UniformOutput', true),
     cellfun(@double, rawRef(mappedSiteInds,yInd), 'UniformOutput', true)];
 validSiteInds = find(validSiteInds);
 [allReps, allThreshs] = deal(cell(length(validSiteInds),1));
+erLabels = MotorMapping.evokedResponseCategorization.keys();
 for r = 1:length(validSiteInds)
     currLoc = [double(rawRef{validSiteInds(r),xInd}), ...
         double(rawRef{validSiteInds(r),yInd})];
@@ -70,7 +71,6 @@ for r = 1:length(validSiteInds)
     % site to current recorded site
     currERs = regexp(rawRef{mappedSiteInds(minMappedInd),erInd},',','split');
     thresh = rawRef{mappedSiteInds(minMappedInd),threshInd};
-    erLabels = MotorMapping.evokedResponseCategorization.keys();
     mappedERs = cellfun(@(e) find(cellfun(@(ab) contains(strip(e),ab), ...
         erLabels),1),currERs);
     allReps{r} = string(values(MotorMapping.evokedResponseCategorization,...

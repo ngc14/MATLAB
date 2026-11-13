@@ -9,18 +9,16 @@ taskAlign = containers.Map(conditions,{{["GoSignal" "StartHold"]},{["GoSignal","
 taskWindow =repmat({{[winSz, 0]}},1,length(conditions));
 phaseWindows = repmat({{[1,1+winSz],[0, winSz],[-winSz*(3/4),winSz*(1/4)],...
     [-winSz*(5/4), -winSz*(1/4)],[-winSz*(1/4),winSz*(3/4)]}},1,length(conditions));
-phaseWindows{end}{3} = [-winSz/2 0];
+phaseWindows{end}{phaseNames=="Hold"} = [-winSz/2 0];
 allSegs = params.condSegMap.values;
 [~,maxSegL]= max(cellfun(@length,allSegs));
 maxSegL = allSegs{maxSegL};
 condPhaseAlign = containers.Map(conditions,cellfun(@(s) arrayfun(@(p) s(~contains(s,"Replace") & contains(s,string(p))), phaseNames,'Uniformoutput',false),allSegs,'UniformOutput',false));
-taskAlign = containers.Map(conditions,{{"GoSignal"},{"GoSignal"},{"GoSignal"}});
-taskWindow =repmat({{[winSz, 1]}},1,length(conditions));
 %%
 [siteDateMap, siteSegs, siteTrialPSTHS, ~, siteChannels, chMaps,~,~]=...
-    getAllSessions(params,"Single","PMd","");
+    getAllSessions(params,"Single","M1","");
 %% unit somatotopy and channel number
-siteRep =cellfun(@(r,t) r(find(t==min(t+(double(ismember(r,"Face"))*100)),1)),siteDateMap.SiteRep,siteDateMap.Thresh,'UniformOutput', false);
+siteRep =cellfun(@(r,t) r(find(t+(double(ismember(r,"Face"))*100)==min(t+(double(ismember(r,"Face"))*100)),1,'last')),siteDateMap.SiteRep,siteDateMap.Thresh,'UniformOutput', false);
 siteRep(cellfun(@isempty,siteRep)) = {"Face"};
 siteRep = cell2mat(siteRep);
 allCondCue = cellfun(@(c) cellfun(@(a) cellfun(@(t) findBins(mean(t(:,contains(maxSegL,"Go"))-4,'omitnan'),params.bins),a),...
@@ -93,7 +91,7 @@ for c = 1:length(conditions)
     condTable.gSI = condTable.Hold./(condTable.Reach+condTable.Hold);
     condTable.rgSI = (condTable.Reach - condTable.Hold)./(condTable.Reach+condTable.Hold);
     condTable.unitType = typeUnits{c};
-    [~,maxInd] = max(cell2mat(cellfun(@(m) mean(m,3),normPSTH{c},'UniformOutput',false)),[],2);
+    [~,maxInd] = max(cell2mat(cellfun(@(m) mean(m.*repmat([NaN(1,950),ones(1,300),NaN(1,251)],size(m,1),1),3),normPSTH{c},'UniformOutput',false)),[],2); %
     condTable.maxFRTime = params.bins(maxInd)'./~all(isnan(AUCVals),2);
     tPhys = [tPhys;condTable];
 end

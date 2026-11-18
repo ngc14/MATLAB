@@ -72,13 +72,16 @@ if GET_EVENTS
         % Only consider time stamps for rising edge (eventData = 0 on falling edge)
         eventTimes_risingEdge = eventTimeStamps(eventTimes == 32767);
         eventTimes_fallingEdge = eventTimeStamps(eventTimes == 0);
+        spikeChannels = cellfun(@(a) strcmp(a, 'Segment'), {hFile.Entity.EntityType});
         ns_status = ns_CloseFile(hFile);
     else
         [~,eventEntityID]=plx_event_chanmap(filePath);
+        [~,spikeChannels] = plx_chan_names(filePath);
+        spikeChannels = cellfun(@(s) contains(s,'Nano2_stim.'),cellstr(spikeChannels));
         if(any(eventEntityID==257))
             [~,eventTimes,~] = plx_event_ts(filePath,257);
-            eventTimes_risingEdge = eventTimes(1:end-1);
-            eventTimes_fallingEdge = eventTimes(2:end);
+            eventTimes_risingEdge = eventTimes(1:2:end);
+            eventTimes_fallingEdge = eventTimes(2:2:end);
         end
     end
 end
@@ -260,7 +263,6 @@ if(length(startEventIdx)~=length(endEventIdx))
     disp(sessionDate)
     return;
 end
-spikeChannels = cellfun(@(a) strcmp(a, 'Segment'), {hFile.Entity.EntityType});
 %% Process session
 for f = 1:sum(spikeChannels)
     fullName = [monkey,'_', char(sessionDate),'_', num2str(f)];

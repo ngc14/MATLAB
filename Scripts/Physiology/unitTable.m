@@ -3,20 +3,20 @@ params = PhysRecording(string(conditions),.01,.15,-10,5,containers.Map(condition
     {"StartReach","StartReach","StartReach"}));
 winSz = .2; pVal=0.05;
 savePath = "S:\Lab\ngc14\Working\Revisions\PSTHS_ESS\";
-phaseNames = categorical(["StartTrial","Go", "Reach", "Hold","Withdraw"],'Ordinal',true);
+phaseNames = categorical(["Go", "Reach", "Hold","Withdraw"],'Ordinal',true);
 taskAlign = containers.Map(conditions,{{["GoSignal" "StartHold"]},{["GoSignal","StartHold"]},...
     {["GoSignal","StartHold"]}});
 taskWindow =repmat({{[winSz, 0]}},1,length(conditions));
-phaseWindows = repmat({{[1,1+winSz],[0, winSz],[-winSz*(3/4),winSz*(1/4)],...
+phaseWindows = repmat({{[0, winSz],[-winSz*(3/4),winSz*(1/4)],...
     [-winSz*(5/4), -winSz*(1/4)],[-winSz*(1/4),winSz*(3/4)]}},1,length(conditions));
-phaseWindows{end}{phaseNames=="Hold"} = [-winSz/2 0];
+phaseWindows{strcmp(conditions,"Photocell")}{phaseNames=="Hold"} = [-winSz/2 0];
 allSegs = params.condSegMap.values;
 [~,maxSegL]= max(cellfun(@length,allSegs));
 maxSegL = allSegs{maxSegL};
 condPhaseAlign = containers.Map(conditions,cellfun(@(s) arrayfun(@(p) s(~contains(s,"Replace") & contains(s,string(p))), phaseNames,'Uniformoutput',false),allSegs,'UniformOutput',false));
 %%
-[siteDateMap, siteSegs, siteTrialPSTHS, ~, siteChannels, chMaps,~,~]=...
-    getAllSessions(params,"Single","M1","");
+[siteDateMap, siteSegs, siteTrialPSTHS, ~, siteChannels, chMaps,~,~,errs]=...
+    getAllSessions(params,"Single","M1","Face");
 %% unit somatotopy and channel number
 siteRep =cellfun(@(r,t) r(find(t+(double(ismember(r,"Face"))*100)==min(t+(double(ismember(r,"Face"))*100)),1,'last')),siteDateMap.SiteRep,siteDateMap.Thresh,'UniformOutput', false);
 siteRep(cellfun(@isempty,siteRep)) = {"Face"};

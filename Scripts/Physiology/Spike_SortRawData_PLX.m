@@ -1,4 +1,4 @@
-function Spike_SortRawData(date)
+function Spike_SortRawData_PLX(date)
 sessionDate = '05_15_2019';
 if(exist('date', 'var'))
     sessionDate = date;
@@ -26,6 +26,9 @@ end
 %% File info
 nFiles = dir(['S:\Lab\Gilligan\All Data\Gilligan_', sessionDate, '\Physiology\']);
 nFiles = nFiles(~[nFiles.isdir]);
+[~,nSort]= sort([nFiles.datenum],'descend');
+nFiles = nFiles(nSort);
+
 nevFilesInd = cellfun(@(a) strcmp(a(regexp(a, '\.'):end), '.nev'), {nFiles.name});
 nevFiles = nFiles(nevFilesInd);
 nevInd = 1;
@@ -102,12 +105,12 @@ if(length(startEventIdx)~=length(endEventIdx))
     return
 end
 %% Process session
-plxInd = contains({nFiles.name}, '-sorted.plx');
-plxName = ['S:\Lab\Gilligan\All Data\Gilligan_',sessionDate,'\Physiology\',nFiles(plxInd).name];
+plxInd = find(contains({nFiles.name}, '-sorted') | contains({nFiles.name}, 'RASort'));
+plxName = ['S:\Lab\Gilligan\All Data\Gilligan_',sessionDate,'\Physiology\',nFiles(plxInd(1)).name];
 [~,channels] = plx_chan_names(plxName);
 info = plx_info(plxName,1);
-channelNums = find(any(info(:,2:end)>0,1));
-
+channelNums = 1:find(any(info(:,1:end)>0,1),1,'last')-1;
+%[~,channelNums] = natsort(cellstr(channels(cellfun(@(s) contains(s,'Nano2'),cellstr(channels)),:)));
 for f = 1:length(channelNums)
     fullName = ['Gilligan_', sessionDate,'_', num2str(f)];
     sortedIDs = find(info(2:end,channelNums(f)+1)>0);

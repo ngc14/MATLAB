@@ -4,7 +4,7 @@ function [siteDateMap,siteSegs,siteTrialPSTHS,rawSpikes,siteChannels,channelMap,
 drivePath = "S:\Lab\";
 monkeys = ["Gilligan", "Skipper"];
 badSession = arrayfun(@(d) datetime(d,'InputFormat','uuuu_MM_dd'),...
-    ["2019_04_05","2019_05_13","2019_11_11","2021_03_11","2022_05_26","2022_06_13","2022_06_15","2022_06_16",...
+    ["2019_04_05","2019_04_09","2019_05_13","2019_11_11","2021_03_11","2022_05_26","2022_06_13","2022_06_15","2022_06_16",...
     "2021_09_20","2022_06_22","2022_06_28","2022_07_11","2022_07_12"]);
 % PSTH parameters: bin sizes, smoothing kernel, seconds prior to zero
 % alignment,seconds after zero alignment, alignment point(s) for each condition
@@ -52,6 +52,7 @@ parfor  i = 1:numSites
     currSession.Date = char(du);
     physDir = strcat(drivePath,currSession.Monkey,"\All Data\", currSession.Monkey,"_",...
         string(currSession.Date),"\Physiology\Results\");
+    delete(physDir{1}(1:end-8)+"*.cache");
     if(~ismember(du,badSession))
         try
             if(isempty(dir(physDir+"*.mat")))
@@ -61,12 +62,12 @@ parfor  i = 1:numSites
             dirChannels = dir(physDir+"*.mat");
             if(~isempty(dirChannels))
                 firstChannel = load([strcat(dirChannels(1).folder,"\",dirChannels(1).name)]);
-                if(~isfield(firstChannel,'allUnits'))
+                if(~isfield(firstChannel,'allUnits') || (datenum(du) > datenum('09/20/2021') && datenum(du) < datenum('11/12/2021')))
                     disp(['Appending allUnits to saved session: ', currSession.Date,'...']);
                     saveAllSpikes(dir(physDir{1}(1:end-8)));
                 end
                 if(any(cellfun(@(n) contains(n,wildcardPattern+("S"|"s")+"ort"),{dir(physDir{1}(1:end-8)).name})) && ...
-                        (~isfield(firstChannel,'label') && ~contains(fieldnames(firstChannel,'-full'),'label')))
+                        (~isfield(firstChannel,'label') & ~any(contains(fieldnames(firstChannel,'-full'),'label'))))
                     disp(['Labeling session: ',currSession.Date,'...']);
                     labelSingleUnits(currSession.Date,char(currSession.Monkey));
                 end
@@ -207,8 +208,8 @@ for m = 1:length(monkeys)
 end
 end
 function saveAllSpikes(sortedDir)
-    chMap = loadChannelMap([sortedDir(1).folder,'\']);
-    [~,mostRecentSort] = max(cellfun(@(n,d) datenum(d)+(contains(n,wildcardPattern+("S"|"s")+"ort")./contains(n,wildcardPattern+("S"|"s")+"ort")),{sortedDir.name},{sortedDir.date}));
+    [~,mostRecentSort] = max(cellfun(@(n,d) d.*(contains(n,wildcardPattern+("S"|"s")+"ort")./...
+        contains(n,wildcardPattern+("S"|"s")+"ort")),{sortedDir.name},{sortedDir.datenum}));
     sortedFile = [sortedDir(1).folder,'\',sortedDir(mostRecentSort).name];
     resDir = dir([sortedDir(1).folder,'\Results\*.mat']);
     [~,sortRes]= natsort({resDir.name});
@@ -238,7 +239,7 @@ function saveAllSpikes(sortedDir)
                 end
             end
         else
-            allUnits = {};
+            allUnits{u} = {};
         end
         mFile.allUnits = allUnits;
     end

@@ -29,9 +29,9 @@ for d = 1:length(dateArray)
             ns5FilesInd = find(cellfun(@(a) contains(a,'.nf6'),names));
         end
         if(~isempty(ns5FilesInd))
-            [~,mostRecent]= sort({currDir(ns5FilesInd).date});
+            [~,mostRecent]= sort([currDir(ns5FilesInd).datenum],'descend');
             ns5FilesInd = ns5FilesInd(mostRecent);
-            ns5FilesInd = ns5FilesInd(end);
+            ns5FilesInd = ns5FilesInd(1);
             rawFile = [currDir(ns5FilesInd).folder, '\', currDir(ns5FilesInd).name];
             [~, hFileRaw] = ns_OpenFile(rawFile);
             spkInds = find(cellfun(@(s,u) strcmp(string(s), "Segment") & strcmp(u,'uV'),...
@@ -40,7 +40,7 @@ for d = 1:length(dateArray)
                 if(any(contains(names(sortedFile),'.plx')))
                     NEVFile = 0;
                     [~,mostRecent]=sort([currDir(cellfun(@(s) contains(s,'.plx'),...
-                        {currDir(sortedFile).name})).datenum]);
+                        {currDir(sortedFile).name})).datenum],'descend');
                     loadFile = currDir(sortedFile(mostRecent(1)));
                 else
                     NEVFile = 1;
@@ -59,7 +59,7 @@ for d = 1:length(dateArray)
                     tic
                     rawSigInds = find([hFileRaw.Entity.FileType] == find(contains({hFileRaw.FileInfo.Type},["ns5","nf6"])) & ...
                         cellfun(@(s) strcmp(deblank(s),'uV'), {hFileRaw.Entity.Units}));
-                    rawSigInds = rawSigInds(ismember([hFileRaw.Entity(rawSigInds).ElectrodeID],[hFileRaw.Entity(spkInds).ElectrodeID]));
+                    %rawSigInds = rawSigInds(ismember([hFileRaw.Entity(rawSigInds).ElectrodeID],[hFileRaw.Entity(spkInds).ElectrodeID]));
                     [~,rawSortInds] = sort(cellfun(@(r) str2double(extract(extractAfter(r,characterListPattern('. ')...
                         +wildcardPattern),digitsPattern)),{hFileRaw.Entity(rawSigInds).Label}));
                     rawSigInds = rawSigInds(rawSortInds);
@@ -91,7 +91,7 @@ for d = 1:length(dateArray)
                     end
                     %%
                     for e = 1:dirTotal
-                        sChInd = channelMap(e);
+                        sChInd = e; channelMap(e);
                         savedStruct = matfile([currName, subDirName,'\', channelMats{e}], 'Writable', true);
                         savedFields = fieldnames(savedStruct);
                         if(~any(contains(savedFields, 'label')) | writeLabels | plotWaveforms)

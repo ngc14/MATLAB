@@ -961,25 +961,21 @@ end
 
 
 %%
-conditions = ["Extra Small Sphere", "Large Sphere", "Photocell","Rest"];
-params = PhysRecording(conditions,.01,.15,-10,6,containers.Map(conditions,[repmat({"StartReach"},1,length(conditions)-1),{"GoSignal"}]));
-winSz = .2; pVal=0.05;
-savePath = "S:\Lab\ngc14\Working\dPCA\PMd\PSTHS\";
-phaseNames = categorical(["Go","Go", "Reach", "Hold","Withdraw"],'Ordinal',true);
+conditions = ["Extra Small Sphere", "Large Sphere", "Photocell"];
+params = PhysRecording(conditions,.01,.15,-10,6,containers.Map(conditions,repmat({"StartHold"},1,length(conditions))));
 taskAlign = containers.Map(conditions,{{["GoSignal" "StartHold"]},{["GoSignal","StartHold"]},...
-    {["GoSignal","StartHold"]},{["GoSignal","StartReplaceSuccess"]}});
+    {["GoSignal","StartHold"]}});
+allSegs = params.condSegMap.values;
+winSz = .2; pVal=0.05;
 taskWindow =repmat({{[winSz, 0]}},1,length(conditions));
+savePath = "S:\Lab\ngc14\Working\dPCA\PMd\PSTHS\";
+
+phaseNames = categorical(["Go","Go", "Reach", "Hold","Withdraw"],'Ordinal',true);
 phaseWindows = repmat({{[-.5,-.5+winSz],[0, winSz],[-winSz*(3/4),winSz*(1/4)],...
     [-winSz*(5/4), -winSz*(1/4)],[-winSz*(1/4),winSz*(3/4)]}},1,length(conditions));
-phaseWindows{end-1}{3} = [-winSz/2 0];
-phaseWindows{end} = {[0 0.2]};
-allSegs = params.condSegMap.values;
-
-condPhaseAlign = containers.Map(conditions(1:end-1),cellfun(@(s) arrayfun(@(p) s(~contains(s,"Replace") & contains(s,string(p))), ...
-    phaseNames,'Uniformoutput',false),allSegs(1:end-1),'UniformOutput',false));
-condPhaseAlign('Rest') = {["GoSignal"]};
-taskAlign = containers.Map(conditions,{{"GoSignal"},{"GoSignal"},{"GoSignal"},{"GoSignal"}});
-taskWindow =repmat({{[-winSz, 1]}},1,length(conditions));
+phaseWindows{strcmp(conditions,"Photocell")}{phaseNames=="Hold"}= [-winSz/2 0];
+condPhaseAlign = containers.Map(conditions,cellfun(@(s) arrayfun(@(p) s(max(1,find(~contains(s,"Replace") & contains(s,string(p))))), ...
+    phaseNames,'Uniformoutput',false),allSegs,'UniformOutput',false));
 
 [~,maxSegL]= max(cellfun(@length,allSegs));
 maxSegL = allSegs{maxSegL};
@@ -993,7 +989,7 @@ siteRep(cellfun(@isempty,siteRep)) = {"Face"};
 siteRep = cell2mat(siteRep);
 chUnitMap = cellfun(@(m) m{end},chMaps,'UniformOutput',false);
 sumSegs = cellfun(@(c) cellfun(@(n) cat(3,n{:}), c, 'UniformOutput',false), siteSegs,'UniformOutput',false);
-for c = 1:length(conditions)
+for c = 1:length(sumSegs)
     nanSegs = find(sum(isnan(cell2mat(sumSegs{c})),[1,3])-(length(size(sumSegs{c}{1})) * sum(all(isnan(cell2mat(sumSegs{c})),[2 3])))...
         >prod(size(cell2mat(sumSegs{c}),[1,3]))/2 & [true(1,length(maxSegL)-1) 0]);
     for a = 1:length(nanSegs)
@@ -1013,26 +1009,26 @@ sSegs = cellfun(@(c)cellfun(@(s) {s},c,'UniformOutput',false),sumSegs,'UniformOu
 [~,tUnits] = cellfun(@(tb,tc) cellfun(@(b,cn) ttestTrials(b,cn,1,true,pVal),tb,tc,'UniformOutput',false),taskBaseline,taskFR,'UniformOutput', false);
 [~,phaseFR] = calculatePhases(params,condPhaseAlign,phaseWindows,sSegs,siteTrialPSTHS,false,true);
 [~,avgPhase] = calculatePhases(params,condPhaseAlign,phaseWindows,sSegs,normPSTH,false,false);
-rAUC = cellfun(@(c) cellfun(@(a) a{1}{:,contains(string(phaseNames),"Reach")},c,'UniformOutput',false), phaseFR(1:end-1), 'UniformOutput',false);
-gAUC = cellfun(@(c) cellfun(@(a) a{1}{:,contains(string(phaseNames),"Hold")},c,'UniformOutput',false), phaseFR(1:end-1), 'UniformOutput',false);
+rAUC = cellfun(@(c) cellfun(@(a) a{1}{:,contains(string(phaseNames),"Reach")},c,'UniformOutput',false), phaseFR, 'UniformOutput',false);
+gAUC = cellfun(@(c) cellfun(@(a) a{1}{:,contains(string(phaseNames),"Hold")},c,'UniformOutput',false), phaseFR, 'UniformOutput',false);
 [gsubr,rgInds] = cellfun(@(cr,cg) cellfun(@(r,g) ttestTrials({{r}},{{g}},1,true,0.05),cr,cg,'UniformOutput',false),rAUC,gAUC, 'UniformOutput',false);
 gsubr = cellfun(@(c) cellfun(@(v) mean([v{:}],2,'omitnan'), c, 'UniformOutput',false),gsubr,'UniformOutput',false);
 typeUnits = cellfun(@(rg,v,t) sum(cumprod([cell2mat(rg)==1 & cell2mat(t)==1 & cell2mat(v)<0, cell2mat(rg)==1 & cell2mat(t)==1 & cell2mat(v)>0, ...
-    cell2mat(rg)==0 & cell2mat(t)==1] ==0,2),2)+1, rgInds,gsubr,tUnits(1:end-1), 'UniformOutput', false);
+    cell2mat(rg)==0 & cell2mat(t)==1] ==0,2),2)+1, rgInds,gsubr,tUnits, 'UniformOutput', false);
 for t = 1:length(typeUnits)
     typeUnits{t}(typeUnits{t}>3) = 0;
 end
 %%
 winSz = 5*params.binSize;
-testWindow = -3:winSz:3;
+testWindow = -3:winSz:4;
 timeUnits = cell(length(testWindow)-1,length(conditions));
 parfor wi = 1:length(testWindow)-1
-    [~,wiFR] = calculatePhases(params,containers.Map({'Extra Small Sphere','Large Sphere', 'Photocell'}, repmat({{{'StartReach'}}},length(conditions),1)),...
+    [~,wiFR] = calculatePhases(params,containers.Map({'Extra Small Sphere','Large Sphere', 'Photocell'}, num2cell(params.PSTHAlignments.values)),...
         repmat({{[testWindow(wi),testWindow(wi+1)]}},length(conditions),1),sSegs, siteTrialPSTHS,false,true);
     [~,timeUnits(wi,:)] = cellfun(@(tb,tc) cellfun(@(b,cn) ttestTrials(b,cn,1,true,pVal),tb,tc,'UniformOutput',false),taskBaseline, wiFR, 'UniformOutput',false);
 end
 timeUnits = cell2mat(reshape(cellfun(@cell2mat,timeUnits,'UniformOutput',false)',1,size(timeUnits,2),[]));
-colororder([1 0 0; 1 .7 0; 0 0 1;]); hold on;
+figure(); colororder([1 0 0; 1 .7 0; 0 0 1;]); hold on;
 plot(testWindow(1:end-1),squeeze(sum(timeUnits,1))'./size(timeUnits,1),'LineWidth',2);
 legend(conditions,'AutoUpdate','off');
 sTimes = mean(cell2mat(vertcat(sumSegs{:})),1,'omitnan');
@@ -1042,7 +1038,7 @@ tUnit = repmat({allLocations(:,1).*ImagingParameters.px2mm > 9.5},length(conditi
 tUnit = repmat({cell2mat(siteChannels)'>16},length(conditions),1);
 tUnit = cellfun(@(t) cell2mat(t),tUnits,'UniformOutput',false);
 tUnit = cellfun(@(t) t==3,typeUnits,'UniformOutput',false);
-tUnit{length(conditions)} = any(cell2mat([tUnits{1:end-1}]),2);
+%tUnit{length(conditions)} = any(cell2mat([tUnits{:}]),2);
 figure()
 tiledlayout(1,2)
 clrs = [1 0 0; .8 .5 0; 0 0 .8; .6 .6 .6];
@@ -1056,7 +1052,7 @@ for t = 1:2
     elseif(t==3)
 
     end
-    titleName = titleName + "Non-selective: " + num2str(cellfun(@(t) sum(t==3)./length(t),typeUnits),2);
+    titleName = titleName + " Non- selective: " + num2str(cellfun(@(t) sum(t==3)./length(t),typeUnits),2);
     nexttile(); hold on;  yL = 4+(21*double(t==2));
     for c = 1:length(conditions)
         shadedErrorBar(params.bins,plotPSTH{c}(tUnit{c}>0,:),{@(m) mean(m,1,'omitnan'), @(s) std(s,0,1,'omitnan')/sqrt(size(s,1))},'lineProps',{'Color',clrs(c,:),'LineWidth',2})
@@ -1065,7 +1061,7 @@ for t = 1:2
     end
     l = get(gca,'Children'); ylim([0 yL]);
     legend(flipud(l(strcmp(get(l,'Type'),'line'))),params.condNames,'AutoUpdate','off');
-    arrayfun(@(p) plot([p,p],[0 yL], 'k--'),mean(cell2mat(vertcat(sumSegs{1:end-1})),1,'omitnan'));
+    cellfun(@(sc,l) arrayfun(@(p) plot([p,p],[0 yL], 'Color',l,'LineStyle','--'),mean(vertcat(sc{:}),1,'omitnan')), sumSegs,num2cell(clrs(1:length(sumSegs),:),2)');
 end
 %%
 monkeys ="Gilligan";
@@ -1098,22 +1094,25 @@ for m = 1:length(monkeys)
             verticies(vCells{i},1),size(tempCircle,1),size(tempCircle,2));
     end
 end
+%%
 W = cellfun(@(c) cellfun(@(s) s{1},c,'UniformOutput',false), avgPhase, 'UniformOutput',false);
 W = cellfun(@(c) cell2mat(cellfun(@(s) [s{:}], c, 'Uniformoutput',false)), W, 'UniformOutput',false);
-cLim = [1 2];
+cLim = [1 7];
 cSteps = 256;
 cMap = [flipud([repmat(linspace(.9,0,cSteps/2)',1,2), ones(cSteps/2,1)]);[ones(cSteps/2,1), repmat(linspace(.9,0,cSteps/2)',1,2)]];
-cMap = colormap('parula'); cMap = cMap(1:cSteps,:);
+cMap = colormap('parula'); 
+cMap = ([repmat(linspace(.95,0,cSteps)',1,2),linspace(1,.7,cSteps)']);
+cMap = cMap(1:cSteps,:);
 taskIndex = any(cell2mat(cellfun(@cell2mat,tUnits,'UniformOutput',false)),2);
 cMap = [.85,.85,.85;cMap; 1,1,1; .3,.3,.3];
 uv= 1:height(siteDateMap);
-tiledlayout(length(conditions),length(phaseNames),'TileIndexing','columnmajor','TileSpacing','tight');
-FRMapFig = cell(length(conditions),length(phaseNames));
+tiledlayout(length(conditions)-1,length(phaseNames),'TileIndexing','columnmajor','TileSpacing','compact');
+FRMapFig = cell(length(conditions)-1,length(phaseNames));
 for m = 1:length(phaseNames)
-    for c = 1:length(conditions)
+    for c = 1:length(conditions)-1
         nexttile(); hold on; axis ij;
-        wVals = W{c}(:,m);%.*(cell2mat(tUnits{c})./cell2mat(tUnits{c}));
-        spVals = groupsummary(wVals,mapSites2Units(cellfun(@length,siteChannels),uv),'mean');
+        wVals = typeUnits{c}==m.*(cell2mat(tUnits{c})./cell2mat(tUnits{c}));%W{c}(:,m)
+        spVals = groupsummary(wVals,mapSites2Units(cellfun(@length,siteChannels),uv),'sum')%./sum(cell2mat(vertcat(tUnits{c}))./cell2mat(vertcat(tUnits{c})),'omitnan');
         z = spVals - mean(spVals);          % Deviations from the mean
         title(phaseNames(m));
         [FRMapFig{m,c},ogCM] = mapUnitVals(vMask{"Gilligan"}{1},siteMasks(uv),...
@@ -1129,6 +1128,7 @@ for m = 1:length(phaseNames)
     end
 end
 cb = colorbar;
+cb.Location = 'westoutside';
 cb.Ticks = linspace(cb.Limits(1),cb.Limits(end),6);
 cb.TickLabels = arrayfun(@num2str,linspace(cLim(1),cLim(end),6),'UniformOutput',false);
 %%

@@ -1,6 +1,6 @@
 function Spike_SortRawData(date, monkeyName)
-sessionDate = '06_05_2019';
-monkey = 'Gilligan';
+sessionDate = '2021_11_11';
+monkey = 'Skipper';
 if(exist('date', 'var'))
     sessionDate = date;
 end
@@ -46,7 +46,7 @@ fileType = regexp(filePath,"[.]\S*",'match');
 if(strcmp(fileType,'.nev'))
     NEVFile = 1;clear mex; ns_SetLibrary('C:\Users\ngc14\MATLAB Drive\Scripts\neuroshare\nsNEVLibrary64.dll');
 elseif(strcmp(fileType,'.plx'))
-    NEVFile = 0;clear mex; ns_SetLibrary('C:\Users\ngc14\MATLAB Drive\Scripts\neuroshare\nsPlxLibrary64.dll');
+    NEVFile = 0;clear mex;
 end
 GET_EVENTS = false;
 eventTimeStamps = [];

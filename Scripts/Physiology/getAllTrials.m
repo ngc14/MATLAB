@@ -111,6 +111,8 @@ else
                     allUnits = l.allUnits;
                     allChSpikes(1,end+1:end+sum(goodUnits)) = allUnits(goodUnits);
                     clear l;
+                else
+                    allUnits = {};
                 end
                 trialSegs = cellfun(@(e) values(events,{e}),trials(:,1)', 'UniformOutput', false);
                 labs = labs(goodUnits);

@@ -1,5 +1,5 @@
 function Spike_SortRawData(date)
-sessionDate = '05_22_2019';
+sessionDate = '05_15_2019';
 if(exist('date', 'var'))
     sessionDate = date;
 end
@@ -25,6 +25,7 @@ end
 
 %% File info
 nFiles = dir(['S:\Lab\Gilligan\All Data\Gilligan_', sessionDate, '\Physiology\']);
+nFiles = nFiles(~[nFiles.isdir]);
 nevFilesInd = cellfun(@(a) strcmp(a(regexp(a, '\.'):end), '.nev'), {nFiles.name});
 nevFiles = nFiles(nevFilesInd);
 nevInd = 1;
@@ -105,16 +106,16 @@ plxInd = contains({nFiles.name}, '-sorted.plx');
 plxName = ['S:\Lab\Gilligan\All Data\Gilligan_',sessionDate,'\Physiology\',nFiles(plxInd).name];
 [~,channels] = plx_chan_names(plxName);
 info = plx_info(plxName,1);
-channelNums = find(info(1,:)>0)-1;
+channelNums = find(any(info(:,2:end)>0,1));
 
 for f = 1:length(channelNums)
     fullName = ['Gilligan_', sessionDate,'_', num2str(f)];
-    sortedIDs = sum(info(2:end,channelNums(f)+1)>0);
+    sortedIDs = find(info(2:end,channelNums(f)+1)>0);
     spikeTimes = cell(length(sortedIDs),length(startEventIdx));
     segmentTimes = cell(length(sortedIDs),length(startEventIdx));
 
     for u = 1:length(sortedIDs)
-        [~,dataUnits] = plx_ts(plxName,channels(channelNums(f),:),u);
+        [~,dataUnits] = plx_ts(plxName,channelNums(f),u);
         for n = 1:length(startEventIdx) % step through each event time
             % find index of event n
             [closestTimeStart, eventTimeInd] = min(abs(dataUnits-eventTimes_risingEdge(startEventIdx(n))));

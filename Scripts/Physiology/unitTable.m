@@ -18,7 +18,7 @@ condPhaseAlign = containers.Map(conditions,cellfun(@(s) arrayfun(@(p) s(~contain
 [siteDateMap, siteSegs, siteTrialPSTHS, ~, siteChannels, chMaps,~,~,errs]=...
     getAllSessions(params,"Single","M1","Face");
 %% unit somatotopy and channel number
-siteRep =cellfun(@(r,t) r(find(t+(double(ismember(r,"Face"))*100)==min(t+(double(ismember(r,"Face"))*100)),1,'last')),siteDateMap.SiteRep,siteDateMap.Thresh,'UniformOutput', false);
+siteRep =cellfun(@(r,t) r(find(t+(double(ismember(r,"Face"))*100)==min(t+(double(ismember(r,"Face"))*100)),1,'first')),siteDateMap.SiteRep,siteDateMap.Thresh,'UniformOutput', false);
 siteRep(cellfun(@isempty,siteRep)) = {"Face"};
 siteRep = cell2mat(siteRep);
 allCondCue = cellfun(@(c) cellfun(@(a) cellfun(@(t) findBins(mean(t(:,contains(maxSegL,"Go"))-4,'omitnan'),params.bins),a),...
@@ -91,7 +91,7 @@ for c = 1:length(conditions)
     condTable.gSI = condTable.Hold./(condTable.Reach+condTable.Hold);
     condTable.rgSI = (condTable.Reach - condTable.Hold)./(condTable.Reach+condTable.Hold);
     condTable.unitType = typeUnits{c};
-    [~,maxInd] = max(cell2mat(cellfun(@(m) mean(m.*repmat([NaN(1,950),ones(1,300),NaN(1,251)],size(m,1),1),3),normPSTH{c},'UniformOutput',false)),[],2); %
+    [~,maxInd] = max(cell2mat(cellfun(@(m) mean(m,3),normPSTH{c},'UniformOutput',false)),[],2); %.*repmat([NaN(1,950),ones(1,300),NaN(1,251)],size(m,1),1)
     condTable.maxFRTime = params.bins(maxInd)'./~all(isnan(AUCVals),2);
     tPhys = [tPhys;condTable];
 end

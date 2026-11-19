@@ -64,8 +64,6 @@ parfor  i = 1:numSites
                 firstChannel = load([strcat(dirChannels(1).folder,"\",dirChannels(1).name)]);
                 if(~isfield(firstChannel,'allUnits') || ismember(datenum(du), [738434,738435,738450,738468,738470,738471]))
                     disp(['Appending allUnits to saved session: ', currSession.Date,'...']);
-                    Spike_SortRawData(currSession.Date,char(currSession.Monkey));
-                    labelSingleUnits(currSession.Date,char(currSession.Monkey));
                     saveAllSpikes(dir(physDir{1}(1:end-8)));
                 end
                 if(any(cellfun(@(n) contains(n,wildcardPattern+("S"|"s")+"ort"),{dir(physDir{1}(1:end-8)).name})) && ...

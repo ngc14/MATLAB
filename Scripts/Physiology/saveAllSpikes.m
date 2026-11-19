@@ -23,9 +23,9 @@ for r = 1:length(resDir)
         sortedIDs = unique(ids);
         sortedIDs = sortedIDs(sortedIDs>0 & sortedIDs<255);
         allUnits = cell(1,length(sortedIDs));
-        % if(size(ss.SpikeTimes,1)~=length(sortedIDs))
-        %     disp(['Ch ', num2str(r), ': Mismatch unit labels']);
-        % end
+        if(size(ss.SpikeTimes,1)~=length(sortedIDs))
+            disp(['Ch ', num2str(r), ': Mismatch unit labels']);
+        end
         for u = 1:length(sortedIDs)
             if(strcmp(sortedFile(end-3:end),'.nev'))
                 allUnits{u} = dataTime(ids==sortedIDs(u));

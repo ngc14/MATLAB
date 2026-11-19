@@ -39,8 +39,8 @@ for d = 1:length(dateArray)
             if(any(sortedFile))
                 if(any(contains(names(sortedFile),'.plx')))
                     NEVFile = 0;
-                    [~,mostRecent]=sort([currDir(cellfun(@(s) contains(s,'.plx'),...
-                        {currDir(sortedFile).name})).datenum],'descend');
+                    [~,mostRecent]=sort([currDir(sortedFile(cellfun(@(s) contains(s,'.plx'),...
+                        {currDir(sortedFile).name}))).datenum],'descend');
                     loadFile = currDir(sortedFile(mostRecent(1)));
                 else
                     NEVFile = 1;

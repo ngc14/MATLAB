@@ -24,8 +24,8 @@ plotTime = findBins(plotTime(1):params.binSize:plotTime(end),params.bins);
 %%
 forwardTimes = cellfun(@(t) t(:,contains(maxSegL,["GoSignal","StartHold"])),...
     tPhys{:,contains(tPhys.Properties.VariableNames,"Segs_")}, 'UniformOutput',false);
-goodTrialInds = cellfun(@(p,t) cellfun(@(a,b) mean(a(max(1,b(1)):b(end)),'omitnan') > range(b)*params.binSize &  ...
-    mean(a(max(1,b(1)):b(end)),'omitnan') < 200 * range(b) *params.binSize,num2cell(p,1)',...
+goodTrialInds = cellfun(@(p,t) cellfun(@(a,b) mean(a(max(1,b(1)):max(1,b(end))),'omitnan') > range(b)*params.binSize &  ...
+    mean(a(max(1,b(1)):max(1,b(end))),'omitnan') < 200 * range(b) *params.binSize,num2cell(p,1)',...
     num2cell(findBins(t,params.bins),2)),tPhys{:,contains(tPhys.Properties.VariableNames,"PSTH_")},forwardTimes,'UniformOutput',false);
 
 tableInds = all(cellfun(@sum,goodTrialInds)>=sTrials,2);
@@ -109,7 +109,7 @@ dpca_plot(firingRatesAverage, W, V, @dpca_plot_default,'explainedVar', explVar, 
 %% Step 4: dPCA with regularization
 %load('optimalLambda'), noise covariance matrix Cnoise provides substantial regularization itself (even with lambda=0).
 somaIndex = true(length(somatotopicID),1);%nLocations(:,1)*ImagingParameters.px2mm < 4 & nLocations(:,1)*ImagingParameters.px2mm >2 ;%somaIndex = (somatotopicID=="Arm" | somatotopicID=="Hand" | somatotopicID == "Trunk");% | somatotopicID == "Face"); %true(size(somatotopicID));
-somaIndex = allLocations(:,1).*ImagingParameters.px2mm >10.5;% & allLocations(:,1).*ImagingParameters.px2mm <=10.5;
+%somaIndex = allLocations(:,1).*ImagingParameters.px2mm >10.5;% & allLocations(:,1).*ImagingParameters.px2mm <=10.5;
 optimalLambda = dpca_optimizeLambda(firingRatesAverage(somaIndex,:,plotTime,:),firingRates(somaIndex,:,plotTime,:,:),...
     trialNum(somaIndex,:,:),'combinedParams', combinedParams, 'simultaneous', false,'numRep', 10);
 Cnoise = dpca_getNoiseCovariance(firingRatesAverage(somaIndex,:,plotTime,:), ...
@@ -122,6 +122,16 @@ dpca_plot(firingRatesAverage(somaIndex,:,plotTime,:), W, V, @dpca_plot_default, 
     'whichMarg', whichMarg,'time', params.bins(plotTime),'timeEvents', timeEvents,'timeMarginalization', 2,...
     'legendSubplot', {16,params.condNames},'ylims',[]);
 Z =  bsxfun(@minus, reshape(firingRatesAverage(somaIndex,:,plotTime),sum(somaIndex),[])', mean(firingRatesAverage(somaIndex,:,plotTime),[2,3])')* W;
+%%
+bins = -2:params.binSize:2.5;
+figure();
+unitPSTHS= cellfun(@(m) mean(m(findBins(-2,params.bins):findBins(2.5,params.bins),:),2,'omitnan'), tPhys.PSTH_P,'UniformOutput',false);
+unitNormPSTHS = cell2mat(cellfun(@(u) u./max(u), unitPSTHS,'UniformOutput', false)')';
+[~,sortVals] = max(unitNormPSTHS,[],2);
+[~,sv]= sort(params.bins(sortVals));
+imagesc(unitNormPSTHS(sv,:)); colormap('jet')
+xticks(findBins(bins(1):.5:bins(end),bins));
+xticklabels(arrayfun(@(a) bins(a),xticks,'UniformOutput',false))
 %%
 mStep = 55.65;
 minBinPerc = 5;

@@ -13,7 +13,6 @@ siteRep =cellfun(@(r,t) r(find(t==min(t+(double(ismember(r,"Face"))*100)),1)),si
 siteRep(cellfun(@isempty,siteRep)) = {"Face"};
 siteRep = cell2mat(siteRep);
 mappedChannels = cellfun(@(ch,l) ch{2}(l(~isnan(l))), chMaps,siteChannels, 'Uniformoutput', false)';
-% normalize PSTHs to baseline activity (averaged 1s before Cue)
 sumSegs = cellfun(@(c) cellfun(@(n) [n{:}], c, 'UniformOutput',false), siteSegs,'UniformOutput',false);
 goSegs = cellfun(@(c) cellfun(@(a) cell2mat(cellfun(@(t) findBins(t(:,strcmp(maxSegL,"GoSignal"))-3,...
     params.bins),a,'UniformOutput',false)),c,'UniformOutput',false),siteSegs,'UniformOutput',false);
@@ -54,11 +53,11 @@ for c = 1:length(conditions)
             sumSegs{c}{n}(:,nanSegs(a)) = sumSegs{c}{n}(:,nextSeg(1));
         end
     end
-    currSegMap = cell2mat(params.condSegMap.values(cellstr(conditions(c))));
-    forwardTimes = cellfun(@(t) t(:,strcmp(currSegMap,"StartReplaceHold"))-t(:,strcmp(currSegMap,"GoSignal")),mapSites2Units(condUnitMapping,sumSegs{c}),'UniformOutput',false);
-    goodTrialInds = cellfun(@(t,b) ~isnan(b), vertcat(PSTH{:}), forwardTimes, 'UniformOutput',false);
-    condTable.PSTH = cellfun(@(t,i) permute(t(:,:,i),[2 3 1]),vertcat(PSTH{:}),goodTrialInds,'UniformOutput',false);
-    condTable.Segs = cellfun(@(s,i) s(i,:), mapSites2Units(condUnitMapping,sumSegs{c}),goodTrialInds, 'UniformOutput',false);
+    % currSegMap = cell2mat(params.condSegMap.values(cellstr(conditions(c))));
+    % forwardTimes = cellfun(@(t) t(:,strcmp(currSegMap,"StartReplaceHold"))-t(:,strcmp(currSegMap,"GoSignal")),mapSites2Units(condUnitMapping,sumSegs{c}),'UniformOutput',false);
+    % goodTrialInds = cellfun(@(t,b) ~isnan(b), vertcat(PSTH{:}), forwardTimes, 'UniformOutput',false);
+    condTable.PSTH = cellfun(@(t) permute(t(:,:,:),[2 3 1]),vertcat(PSTH{:}),'UniformOutput',false);
+    condTable.Segs = cellfun(@(s) s(:,:), mapSites2Units(condUnitMapping,sumSegs{c}), 'UniformOutput',false);
     tPhys = [tPhys;condTable];
 end
 tPhys = unstack(tPhys,condTable.Properties.VariableNames(find(strcmp(condTable.Properties.VariableNames,"Condition"))+1:end),"Condition");

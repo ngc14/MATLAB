@@ -25,8 +25,16 @@ if(strcmp(res, 'ns_OK'))
             chMapR = cellfun(@strtrim,chMapR(:,2)','UniformOutput',false);
         else
             chMapR = [hFile.Entity.ElectrodeID];
-            chMapR = arrayfun(@(e) "e"+sprintf('%02d',e), chMapR(chMapR~=0));
-            chs= arrayfun(@num2str,[hFile.Entity.ElectrodeID],'UniformOutput',false);
+            chMapR = chMapR(chMapR~=0);
+            nSkipped = diff([hFile.Entity.ElectrodeID])-1;
+            skippedChs = find(nSkipped>0);
+            nSkipped = nSkipped(skippedChs);
+            for s = 1:length(skippedChs)
+                chMapR(1+skippedChs(s)+nSkipped(s):end+nSkipped(s)) = chMapR(skippedChs(s)+nSkipped(s):end);
+                chMapR(1+skippedChs(s):skippedChs(s)+nSkipped(s)) = chMapR(skippedChs(s))+nSkipped(s); 
+            end
+            chs= arrayfun(@num2str,chMapR,'UniformOutput',false);
+            chMapR = arrayfun(@(e) "e"+sprintf('%02d',e), chMapR);
             chs = chs(cellfun(@(c) ~strcmp(c,"0"), chs));
         end
     end
